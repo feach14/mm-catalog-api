@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="../core/Core.csproj" />
+  <Project Path="Catalog.Api/Catalog.Api.csproj" />
+  <Project Path="Catalog.Database/Catalog.Database.csproj" />
+</Solution>

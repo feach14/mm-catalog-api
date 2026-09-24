@@ -1,0 +1,9 @@
+global using System.ComponentModel;
+global using System.Net;
+global using System.Net.Mime;
+global using System.Text.Json.Serialization;
+global using FluentValidation;
+global using Microsoft.AspNetCore.Authorization;
+global using Microsoft.AspNetCore.Mvc;
+global using Microsoft.EntityFrameworkCore;
+global using Microsoft.Extensions.Options;
