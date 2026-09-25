@@ -1,8 +1,8 @@
-using Catalog.Api.Features.MaterialCategories.ForAdmin.Dto;
-using Catalog.Database;
-using Core.CQRS;
-
 namespace Catalog.Api.Features.MaterialCategories.ForAdmin;
+
+using Core.CQRS;
+using Database;
+using Dto;
 
 public sealed record UpdateMaterialCategoryCommand(int Id, MaterialCategoryModel Category) : ICommand<UpdateMaterialCategoryCommandResult>;
 

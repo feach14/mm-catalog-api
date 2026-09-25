@@ -1,7 +1,7 @@
-using Catalog.Database;
-using Core.CQRS;
-
 namespace Catalog.Api.Features.MaterialCategories.ForAdmin;
+
+using Core.CQRS;
+using Database;
 
 public sealed record DeleteMaterialCategoryCommand(int Id) : ICommand<DeleteMaterialCategoryCommandResult>;
 

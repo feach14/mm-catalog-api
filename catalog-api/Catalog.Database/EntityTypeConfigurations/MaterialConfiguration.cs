@@ -1,8 +1,8 @@
-﻿using Catalog.Database.Entities;
+﻿namespace Catalog.Database.EntityTypeConfigurations;
+
+using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-
-namespace Catalog.Database.EntityTypeConfigurations;
 
 public class MaterialConfiguration : IEntityTypeConfiguration<Material>
 {
@@ -20,6 +20,6 @@ public class MaterialConfiguration : IEntityTypeConfiguration<Material>
         eb.HasMany(x => x.Images)
             .WithOne(x => x.Material)
             .HasForeignKey(x => x.MaterialId);
-        eb.HasIndex(x => x.OrderByCol);
+        eb.HasIndex(x => x.OrderByCol).IsUnique();
     }
 }

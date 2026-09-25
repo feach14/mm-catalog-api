@@ -1,8 +1,8 @@
-using Catalog.Api.Features.Materials.Public.Dto;
-using Catalog.Database;
-using Core.CQRS;
-
 namespace Catalog.Api.Features.Materials.Public;
+
+using Core.CQRS;
+using Database;
+using Dto;
 
 public sealed record GetAllMaterialsQuery(
     [property: Description("Признак: Добавить в выдачу материалы для кальулятора раскроя")] [property: FromQuery(Name = "raskroy")] bool Raskroy,

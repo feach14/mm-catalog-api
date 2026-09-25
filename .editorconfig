@@ -1,0 +1,41 @@
+﻿# top-most EditorConfig file
+root = true
+
+# Default settings (all files):
+# Use 4 spaces as indentation
+# A newline ending every file
+[*]
+end_of_line = crlf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 180
+
+###################################################################################################
+# File Extension Settings                                                                         #
+###################################################################################################
+
+# Xml project files
+[*.{csproj,vcxproj,vcxproj.filters,proj,nativeproj,locproj}]
+indent_size = 2
+
+# Xml files, Xml build files, Xml config files
+[*.{xml,builds,props,targets,ruleset,stylecop,config,nuspec,resx,vsixmanifest,vsct}]
+indent_size = 2
+
+# Json files
+[*.json]
+insert_final_newline = false
+
+[*.md]
+charset = utf-8
+
+[*.cs]
+# Сортировка Using
+dotnet_separate_import_directive_groups = false
+dotnet_sort_system_directives_first = true
+
+# Орфография VisualStudio
+# noinspection EditorConfigKeyCorrectness
+spelling_languages = en-us,ru-ru

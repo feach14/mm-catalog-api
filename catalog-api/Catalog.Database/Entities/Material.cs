@@ -1,9 +1,9 @@
 ﻿#pragma warning disable CS8618 // Параметры заполняются на уровне EF 
 
-using System.Diagnostics.CodeAnalysis;
-using Catalog.Database.Enums;
-
 namespace Catalog.Database.Entities;
+
+using System.Diagnostics.CodeAnalysis;
+using Enums;
 
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Local")]
 public sealed record Material

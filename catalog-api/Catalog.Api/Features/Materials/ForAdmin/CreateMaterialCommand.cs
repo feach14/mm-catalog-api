@@ -1,10 +1,10 @@
-using Catalog.Api.Features.Materials.ForAdmin.Dto;
-using Catalog.Database;
-using Catalog.Database.Entities;
-using Core.CQRS;
-using Microsoft.Extensions.Caching.Memory;
-
 namespace Catalog.Api.Features.Materials.ForAdmin;
+
+using Core.CQRS;
+using Database;
+using Database.Entities;
+using Dto;
+using Microsoft.Extensions.Caching.Memory;
 
 public sealed record CreateMaterialCommand(MaterialModel Material) : ICommand<CreateMaterialCommandResult>;
 
@@ -17,7 +17,9 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
         var materialName = command.Material.Name.Trim();
         if (await dbContext.Materials.AnyAsync(x => x.Name == materialName, ct))
             throw new BadHttpRequestException("Материал с таким названием уже существует.");
-
+        
+        var maxOrderByCol = await dbContext.Materials.MaxAsync(x => (int?)x.OrderByCol, ct) ?? 0;
+        
         var material = new Material
         {
             CategoryId = command.Material.CategoryId,
@@ -36,7 +38,7 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
             ExternalLink = command.Material.ExternalLink,
             Price = command.Material.Price,
             CountTypeEnum = command.Material.CountTypeEnum,
-            OrderByCol = await dbContext.Materials.Where(y => y.CategoryId == command.Material.CategoryId).MaxAsync(x => x.OrderByCol, ct) + 1
+            OrderByCol = maxOrderByCol + 1
         };
         await dbContext.Materials.AddAsync(material, ct);
         await dbContext.SaveChangesAsync(ct);

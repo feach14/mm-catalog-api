@@ -1,8 +1,8 @@
-﻿using System.Reflection;
-using Catalog.Database.Entities;
-using Microsoft.EntityFrameworkCore;
+﻿namespace Catalog.Database;
 
-namespace Catalog.Database;
+using System.Reflection;
+using Entities;
+using Microsoft.EntityFrameworkCore;
 
 // dotnet ef migrations add <название_миграции> --project Catalog.Database
 // dotnet ef database update  --project Catalog.Database

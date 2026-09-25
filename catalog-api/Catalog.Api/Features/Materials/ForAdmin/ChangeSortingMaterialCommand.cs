@@ -1,8 +1,8 @@
-using Catalog.Api.Enums;
-using Catalog.Database;
-using Core.CQRS;
-
 namespace Catalog.Api.Features.Materials.ForAdmin;
+
+using Core.CQRS;
+using Database;
+using Enums;
 
 public record ChangeSortingMaterialCommand(
     [property: Description("Id материала")] int Id,
@@ -16,51 +16,44 @@ public class ChangeSortingMaterialCommandHandler(CatalogDbContext dbContext) : I
 {
     public async Task<ChangeSortingMaterialCommandResult> Handle(ChangeSortingMaterialCommand command, CancellationToken ct)
     {
-        var materialEntity = await  dbContext.Materials
+        var materialEntity = await dbContext.Materials
             .Include(x => x.Category)
-            .FirstAsync(x => x.Id == command.Id, ct);
+            .FirstOrDefaultAsync(x => x.Id == command.Id && !x.Deleted, ct)
+            ?? throw new BadHttpRequestException($"Материал с id={command.Id} не найден.");
 
         var materials = await dbContext.Materials
             .Where(x => x.CategoryId == materialEntity.CategoryId && !x.Deleted)
             .OrderBy(x => x.OrderByCol)
             .ToArrayAsync(ct);
 
-        if (command.Direction == DirectionSortEnum.UP)
-        {
-            for (int i = 0; i < materials.Length; i++)
-            {                    
-                if (materials[i].Id == command.Id)
-                {
-                    if (i == 0)
-                        throw new BadHttpRequestException($"Первый элемент списка в коллекции '{materialEntity.Category.Name}'. Выше некуда.");
+        var materialIndex = Array.FindIndex(materials, x => x.Id == command.Id);
+        if (materialIndex < 0)
+            throw new BadHttpRequestException($"Материал с id={command.Id} не найден.");
 
-                    (materials[i - 1].OrderByCol, materials[i].OrderByCol) = 
-                        (materials[i].OrderByCol, materials[i - 1].OrderByCol);
-                    break;
-                }
-            }
-        }
-        if (command.Direction == DirectionSortEnum.DOWN)
+        var adjacentMaterialIndex = command.Direction switch
         {
-            for (var i = 0; i < materials.Length; i++)
-            {                    
-                if (materials[i].Id == command.Id)
-                {
-                    if (i == materials.Length - 1)
-                        throw new BadHttpRequestException($"Последний элемент списка в коллекции '{materialEntity.Category.Name}'. Ниже некуда.");
+            DirectionSortEnum.UP when materialIndex == 0 => throw new BadHttpRequestException($"Первый элемент списка в коллекции '{materialEntity.Category.Name}'. Выше некуда."),
+            DirectionSortEnum.DOWN when materialIndex == materials.Length - 1 => throw new BadHttpRequestException($"Последний элемент списка в коллекции '{materialEntity.Category.Name}'. Ниже некуда."),
+            DirectionSortEnum.UP => materialIndex - 1,
+            DirectionSortEnum.DOWN => materialIndex + 1,
+            _ => throw new BadHttpRequestException("Недопустимое направление сортировки.")
+        };
 
-                    (materials[i + 1].OrderByCol, materials[i].OrderByCol) = 
-                        (materials[i].OrderByCol, materials[i + 1].OrderByCol);
-                    break;
-                }
-            }
-        }
+        var material = materials[materialIndex];
+        var adjacentMaterial = materials[adjacentMaterialIndex];
+        var materialOrderByCol = material.OrderByCol;
+        var adjacentMaterialOrderByCol = adjacentMaterial.OrderByCol;
 
-        foreach (var material in materials)
-        {
-            dbContext.Materials.Update(material);
-        }
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+
+        material.OrderByCol = int.MinValue + material.Id;
         await dbContext.SaveChangesAsync(ct);
+
+        adjacentMaterial.OrderByCol = materialOrderByCol;
+        material.OrderByCol = adjacentMaterialOrderByCol;
+        await dbContext.SaveChangesAsync(ct);
+
+        await transaction.CommitAsync(ct);
 
         return new ChangeSortingMaterialCommandResult(true);
     }

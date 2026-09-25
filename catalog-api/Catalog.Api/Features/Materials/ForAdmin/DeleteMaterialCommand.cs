@@ -1,7 +1,7 @@
-using Catalog.Database;
-using Core.CQRS;
-
 namespace Catalog.Api.Features.Materials.ForAdmin;
+
+using Core.CQRS;
+using Database;
 
 public sealed record DeleteMaterialCommand(int Id) : ICommand<DeleteMaterialCommandResult>;
 
@@ -14,8 +14,8 @@ public class DeleteMaterialCommandHandler(CatalogDbContext dbContext) : ICommand
     {
         var material = await dbContext.Materials
             .Include(x => x.Images)
-            .Where(x => x.Id == command.Id)
-            .FirstAsync(ct);
+            .FirstOrDefaultAsync(x => x.Id == command.Id && !x.Deleted, ct)
+            ?? throw new BadHttpRequestException($"Материал с id={command.Id} не найден или уже удалён.");
 
         material.Name += " (удалён)";
         material.Deleted = true;

@@ -1,8 +1,8 @@
 ﻿// ReSharper disable UnusedAutoPropertyAccessor.Global
 
-using Catalog.Database.Enums;
-
 namespace Catalog.Api.Features.Materials.ForAdmin.Dto;
+
+using Database.Enums;
 
 public class MaterialModelValidator : AbstractValidator<MaterialModel>
 {

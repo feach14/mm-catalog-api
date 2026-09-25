@@ -1,7 +1,16 @@
 namespace Catalog.Api.Features.Materials.ForAdmin.Dto;
 
-public sealed record CachedFileDto(
-    [property: Description("Название файла")] string FileName, 
-    [property:JsonIgnore] byte[] Data,
-    [property: Description("Guid файла")] Guid FileGuid, 
-    [property: Description("Тип файла")] string ContentType);
+public class CachedFileDto
+{
+    [Description("Название файла")]
+    public required string FileName { get; init; }
+
+    [JsonIgnore]
+    public required byte[] Data { get; init; }
+
+    [Description("Guid файла")]
+    public required Guid FileGuid { get; init; }
+
+    [Description("Тип файла")]
+    public required string ContentType { get; init; }
+}

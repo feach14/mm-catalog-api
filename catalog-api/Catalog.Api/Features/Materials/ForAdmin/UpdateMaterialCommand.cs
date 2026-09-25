@@ -1,10 +1,10 @@
-using Catalog.Api.Features.Materials.ForAdmin.Dto;
-using Catalog.Database;
-using Catalog.Database.Entities;
-using Core.CQRS;
-using Microsoft.Extensions.Caching.Memory;
-
 namespace Catalog.Api.Features.Materials.ForAdmin;
+
+using Core.CQRS;
+using Database;
+using Database.Entities;
+using Dto;
+using Microsoft.Extensions.Caching.Memory;
 
 public sealed record UpdateMaterialCommand(int Id, MaterialModel Material) : ICommand<UpdateMaterialCommandResult>;
 

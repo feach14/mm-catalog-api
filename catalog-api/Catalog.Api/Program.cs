@@ -37,7 +37,11 @@ builder.Services
     .AddOpenApiFromConfig<Program>(builder.Configuration)
     .AddDomainNameCorsPolicy(appSettingsConfig.Cors.DomainName)
     .AddControllers()
-    .AddJsonOptions(options => options.JsonSerializerOptions.WriteIndented = true);
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.WriteIndented = true;
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
 builder.Services.AddDataProtection()
     .PersistKeysToDbContext<DataProtectionKeyDbContext>()

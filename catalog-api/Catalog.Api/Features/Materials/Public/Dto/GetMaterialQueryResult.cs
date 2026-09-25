@@ -1,6 +1,6 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿namespace Catalog.Api.Features.Materials.Public.Dto;
 
-namespace Catalog.Api.Features.Materials.Public.Dto;
+using System.Diagnostics.CodeAnalysis;
 
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
 public sealed record GetMaterialQueryResult

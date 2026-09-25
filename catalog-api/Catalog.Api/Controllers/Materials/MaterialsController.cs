@@ -1,14 +1,14 @@
-using Catalog.Api.Features.Materials;
-using Catalog.Api.Features.Materials.ForAdmin;
-using Catalog.Api.Features.Materials.ForAdmin.Dto;
-using Catalog.Api.Features.Materials.Public;
-using Catalog.Api.Features.Materials.Public.Dto;
+namespace Catalog.Api.Controllers.Materials;
+
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
+using Features.Materials;
+using Features.Materials.ForAdmin;
+using Features.Materials.ForAdmin.Dto;
+using Features.Materials.Public;
+using Features.Materials.Public.Dto;
 using Microsoft.AspNetCore.Authentication.Cookies;
-
-namespace Catalog.Api.Controllers.Materials;
 
 [Route("api/materials")]
 [OpenApiTagOrder(1)]
@@ -37,19 +37,19 @@ public class MaterialsController : BaseApiController
         handler.Handle(new GetMaterialQuery(id), HttpContext.RequestAborted);
 
     [HttpGet("admin")]
-    [EndpointSummary(nameof(AdminMaterials))]
-    [EndpointDescription("Список материалов для администрирования")]
+    [EndpointSummary(nameof(MaterialsForAdminPanel))]
+    [EndpointDescription("Список материалов для административной панели")]
     [ProducesResponseType(typeof(GetAllMaterialsForAdminQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Список материалов")]
-    public Task<GetAllMaterialsForAdminQueryResult> AdminMaterials(
+    public Task<GetAllMaterialsForAdminQueryResult> MaterialsForAdminPanel(
         [FromQuery] GetAllMaterialsForAdminQuery query,
         [FromServices] IQueryHandler<GetAllMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult> handler) =>
         handler.Handle(query, HttpContext.RequestAborted);
 
     [HttpGet("admin/{id:int}")]
-    [EndpointSummary(nameof(AdminMaterial))]
-    [EndpointDescription("Информация о материале для администрирования")]
+    [EndpointSummary(nameof(MaterialForAdminPanel))]
+    [EndpointDescription("Информация о материале для административной панели")]
     [ProducesResponseType(typeof(GetMaterialForAdminQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Материал")]
-    public Task<GetMaterialForAdminQueryResult> AdminMaterial(
+    public Task<GetMaterialForAdminQueryResult> MaterialForAdminPanel(
         [FromRoute, Description("Id материала")] int id,
         [FromServices] IQueryHandler<GetMaterialForAdminQuery, GetMaterialForAdminQueryResult> handler) =>
         handler.Handle(new GetMaterialForAdminQuery(id), HttpContext.RequestAborted);
@@ -91,6 +91,37 @@ public class MaterialsController : BaseApiController
         [FromServices] ICommandHandler<ChangeSortingMaterialCommand, ChangeSortingMaterialCommandResult> handler) =>
         handler.Handle(model, HttpContext.RequestAborted);
 
+    [HttpPost("images")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MaxImageRequestSize)]
+    [EndpointSummary(nameof(UploadMaterialImage))]
+    [EndpointDescription("Загрузка изображения материала в формате PNG, JPEG или WebP размером до 5 МБ")]
+    [ProducesResponseType(typeof(UploadMaterialImageCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Данные загруженного изображения")]
+    public async Task<UploadMaterialImageCommandResult> UploadMaterialImage(
+        [FromForm, Description("Файл изображения")] IFormFile file,
+        [FromServices] ICommandHandler<UploadMaterialImageCommand, UploadMaterialImageCommandResult> handler)
+    {
+        const int maxImageSize = 5 * 1024 * 1024;
+
+        if (file.Length == 0)
+            throw new BadHttpRequestException("Файл изображения пустой.");
+
+        if (file.Length > maxImageSize)
+            throw new BadHttpRequestException("Размер изображения не должен превышать 5 МБ.");
+
+        await using var stream = file.OpenReadStream();
+        await using var memoryStream = new MemoryStream();
+        await stream.CopyToAsync(memoryStream, HttpContext.RequestAborted);
+
+        var data = memoryStream.ToArray();
+        var contentType = GetImageContentType(data)
+                          ?? throw new BadHttpRequestException("Допустимы только изображения PNG, JPEG и WebP.");
+
+        return await handler.Handle(
+            new UploadMaterialImageCommand(file.FileName, data, contentType),
+            HttpContext.RequestAborted);
+    }
+
     [HttpGet("images/{fileGuid:guid}")]
     [AllowAnonymous]
     [EndpointSummary(nameof(MaterialImage))]
@@ -102,5 +133,21 @@ public class MaterialsController : BaseApiController
     {
         var image = await handler.Handle(new GetMaterialImageQuery(fileGuid), HttpContext.RequestAborted);
         return File(image.Data, image.ContentType);
+    }
+
+    private const long MaxImageRequestSize = 6 * 1024 * 1024;
+
+    private static string? GetImageContentType(byte[] data)
+    {
+        if (data.Length >= 8 && data[..8].SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }))
+            return MediaTypeNames.Image.Png;
+
+        if (data.Length >= 3 && data[..3].SequenceEqual(new byte[] { 255, 216, 255 }))
+            return MediaTypeNames.Image.Jpeg;
+
+        if (data.Length >= 12 && data[..4].SequenceEqual("RIFF"u8) && data[8..12].SequenceEqual("WEBP"u8))
+            return "image/webp";
+
+        return null;
     }
 }

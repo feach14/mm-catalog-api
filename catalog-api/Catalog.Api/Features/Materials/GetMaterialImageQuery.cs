@@ -1,9 +1,9 @@
-using Catalog.Api.Features.Materials.ForAdmin.Dto;
-using Catalog.Database;
-using Core.CQRS;
-using Microsoft.Extensions.Caching.Memory;
-
 namespace Catalog.Api.Features.Materials;
+
+using Core.CQRS;
+using Database;
+using ForAdmin.Dto;
+using Microsoft.Extensions.Caching.Memory;
 
 public sealed record GetMaterialImageQuery(Guid FileGuid) : IQuery<GetMaterialImageQueryResult>;
 
@@ -24,7 +24,13 @@ public class GetMaterialImageQueryHandler(CatalogDbContext dbContext, IMemoryCac
                throw new BadHttpRequestException($"Файл не найден. fileGuid={query.FileGuid}");
 
         memoryCache.Set(query.FileGuid, 
-            new CachedFileDto(string.Empty, image.Data, query.FileGuid, image.ContentType),
+            new CachedFileDto
+            {
+                FileName = string.Empty,
+                Data = image.Data,
+                FileGuid = query.FileGuid,
+                ContentType = image.ContentType
+            },
             absoluteExpirationRelativeToNow: TimeSpan.FromDays(1));
 
         return image;

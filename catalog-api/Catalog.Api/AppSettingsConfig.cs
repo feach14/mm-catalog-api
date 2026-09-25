@@ -1,6 +1,6 @@
-using Core.Configuration;
-
 namespace Catalog.Api;
+
+using Core.Configuration;
 
 public sealed record AppSettingsConfig
 {

@@ -1,8 +1,8 @@
-﻿using Catalog.Database.Entities;
+﻿namespace Catalog.Database.EntityTypeConfigurations;
+
+using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-
-namespace Catalog.Database.EntityTypeConfigurations;
 
 public class MaterialCategoryConfiguration : IEntityTypeConfiguration<MaterialCategory>
 {

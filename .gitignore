@@ -58,3 +58,4 @@ nunit-*.xml
 .idea
 .DS_Store
 *.user
+catalog-api/docs/TEST_EXECUTION.md

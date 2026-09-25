@@ -1,13 +1,13 @@
-﻿using Catalog.Api.Features.MaterialCategories;
-using Catalog.Api.Features.MaterialCategories.Dto;
-using Catalog.Api.Features.MaterialCategories.ForAdmin;
-using Catalog.Api.Features.MaterialCategories.ForAdmin.Dto;
+﻿namespace Catalog.Api.Controllers.Materials;
+
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
+using Features.MaterialCategories;
+using Features.MaterialCategories.Dto;
+using Features.MaterialCategories.ForAdmin;
+using Features.MaterialCategories.ForAdmin.Dto;
 using Microsoft.AspNetCore.Authentication.Cookies;
-
-namespace Catalog.Api.Controllers.Materials;
 
 [Route("api/materials/categories")]
 [OpenApiTagOrder(1)]
@@ -44,7 +44,7 @@ public class MaterialCategoriesController : BaseApiController
         handler.Handle(new CreateMaterialCategoryCommand(model), HttpContext.RequestAborted);
 
     [HttpPut("{id:int}")]
-    [EndpointSummary(nameof(CreateMaterialCategory))]
+    [EndpointSummary(nameof(UpdateMaterialCategory))]
     [EndpointDescription("Обновление информации у категории материалов")]
     [ProducesResponseType(typeof(UpdateMaterialCategoryCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
     public Task<UpdateMaterialCategoryCommandResult> UpdateMaterialCategory(
