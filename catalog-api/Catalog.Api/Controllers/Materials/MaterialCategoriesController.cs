@@ -16,6 +16,7 @@ namespace Catalog.Api.Controllers.Materials;
 public class MaterialCategoriesController : BaseApiController
 {
     [HttpGet]
+    [AllowAnonymous]
     [EndpointSummary(nameof(MaterialCategories))]
     [EndpointDescription("Список категорий материалов")]
     [ProducesResponseType(typeof(MaterialCategoryForAdminDto[]), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Список категорий")]
@@ -24,6 +25,7 @@ public class MaterialCategoriesController : BaseApiController
         handler.Handle(new GetAllMaterialCategoriesQuery(), HttpContext.RequestAborted);
     
     [HttpGet("{id:int}")]
+    [AllowAnonymous]
     [EndpointSummary(nameof(MaterialCategory))]
     [EndpointDescription("Информация о категории материалов")]
     [ProducesResponseType(typeof(GetMaterialCategoryQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Категория")]

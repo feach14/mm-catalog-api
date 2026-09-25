@@ -1,8 +1,8 @@
-using Catalog.Api.Features.Materials.ForLk.Dto;
+using Catalog.Api.Features.Materials.Public.Dto;
 using Catalog.Database;
 using Core.CQRS;
 
-namespace Catalog.Api.Features.Materials.ForLk;
+namespace Catalog.Api.Features.Materials.Public;
 
 public sealed record GetMaterialQuery(int Id) : IQuery<GetMaterialQueryResult>;
 
