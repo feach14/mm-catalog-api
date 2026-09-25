@@ -52,7 +52,7 @@ builder.Services
         options.Cookie.Domain = appSettingsConfig.Cookie.DomainName;
     });
 
-//builder.Services.AddSingleton<...>();
+builder.Services.AddMemoryCache();
 
 var app = builder.Build();
 await app.DataProtectionInit();

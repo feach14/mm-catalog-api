@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using Catalog.Database.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Catalog.Database;
@@ -16,4 +17,8 @@ public class CatalogDbContext(DbContextOptions<CatalogDbContext> _options) : DbC
         modelBuilder.HasDefaultSchema(SchemaName);
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
     }
+    
+    public DbSet<Material> Materials { get; init; }
+    public DbSet<MaterialCategory> MaterialCategories { get; init; }
+    public DbSet<MaterialImage> MaterialImages { get; init; }
 }
