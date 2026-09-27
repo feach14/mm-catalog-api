@@ -20,6 +20,7 @@ public class CatalogDbContext(DbContextOptions<CatalogDbContext> _options) : DbC
     
     public DbSet<Material> Materials { get; init; }
     public DbSet<MaterialSheetSize> MaterialSheetSizes { get; init; }
+    public DbSet<MaterialManufacturer> MaterialManufacturers { get; init; }
     public DbSet<MaterialCategory> MaterialCategories { get; init; }
     public DbSet<MaterialImage> MaterialImages { get; init; }
     public DbSet<ImageCache> ImageCache { get; init; }

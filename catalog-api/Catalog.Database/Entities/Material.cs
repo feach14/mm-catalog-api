@@ -16,6 +16,9 @@ public sealed record Material
     public required int MaterialSheetSizeId { get; set; }
     public MaterialSheetSize MaterialSheetSize { get; private set; }
 
+    public required int MaterialManufacturerId { get; set; }
+    public MaterialManufacturer MaterialManufacturer { get; private set; }
+
     public required string Name { get; set; }
     public required string Article { get; set; }
     public required double Depth { get; set; }

@@ -3,6 +3,7 @@ using System;
 using Catalog.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Catalog.Database.Migrations
 {
     [DbContext(typeof(CatalogDbContext))]
-    partial class CatalogDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260927171421_SeedManufacturersAndRequireManufacturer")]
+    partial class SeedManufacturersAndRequireManufacturer
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -51,6 +54,37 @@ namespace Catalog.Database.Migrations
                         .HasName("pk_image_cache");
 
                     b.ToTable("image_cache", "catalog");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.Manufacturer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("OrderByCol")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("order_by_col");
+
+                    b.HasKey("Id")
+                        .HasName("pk_manufacturers");
+
+                    b.HasIndex("OrderByCol")
+                        .IsUnique()
+                        .HasDatabaseName("ix_manufacturers_order_by_col");
+
+                    b.ToTable("manufacturers", "catalog");
                 });
 
             modelBuilder.Entity("Catalog.Database.Entities.Material", b =>
@@ -117,9 +151,9 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("double precision")
                         .HasColumnName("kv_m");
 
-                    b.Property<int>("MaterialManufacturerId")
+                    b.Property<int>("ManufacturerId")
                         .HasColumnType("integer")
-                        .HasColumnName("material_manufacturer_id");
+                        .HasColumnName("manufacturer_id");
 
                     b.Property<int>("MaterialSheetSizeId")
                         .HasColumnType("integer")
@@ -151,8 +185,8 @@ namespace Catalog.Database.Migrations
                     b.HasIndex("CategoryId")
                         .HasDatabaseName("ix_materials_category_id");
 
-                    b.HasIndex("MaterialManufacturerId")
-                        .HasDatabaseName("ix_materials_material_manufacturer_id");
+                    b.HasIndex("ManufacturerId")
+                        .HasDatabaseName("ix_materials_manufacturer_id");
 
                     b.HasIndex("MaterialSheetSizeId")
                         .HasDatabaseName("ix_materials_material_sheet_size_id");
@@ -236,37 +270,6 @@ namespace Catalog.Database.Migrations
                     b.ToTable("material_images", "catalog");
                 });
 
-            modelBuilder.Entity("Catalog.Database.Entities.MaterialManufacturer", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("name");
-
-                    b.Property<int>("OrderByCol")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("order_by_col");
-
-                    b.HasKey("Id")
-                        .HasName("pk_material_manufacturers");
-
-                    b.HasIndex("OrderByCol")
-                        .IsUnique()
-                        .HasDatabaseName("ix_material_manufacturers_order_by_col");
-
-                    b.ToTable("material_manufacturers", "catalog");
-                });
-
             modelBuilder.Entity("Catalog.Database.Entities.MaterialSheetSize", b =>
                 {
                     b.Property<int>("Id")
@@ -319,12 +322,12 @@ namespace Catalog.Database.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_materials_material_categories_category_id");
 
-                    b.HasOne("Catalog.Database.Entities.MaterialManufacturer", "MaterialManufacturer")
+                    b.HasOne("Catalog.Database.Entities.Manufacturer", "Manufacturer")
                         .WithMany("Materials")
-                        .HasForeignKey("MaterialManufacturerId")
+                        .HasForeignKey("ManufacturerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
-                        .HasConstraintName("fk_materials_material_manufacturers_material_manufacturer_id");
+                        .HasConstraintName("fk_materials_manufacturers_manufacturer_id");
 
                     b.HasOne("Catalog.Database.Entities.MaterialSheetSize", "MaterialSheetSize")
                         .WithMany("Materials")
@@ -335,7 +338,7 @@ namespace Catalog.Database.Migrations
 
                     b.Navigation("Category");
 
-                    b.Navigation("MaterialManufacturer");
+                    b.Navigation("Manufacturer");
 
                     b.Navigation("MaterialSheetSize");
                 });
@@ -352,17 +355,17 @@ namespace Catalog.Database.Migrations
                     b.Navigation("Material");
                 });
 
+            modelBuilder.Entity("Catalog.Database.Entities.Manufacturer", b =>
+                {
+                    b.Navigation("Materials");
+                });
+
             modelBuilder.Entity("Catalog.Database.Entities.Material", b =>
                 {
                     b.Navigation("Images");
                 });
 
             modelBuilder.Entity("Catalog.Database.Entities.MaterialCategory", b =>
-                {
-                    b.Navigation("Materials");
-                });
-
-            modelBuilder.Entity("Catalog.Database.Entities.MaterialManufacturer", b =>
                 {
                     b.Navigation("Materials");
                 });

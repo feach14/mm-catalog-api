@@ -19,6 +19,7 @@ public class GetMaterialQueryHandler(CatalogDbContext dbContext) : IQueryHandler
                    Name = x.Name,
                    Article = x.Article,
                    SheetSize = new SheetSizeDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name, x.MaterialSheetSize.Height, x.MaterialSheetSize.Width),
+                   Manufacturer = new ManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
                    Depth = x.Depth,
                    CommentOnMaterialIsRequired = x.CommentOnMaterialIsRequired,
                    Image = x.Images.Count != 0 ? x.Images.Select(g => g.Guid).First() : null,

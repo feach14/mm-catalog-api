@@ -28,6 +28,7 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
 
         material.CategoryId = command.Material.CategoryId;
         material.MaterialSheetSizeId = command.Material.SheetSizeId;
+        material.MaterialManufacturerId = command.Material.ManufacturerId;
         material.Article = command.Material.Article;
         material.Name = command.Material.Name;
         material.Depth = command.Material.Depth;

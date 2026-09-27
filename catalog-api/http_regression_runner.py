@@ -2,6 +2,7 @@
 import copy
 import json
 import os
+import socket
 import ssl
 import subprocess
 import sys
@@ -13,8 +14,8 @@ import urllib.request
 import uuid
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-API = "https://localhost:5005"
-ACCOUNTS = "https://localhost:5003"
+API = os.environ.get("CATALOG_API_URL", "https://localhost:5005")
+ACCOUNTS = os.environ.get("ACCOUNTS_API_URL", "https://localhost:5003")
 CTX = ssl._create_unverified_context()
 cookie = None
 server = None
@@ -23,7 +24,9 @@ results = {}
 created_materials = []
 created_categories = []
 created_sheet_sizes = []
+created_manufacturers = []
 primary_sheet_size_id = None
+primary_manufacturer_id = None
 guids = []
 
 
@@ -73,6 +76,16 @@ def upload(filename, content, content_type, auth=True):
 
 def start_server():
     global server, server_log
+    api_url = urllib.parse.urlparse(API)
+    try:
+        with socket.create_connection((api_url.hostname, api_url.port), timeout=0.5):
+            raise RuntimeError(
+                f"Catalog API port {api_url.port} is already occupied; "
+                "stop the existing process or set CATALOG_API_URL to a free port"
+            )
+    except (ConnectionRefusedError, TimeoutError, OSError):
+        pass
+
     server_log = tempfile.NamedTemporaryFile(prefix="catalog-http-", suffix=".log", dir=ROOT, delete=False)
     env = dict(os.environ)
     env["ASPNETCORE_ENVIRONMENT"] = "Development"
@@ -142,6 +155,12 @@ def sheet_sizes():
     return json_body(response)["items"]
 
 
+def manufacturers():
+    response = request("GET", "/api/materials/manufacturers")
+    expect(response[0], 200, "manufacturers list")
+    return json_body(response)["items"]
+
+
 def admin_materials():
     response = request("GET", "/api/materials/admin?raskroy=true&pvhFacades=true&emalFacades=true", auth=True)
     expect(response[0], 200, "admin material list")
@@ -172,10 +191,19 @@ def create_sheet_size(name, height, width):
     return size_id
 
 
+def create_manufacturer(name):
+    response = request("POST", "/api/materials/manufacturers", {"name": name}, auth=True)
+    expect(response[0], 200, "create manufacturer")
+    manufacturer_id = json_body(response)["id"]
+    created_manufacturers.append(manufacturer_id)
+    return manufacturer_id
+
+
 def material_model(name, category_id, flag, image=None):
     return {
         "categoryId": category_id,
         "sheetSizeId": primary_sheet_size_id,
+        "manufacturerId": primary_manufacturer_id,
         "name": name,
         "article": "ART-" + name[-8:],
         "image": image,
@@ -229,11 +257,19 @@ def cleanup():
                 created_sheet_sizes.remove(size_id)
         except Exception:
             pass
+    for manufacturer_id in list(reversed(created_manufacturers)):
+        try:
+            response = request("DELETE", f"/api/materials/manufacturers/{manufacturer_id}", auth=True)
+            if response[0] == 200:
+                created_manufacturers.remove(manufacturer_id)
+        except Exception:
+            pass
 
 
 def main():
-    global primary_sheet_size_id
+    global primary_sheet_size_id, primary_manufacturer_id
     prefix = "codex-http-" + time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
+    dimension_base = 10000 + int(uuid.uuid4().hex[:4], 16)
     png = b"\x89PNG\r\n\x1a\n" + b"catalog-png-test"
     jpeg = b"\xff\xd8\xff\xe0" + b"catalog-jpeg-test" + b"\xff\xd9"
     webp = b"RIFF" + (20).to_bytes(4, "little") + b"WEBP" + b"catalog-webp-test"
@@ -243,14 +279,14 @@ def main():
     expect(request("GET", "/api/materials/admin?raskroy=true", auth=True)[0], 200, "authorized client")
     mark("PREP-01—PREP-03", "manager cookie received; authorized and anonymous clients prepared")
 
-    primary_sheet_size_id = create_sheet_size("ЛДСП", 2800, 2070)
-    secondary_sheet_size_id = create_sheet_size("Столешница", 2440, 1220)
+    primary_sheet_size_id = create_sheet_size(prefix + "-size-a", dimension_base, dimension_base + 1)
+    secondary_sheet_size_id = create_sheet_size(prefix + "-size-b", dimension_base + 2, dimension_base + 3)
     expect(request("GET", "/api/materials/sheet-sizes")[0], 200, "public material sheet sizes")
     expect(request("GET", f"/api/materials/sheet-sizes/{primary_sheet_size_id}")[0], 200, "public material sheet size card")
-    expect(request("POST", "/api/materials/sheet-sizes", {"name": "Другое название", "height": 2800, "width": 2070}, auth=True)[0], 400, "duplicate material sheet size")
-    expect(request("POST", "/api/materials/sheet-sizes", {"name": "ЛДСП", "height": 1111, "width": 2222}, auth=True)[0], 400, "duplicate material sheet size name")
-    temporary_sheet_size_id = create_sheet_size("Временный", 300, 300)
-    expect(request("PUT", f"/api/materials/sheet-sizes/{temporary_sheet_size_id}", {"name": "Временный обновлённый", "height": 301, "width": 301}, auth=True)[0], 200, "update material sheet size")
+    expect(request("POST", "/api/materials/sheet-sizes", {"name": prefix + "-other", "height": dimension_base, "width": dimension_base + 1}, auth=True)[0], 400, "duplicate material sheet size")
+    expect(request("POST", "/api/materials/sheet-sizes", {"name": prefix + "-size-a", "height": dimension_base + 4, "width": dimension_base + 5}, auth=True)[0], 400, "duplicate material sheet size name")
+    temporary_sheet_size_id = create_sheet_size(prefix + "-size-temp", dimension_base + 6, dimension_base + 7)
+    expect(request("PUT", f"/api/materials/sheet-sizes/{temporary_sheet_size_id}", {"name": prefix + "-size-updated", "height": dimension_base + 8, "width": dimension_base + 9}, auth=True)[0], 200, "update material sheet size")
     expect(request("DELETE", f"/api/materials/sheet-sizes/{temporary_sheet_size_id}", auth=True)[0], 200, "delete free material sheet size")
     created_sheet_sizes.remove(temporary_sheet_size_id)
     mark("SIZE-01—SIZE-04", "create/list/card/duplicate/update/free delete passed")
@@ -272,6 +308,24 @@ def main():
         raise AssertionError("material sheet size was not moved down")
     mark("SIZE-08—SIZE-09", "material sheet size moved up and down")
 
+    primary_manufacturer_id = create_manufacturer(prefix + "-manufacturer-a")
+    secondary_manufacturer_id = create_manufacturer(prefix + "-manufacturer-b")
+    expect(request("GET", f"/api/materials/manufacturers/{primary_manufacturer_id}")[0], 200, "public manufacturer card")
+    expect(request("POST", "/api/materials/manufacturers", {"name": prefix + "-manufacturer-a"}, auth=True)[0], 400, "duplicate manufacturer")
+    temporary_manufacturer_id = create_manufacturer(prefix + "-manufacturer-temp")
+    expect(request("PUT", f"/api/materials/manufacturers/{temporary_manufacturer_id}", {"name": prefix + "-manufacturer-updated"}, auth=True)[0], 200, "update manufacturer")
+    expect(request("DELETE", f"/api/materials/manufacturers/{temporary_manufacturer_id}", auth=True)[0], 200, "delete free manufacturer")
+    created_manufacturers.remove(temporary_manufacturer_id)
+    expect(request("POST", "/api/materials/manufacturers/change-order-col", {"id": secondary_manufacturer_id, "direction": "UP"}, auth=True)[0], 200, "manufacturer up")
+    expect(request("POST", "/api/materials/manufacturers/change-order-col", {"id": secondary_manufacturer_id, "direction": "DOWN"}, auth=True)[0], 200, "manufacturer down")
+    own_manufacturers = [x["id"] for x in manufacturers() if x["id"] in (primary_manufacturer_id, secondary_manufacturer_id)]
+    if own_manufacturers != [primary_manufacturer_id, secondary_manufacturer_id]:
+        raise AssertionError("manufacturer sorting incorrect")
+    all_manufacturers = manufacturers()
+    expect(request("POST", "/api/materials/manufacturers/change-order-col", {"id": all_manufacturers[0]["id"], "direction": "UP"}, auth=True)[0], 400, "manufacturer upper boundary")
+    expect(request("POST", "/api/materials/manufacturers/change-order-col", {"id": all_manufacturers[-1]["id"], "direction": "DOWN"}, auth=True)[0], 400, "manufacturer lower boundary")
+    mark("MFR-01—MFR-06", "manufacturer CRUD, duplicate, sorting and boundaries passed")
+
     expect(request("GET", "/api/materials?raskroy=true")[0], 200, "public materials")
     expect(request("GET", "/api/materials/categories")[0], 200, "public categories")
     expect(request("GET", "/api/materials/admin?raskroy=true")[0], 401, "anonymous admin list")
@@ -282,6 +336,10 @@ def main():
         ("POST", "/api/materials/categories/change-order-col", {"categoryId": 1, "direction": "UP"}),
         ("POST", "/api/materials/sheet-sizes", {"name": "x", "height": 1, "width": 1}),
         ("POST", "/api/materials/sheet-sizes/change-order-col", {"id": 1, "direction": "UP"}),
+        ("POST", "/api/materials/manufacturers", {"name": "x"}),
+        ("PUT", "/api/materials/manufacturers/1", {"name": "x"}),
+        ("DELETE", "/api/materials/manufacturers/1", None),
+        ("POST", "/api/materials/manufacturers/change-order-col", {"id": 1, "direction": "UP"}),
     ]
     for method, path, body in anonymous_mutations:
         expect(request(method, path, body)[0], 401, f"anonymous {method} {path}")
@@ -343,14 +401,21 @@ def main():
     m2_model = material_model(prefix + "-mat-pvh", cat1, "pvhFacades")
     m3_model = material_model(prefix + "-mat-emal", cat2, "emalFacades")
     m1, m2, m3 = [create_material(x) for x in (m1_model, m2_model, m3_model)]
+    invalid_manufacturer_model = material_model(prefix + "-invalid-manufacturer", cat1, "raskroy")
+    invalid_manufacturer_model["manufacturerId"] = 2147483647
+    expect(request("POST", "/api/materials", invalid_manufacturer_model, auth=True)[0], 400, "invalid manufacturer id")
     expect(request("GET", f"/api/materials/{m1}")[0], 200, "public material card")
     expect(request("GET", f"/api/materials/admin/{m1}", auth=True)[0], 200, "admin material card")
     material_card = json_body(request("GET", f"/api/materials/{m1}"))
     if material_card["sheetSize"]["id"] != primary_sheet_size_id:
         raise AssertionError("material sheet size absent from material card")
-    if "orderByCol" in material_card["sheetSize"] or "orderByCol" in material_card["category"]:
+    if material_card["manufacturer"]["id"] != primary_manufacturer_id:
+        raise AssertionError("manufacturer absent from material card")
+    if "orderByCol" in material_card["sheetSize"] or "orderByCol" in material_card["category"] or "orderByCol" in material_card["manufacturer"]:
         raise AssertionError("nested material relations contain sorting fields")
     expect(request("DELETE", f"/api/materials/sheet-sizes/{primary_sheet_size_id}", auth=True)[0], 400, "delete used material sheet size")
+    expect(request("DELETE", f"/api/materials/manufacturers/{primary_manufacturer_id}", auth=True)[0], 400, "delete used manufacturer")
+    mark("MFR-07—MFR-08", "material relation visible; used manufacturer deletion rejected")
     mark("SIZE-05—SIZE-06", "material relation visible; used size deletion rejected")
     expect(request("GET", f"/api/materials/categories/{cat1}")[0], 200, "public category card after material")
     png_response = request("GET", "/api/materials/images/" + images[0][0])
@@ -476,6 +541,10 @@ def main():
     for size_id in (primary_sheet_size_id, secondary_sheet_size_id):
         expect(request("DELETE", f"/api/materials/sheet-sizes/{size_id}", auth=True)[0], 200, "delete free material sheet size")
         created_sheet_sizes.remove(size_id)
+    for manufacturer_id in (primary_manufacturer_id, secondary_manufacturer_id):
+        expect(request("DELETE", f"/api/materials/manufacturers/{manufacturer_id}", auth=True)[0], 200, "delete free manufacturer")
+        created_manufacturers.remove(manufacturer_id)
+    mark("MFR-08—MFR-09", "used manufacturer protected; free manufacturers deleted")
     mark("SIZE-07", "free material sheet sizes deleted")
     mark("CAT-10", "free categories deleted")
     remaining_category_ids = {x["id"] for x in categories()}
