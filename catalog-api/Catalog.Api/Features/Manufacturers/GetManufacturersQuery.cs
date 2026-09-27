@@ -1,8 +1,8 @@
-namespace Catalog.Api.Features.Manufacturers;
-
+using Catalog.Api.Features.Manufacturers.Dto;
+using Catalog.Database;
 using Core.CQRS;
-using Database;
-using Dto;
+
+namespace Catalog.Api.Features.Manufacturers;
 
 public sealed record GetManufacturersQuery : IQuery<GetManufacturersQueryResult>;
 public sealed record GetManufacturersQueryResult(ManufacturerDto[] Items);

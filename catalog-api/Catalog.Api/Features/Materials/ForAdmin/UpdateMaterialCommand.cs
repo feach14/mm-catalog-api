@@ -1,15 +1,15 @@
-namespace Catalog.Api.Features.Materials.ForAdmin;
-
+using Catalog.Api.Features.Materials.ForAdmin.Dto;
+using Catalog.Database;
+using Catalog.Database.Entities;
 using Core.CQRS;
-using Database;
-using Database.Entities;
-using Dto;
 using Microsoft.Extensions.Caching.Memory;
+
+namespace Catalog.Api.Features.Materials.ForAdmin;
 
 public sealed record UpdateMaterialCommand(int Id, MaterialModel Material) : ICommand<UpdateMaterialCommandResult>;
 
 public sealed record UpdateMaterialCommandResult(
-    [property:Description("Успех операции")] bool Success);
+    [property: Description("Успех операции")] bool Success);
 
 public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCache memoryCache) : ICommandHandler<UpdateMaterialCommand, UpdateMaterialCommandResult>
 {
@@ -71,7 +71,7 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
             dbContext.ImageCache.Remove(cachedFile);
             imageToCache = new GetMaterialImageQueryResult(cachedFile.Data, cachedFile.Type);
         }
-        
+
         dbContext.Materials.Update(material);
 
         await dbContext.SaveChangesAsync(ct);
@@ -79,7 +79,7 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
         removedImages.ForEach(image => memoryCache.Remove(image.Guid));
         if (command.Material.Image != null && imageToCache != null)
             memoryCache.Set(command.Material.Image.Value, imageToCache);
-        
+
         return new UpdateMaterialCommandResult(true);
     }
 }

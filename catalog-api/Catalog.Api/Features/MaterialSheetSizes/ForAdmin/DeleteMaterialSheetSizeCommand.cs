@@ -1,7 +1,7 @@
-namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
-
+using Catalog.Database;
 using Core.CQRS;
-using Database;
+
+namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
 
 public sealed record DeleteMaterialSheetSizeCommand(int Id) : ICommand<DeleteMaterialSheetSizeCommandResult>;
 public sealed record DeleteMaterialSheetSizeCommandResult(bool Success);

@@ -1,8 +1,8 @@
-﻿namespace Catalog.Database.EntityTypeConfigurations;
-
-using Entities;
+using Catalog.Database.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace Catalog.Database.EntityTypeConfigurations;
 
 public class MaterialCategoryConfiguration : IEntityTypeConfiguration<MaterialCategory>
 {
@@ -15,7 +15,7 @@ public class MaterialCategoryConfiguration : IEntityTypeConfiguration<MaterialCa
         eb.HasMany(x => x.Materials)
             .WithOne(x => x.Category)
             .HasForeignKey(x => x.CategoryId);
-        
+
         eb.HasIndex(x => x.OrderByCol).IsUnique();
     }
 }

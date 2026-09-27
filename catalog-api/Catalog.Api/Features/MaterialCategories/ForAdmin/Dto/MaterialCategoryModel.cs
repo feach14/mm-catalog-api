@@ -1,4 +1,4 @@
-﻿namespace Catalog.Api.Features.MaterialCategories.ForAdmin.Dto;
+namespace Catalog.Api.Features.MaterialCategories.ForAdmin.Dto;
 
 public class MaterialCategoryModelValidator : AbstractValidator<MaterialCategoryModel>
 {
@@ -13,7 +13,7 @@ public record MaterialCategoryModel
 {
     [Description("Название категории")]
     public required string Name { get; init; }
-    
+
     [Description("Ссылка на внешний источник")]
     public required string ExternalLink { get; init; }
 }

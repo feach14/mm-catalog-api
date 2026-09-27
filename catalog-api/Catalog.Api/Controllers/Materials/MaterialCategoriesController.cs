@@ -1,13 +1,13 @@
-﻿namespace Catalog.Api.Controllers.Materials;
-
+using Catalog.Api.Features.MaterialCategories;
+using Catalog.Api.Features.MaterialCategories.Dto;
+using Catalog.Api.Features.MaterialCategories.ForAdmin;
+using Catalog.Api.Features.MaterialCategories.ForAdmin.Dto;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
-using Features.MaterialCategories;
-using Features.MaterialCategories.Dto;
-using Features.MaterialCategories.ForAdmin;
-using Features.MaterialCategories.ForAdmin.Dto;
 using Microsoft.AspNetCore.Authentication.Cookies;
+
+namespace Catalog.Api.Controllers.Materials;
 
 [Route("api/materials/categories")]
 [OpenApiTagOrder(2)]
@@ -23,7 +23,7 @@ public class MaterialCategoriesController : BaseApiController
     public Task<GetAllMaterialCategoriesQueryResult> MaterialCategories(
         [FromServices] IQueryHandler<GetAllMaterialCategoriesQuery, GetAllMaterialCategoriesQueryResult> handler) =>
         handler.Handle(new GetAllMaterialCategoriesQuery(), HttpContext.RequestAborted);
-    
+
     [HttpGet("{id:int}")]
     [AllowAnonymous]
     [EndpointSummary(nameof(MaterialCategory))]
@@ -48,7 +48,7 @@ public class MaterialCategoriesController : BaseApiController
     [EndpointDescription("Обновление информации у категории материалов")]
     [ProducesResponseType(typeof(UpdateMaterialCategoryCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
     public Task<UpdateMaterialCategoryCommandResult> UpdateMaterialCategory(
-        [FromRoute, Description("Id категории")] int id, 
+        [FromRoute, Description("Id категории")] int id,
         [FromBody, Description("Параметры категории")] MaterialCategoryModel model,
         [FromServices] ICommandHandler<UpdateMaterialCategoryCommand, UpdateMaterialCategoryCommandResult> handler) =>
         handler.Handle(new UpdateMaterialCategoryCommand(id, model), HttpContext.RequestAborted);

@@ -1,15 +1,15 @@
-﻿#pragma warning disable CS8618 // Параметры заполняются на уровне EF 
+using System.Diagnostics.CodeAnalysis;
+using Catalog.Database.Enums;
+
+#pragma warning disable CS8618 // Параметры заполняются на уровне EF 
 
 namespace Catalog.Database.Entities;
-
-using System.Diagnostics.CodeAnalysis;
-using Enums;
 
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Local")]
 public sealed record Material
 {
     public int Id { get; private set; }
-    
+
     public required int CategoryId { get; set; }
     public MaterialCategory Category { get; private set; }
 
@@ -32,10 +32,10 @@ public sealed record Material
     public required decimal Price { get; set; }
     public required CountTypeEnum CountTypeEnum { get; set; }
     public required int OrderByCol { get; set; }
-    
+
     public required bool ApplicableToRaskroys { get; set; }
     public required bool ApplicableToPvhFacades { get; set; }
     public required bool ApplicableToEmalFacades { get; set; }
-    
+
     public List<MaterialImage> Images { get; private set; }
 }

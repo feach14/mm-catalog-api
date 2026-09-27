@@ -1,9 +1,9 @@
-namespace Catalog.Api.Features.Materials.ForAdmin;
-
+using Catalog.Api.Features.Materials.ForAdmin.Dto;
+using Catalog.Database;
+using Catalog.Database.Entities;
 using Core.CQRS;
-using Database;
-using Database.Entities;
-using Dto;
+
+namespace Catalog.Api.Features.Materials.ForAdmin;
 
 public sealed record UploadMaterialImageCommand(string FileName, byte[] Data, string ContentType)
     : ICommand<UploadMaterialImageCommandResult>;

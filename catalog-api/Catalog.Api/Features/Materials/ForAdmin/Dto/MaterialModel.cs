@@ -1,9 +1,9 @@
-﻿// ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+
+using Catalog.Database;
+using Catalog.Database.Enums;
 
 namespace Catalog.Api.Features.Materials.ForAdmin.Dto;
-
-using Database;
-using Database.Enums;
 
 public class MaterialModelValidator : AbstractValidator<MaterialModel>
 {
@@ -50,56 +50,56 @@ public sealed record MaterialModel
 {
     [Description("Id категории")]
     public int CategoryId { get; init; }
-    
+
     [Description("Название материала")]
     public required string Name { get; init; }
-    
+
     [Description("Артикул материала")]
     public required string Article { get; init; }
-    
+
     [Description("Изображение материала")]
     public Guid? Image { get; init; }
-    
+
     [Description("Количество")]
     public int Count { get; init; }
-    
+
     [Description("Id размера материала")]
     public int SheetSizeId { get; init; }
 
     [Description("Id производителя")]
     public int ManufacturerId { get; init; }
-    
+
     [Description("Толщина материала")]
     public double Depth { get; init; }
-    
+
     [Description("Количество кв.м. в плите материала")]
     public double KvM { get; init; }
-    
+
     [Description("Количество метров по периметру плиты")]
     public double PerimetrM { get; init; }
-    
+
     [Description("Признак: Материал применим в калькуляторе раскроя")]
     public bool ApplicableToRaskroys { get; init; }
-    
+
     [Description("Признак: Материал применим в калькуляторе фасадов ПВХ")]
     public bool ApplicableToPvhFacades { get; init; }
-    
+
     [Description("Признак: Материал применим в калькуляторе фасадов эмаль")]
     public bool ApplicableToEmalFacades { get; init; }
-    
+
     [Description("Признак: Комментарий к материалу обязателен при оформлении заявки(расчета)")]
     public bool CommentOnMaterialIsRequired { get; init; }
-    
+
     [Description("Признак: Разрешено добавлять вторым(и более) элементом списка расчетов в заявке")]
     public bool AllowSecondItemInOrder { get; init; }
 
     [Description("Ссылка на внешний источник")]
     public string? ExternalLink { get; init; }
-    
+
     [Description("Цена материала у поставщика")]
     public decimal Price { get; init; }
-    
+
     [Description("Единица измерения")]
-    [JsonConverter(typeof(JsonStringEnumConverter))] 
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public CountTypeEnum CountTypeEnum { get; init; }
 }

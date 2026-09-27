@@ -1,7 +1,7 @@
-namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
-
+using Catalog.Database;
 using Core.CQRS;
-using Database;
+
+namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
 
 public sealed record UpdateMaterialSheetSizeCommand(int Id, SheetSizeModel Model) : ICommand<UpdateMaterialSheetSizeCommandResult>;
 public sealed record UpdateMaterialSheetSizeCommandResult(bool Success);

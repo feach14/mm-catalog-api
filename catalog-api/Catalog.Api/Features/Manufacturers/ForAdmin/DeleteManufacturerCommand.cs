@@ -1,7 +1,7 @@
-namespace Catalog.Api.Features.Manufacturers.ForAdmin;
-
+using Catalog.Database;
 using Core.CQRS;
-using Database;
+
+namespace Catalog.Api.Features.Manufacturers.ForAdmin;
 
 public sealed record DeleteManufacturerCommand(int Id) : ICommand<DeleteManufacturerCommandResult>;
 public sealed record DeleteManufacturerCommandResult([property: Description("Успех операции")] bool Success);

@@ -1,8 +1,8 @@
-namespace Catalog.Api.Features.Manufacturers.ForAdmin;
-
+using Catalog.Database;
+using Catalog.Database.Entities;
 using Core.CQRS;
-using Database;
-using Database.Entities;
+
+namespace Catalog.Api.Features.Manufacturers.ForAdmin;
 
 public sealed record CreateManufacturerCommand(
     [property: Description("Название производителя")] string Name) : ICommand<CreateManufacturerCommandResult>;

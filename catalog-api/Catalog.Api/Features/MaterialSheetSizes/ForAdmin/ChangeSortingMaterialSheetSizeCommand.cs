@@ -1,8 +1,8 @@
-namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
-
+using Catalog.Api.Enums;
+using Catalog.Database;
 using Core.CQRS;
-using Database;
-using Enums;
+
+namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
 
 public sealed record ChangeSortingMaterialSheetSizeCommand(
     [property: Description("Id размера материала")] int Id,

@@ -1,7 +1,7 @@
-namespace Catalog.Api.Features.Manufacturers.ForAdmin;
-
+using Catalog.Database;
 using Core.CQRS;
-using Database;
+
+namespace Catalog.Api.Features.Manufacturers.ForAdmin;
 
 public sealed record UpdateManufacturerCommand : ICommand<UpdateManufacturerCommandResult>
 {

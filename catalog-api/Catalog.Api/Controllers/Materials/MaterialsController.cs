@@ -1,14 +1,14 @@
-namespace Catalog.Api.Controllers.Materials;
-
+using Catalog.Api.Features.Materials;
+using Catalog.Api.Features.Materials.ForAdmin;
+using Catalog.Api.Features.Materials.ForAdmin.Dto;
+using Catalog.Api.Features.Materials.Public;
+using Catalog.Api.Features.Materials.Public.Dto;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
-using Features.Materials;
-using Features.Materials.ForAdmin;
-using Features.Materials.ForAdmin.Dto;
-using Features.Materials.Public;
-using Features.Materials.Public.Dto;
 using Microsoft.AspNetCore.Authentication.Cookies;
+
+namespace Catalog.Api.Controllers.Materials;
 
 [Route("api/materials")]
 [OpenApiTagOrder(1)]

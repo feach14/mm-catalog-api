@@ -1,9 +1,9 @@
-namespace Catalog.Api.Features.Materials.Public;
-
+using Catalog.Api.Features.Materials.Dto;
+using Catalog.Api.Features.Materials.Public.Dto;
+using Catalog.Database;
 using Core.CQRS;
-using Database;
-using Dto;
-using Materials.Dto;
+
+namespace Catalog.Api.Features.Materials.Public;
 
 public sealed record GetMaterialQuery(int Id) : IQuery<GetMaterialQueryResult>;
 

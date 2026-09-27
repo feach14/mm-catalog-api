@@ -1,14 +1,14 @@
-namespace Catalog.Api.Features.Materials.ForAdmin;
-
+using Catalog.Api.Features.Materials.ForAdmin.Dto;
+using Catalog.Database;
+using Catalog.Database.Entities;
 using Core.CQRS;
-using Database;
-using Database.Entities;
-using Dto;
 using Microsoft.Extensions.Caching.Memory;
+
+namespace Catalog.Api.Features.Materials.ForAdmin;
 
 public sealed record CreateMaterialCommand(MaterialModel Material) : ICommand<CreateMaterialCommandResult>;
 
-public sealed record CreateMaterialCommandResult([property:Description("Id материала")]int Id);
+public sealed record CreateMaterialCommandResult([property: Description("Id материала")] int Id);
 
 public class CreateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCache memoryCache) : ICommandHandler<CreateMaterialCommand, CreateMaterialCommandResult>
 {
@@ -17,9 +17,9 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
         var materialName = command.Material.Name.Trim();
         if (await dbContext.Materials.AnyAsync(x => x.Name == materialName, ct))
             throw new BadHttpRequestException("Материал с таким названием уже существует.");
-        
+
         var maxOrderByCol = await dbContext.Materials.MaxAsync(x => (int?)x.OrderByCol, ct) ?? 0;
-        
+
         var material = new Material
         {
             CategoryId = command.Material.CategoryId,
@@ -52,11 +52,12 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
         {
             var fileFromCache = await dbContext.ImageCache
                 .FirstOrDefaultAsync(x => x.Guid == command.Material.Image, ct);
-            if(fileFromCache is null)
+            if (fileFromCache is null)
                 throw new BadHttpRequestException("Файл с изображением материала отсутствует в кэше");
-            
+
             await dbContext.MaterialImages.AddAsync(
-                new MaterialImage {
+                new MaterialImage
+                {
                     Data = fileFromCache.Data,
                     Guid = fileFromCache.Guid,
                     MaterialId = material.Id,
@@ -66,7 +67,7 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
             dbContext.ImageCache.Remove(fileFromCache);
             imageToCache = new GetMaterialImageQueryResult(fileFromCache.Data, fileFromCache.Type);
         }
-        
+
         await dbContext.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 

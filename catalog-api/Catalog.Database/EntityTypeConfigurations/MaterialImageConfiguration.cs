@@ -1,8 +1,8 @@
-﻿namespace Catalog.Database.EntityTypeConfigurations;
-
-using Entities;
+using Catalog.Database.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace Catalog.Database.EntityTypeConfigurations;
 
 public class MaterialImageConfiguration : IEntityTypeConfiguration<MaterialImage>
 {

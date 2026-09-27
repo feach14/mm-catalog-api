@@ -1,12 +1,12 @@
-namespace Catalog.Api.Controllers.Materials;
-
+using Catalog.Api.Features.MaterialSheetSizes;
+using Catalog.Api.Features.MaterialSheetSizes.Dto;
+using Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
-using Features.MaterialSheetSizes;
-using Features.MaterialSheetSizes.Dto;
-using Features.MaterialSheetSizes.ForAdmin;
 using Microsoft.AspNetCore.Authentication.Cookies;
+
+namespace Catalog.Api.Controllers.Materials;
 
 [Route("api/materials/sheet-sizes")]
 [OpenApiTagOrder(3)]

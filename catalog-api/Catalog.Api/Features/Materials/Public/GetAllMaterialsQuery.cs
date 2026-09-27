@@ -1,14 +1,14 @@
+using Catalog.Api.Features.Materials.Dto;
+using Catalog.Api.Features.Materials.Public.Dto;
+using Catalog.Database;
+using Core.CQRS;
+
 namespace Catalog.Api.Features.Materials.Public;
 
-using Core.CQRS;
-using Database;
-using Dto;
-using Materials.Dto;
-
 public sealed record GetAllMaterialsQuery(
-    [property: Description("Признак: Добавить в выдачу материалы для кальулятора раскроя")] [property: FromQuery(Name = "raskroy")] bool Raskroy,
-    [property: Description("Признак: Добавить в выдачу материалы для калькулятора фасадов ПВХ")] [property: FromQuery(Name = "pvhFacades")] bool PvhFacades,
-    [property: Description("Признак: Добавить в выдачу материалы для калькулятора фасадов эмаль")] [property: FromQuery(Name = "emalFacades")] bool EmalFacades
+    [property: Description("Признак: Добавить в выдачу материалы для кальулятора раскроя")][property: FromQuery(Name = "raskroy")] bool Raskroy,
+    [property: Description("Признак: Добавить в выдачу материалы для калькулятора фасадов ПВХ")][property: FromQuery(Name = "pvhFacades")] bool PvhFacades,
+    [property: Description("Признак: Добавить в выдачу материалы для калькулятора фасадов эмаль")][property: FromQuery(Name = "emalFacades")] bool EmalFacades
 ) : IQuery<GetAllMaterialsQueryResult>;
 
 public sealed record GetAllMaterialsQueryResult(
@@ -16,9 +16,9 @@ public sealed record GetAllMaterialsQueryResult(
     [property: Description("Список категорий из списка материалов")] List<MaterialCategoryDto> Categories);
 
 public record MaterialCategoryDto(
-    [property:Description("Id категории")] int Id,
-    [property:Description("Название категории")] string Name,
-    [property:Description("Порядковый номер для сортировки")] int OrderByCol);
+    [property: Description("Id категории")] int Id,
+    [property: Description("Название категории")] string Name,
+    [property: Description("Порядковый номер для сортировки")] int OrderByCol);
 
 public class GetAllMaterialsQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetAllMaterialsQuery, GetAllMaterialsQueryResult>
 {

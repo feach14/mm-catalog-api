@@ -1,8 +1,8 @@
-﻿namespace Catalog.Database;
-
 using System.Reflection;
-using Entities;
+using Catalog.Database.Entities;
 using Microsoft.EntityFrameworkCore;
+
+namespace Catalog.Database;
 
 // dotnet ef migrations add <название_миграции> --project Catalog.Database
 // dotnet ef database update  --project Catalog.Database
@@ -17,7 +17,7 @@ public class CatalogDbContext(DbContextOptions<CatalogDbContext> _options) : DbC
         modelBuilder.HasDefaultSchema(SchemaName);
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
     }
-    
+
     public DbSet<Material> Materials { get; init; }
     public DbSet<MaterialSheetSize> MaterialSheetSizes { get; init; }
     public DbSet<MaterialManufacturer> MaterialManufacturers { get; init; }

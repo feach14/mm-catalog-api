@@ -1,8 +1,8 @@
-namespace Catalog.Api.Features.MaterialCategories.ForAdmin;
-
+using Catalog.Api.Enums;
+using Catalog.Database;
 using Core.CQRS;
-using Database;
-using Enums;
+
+namespace Catalog.Api.Features.MaterialCategories.ForAdmin;
 
 public record ChangeSortingMaterialCategoryCommand(
     [property: Description("Id категории")] int CategoryId,

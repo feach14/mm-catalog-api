@@ -1,4 +1,4 @@
-﻿#pragma warning disable CS8618 // Properties are populated by EF
+#pragma warning disable CS8618 // Properties are populated by EF
 
 namespace Catalog.Database.Entities;
 

@@ -1,8 +1,8 @@
-namespace Catalog.Api.Features.Manufacturers.ForAdmin;
-
+using Catalog.Api.Enums;
+using Catalog.Database;
 using Core.CQRS;
-using Database;
-using Enums;
+
+namespace Catalog.Api.Features.Manufacturers.ForAdmin;
 
 public sealed record ChangeSortingManufacturerCommand(
     [property: Description("Id производителя")] int Id,

@@ -1,14 +1,14 @@
+using Catalog.Api.Features.Materials.Dto;
+using Catalog.Database;
+using Core.CQRS;
+
 namespace Catalog.Api.Features.Materials.ForAdmin;
 
-using Core.CQRS;
-using Database;
-using Materials.Dto;
-
 public sealed record GetAllMaterialsForAdminQuery(
-    [property: Description("Признак: Добавить в выдачу материалы для кальулятора раскроя")] [property: FromQuery(Name = "raskroy")] bool Raskroy,
-    [property: Description("Признак: Добавить в выдачу материалы для калькулятора фасадов ПВХ")] [property: FromQuery(Name = "pvhFacades")] bool PvhFacades,
-    [property: Description("Признак: Добавить в выдачу материалы для калькулятора фасадов эмаль")] [property: FromQuery(Name = "emalFacades")] bool EmalFacades,
-    [property: Description("Id категории(коллекции) материала")] [property: FromQuery(Name = "categoryId")] int? CategoryId
+    [property: Description("Признак: Добавить в выдачу материалы для кальулятора раскроя")][property: FromQuery(Name = "raskroy")] bool Raskroy,
+    [property: Description("Признак: Добавить в выдачу материалы для калькулятора фасадов ПВХ")][property: FromQuery(Name = "pvhFacades")] bool PvhFacades,
+    [property: Description("Признак: Добавить в выдачу материалы для калькулятора фасадов эмаль")][property: FromQuery(Name = "emalFacades")] bool EmalFacades,
+    [property: Description("Id категории(коллекции) материала")][property: FromQuery(Name = "categoryId")] int? CategoryId
 ) : IQuery<GetAllMaterialsForAdminQueryResult>;
 
 public sealed record GetAllMaterialsForAdminQueryResult(
@@ -41,7 +41,7 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
                 && !x.Deleted)
             .OrderBy(x => x.Category.OrderByCol)
                 .ThenBy(x => x.OrderByCol)
-            .Select(x => new 
+            .Select(x => new
             {
                 x.Id,
                 x.Name,
@@ -61,7 +61,7 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
                 x.Price
             })
             .ToArrayAsync(ct))
-            .Select(x=> new GetMaterialsQueryForAdminItemResult(
+            .Select(x => new GetMaterialsQueryForAdminItemResult(
                 Id: x.Id,
                 Name: x.Name,
                 Article: x.Article,

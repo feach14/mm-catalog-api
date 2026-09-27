@@ -1,8 +1,8 @@
-namespace Catalog.Api.Features.MaterialSheetSizes;
-
+using Catalog.Api.Features.MaterialSheetSizes.Dto;
+using Catalog.Database;
 using Core.CQRS;
-using Database;
-using Dto;
+
+namespace Catalog.Api.Features.MaterialSheetSizes;
 
 public sealed record GetMaterialSheetSizesQuery : IQuery<GetMaterialSheetSizesQueryResult>;
 public sealed record GetMaterialSheetSizesQueryResult(SheetSizeDto[] Items);

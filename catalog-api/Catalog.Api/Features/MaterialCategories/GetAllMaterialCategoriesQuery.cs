@@ -1,13 +1,13 @@
-namespace Catalog.Api.Features.MaterialCategories;
-
+using Catalog.Api.Features.MaterialCategories.Dto;
+using Catalog.Database;
 using Core.CQRS;
-using Database;
-using Dto;
+
+namespace Catalog.Api.Features.MaterialCategories;
 
 public sealed record GetAllMaterialCategoriesQuery : IQuery<GetAllMaterialCategoriesQueryResult>;
 
 public sealed record GetAllMaterialCategoriesQueryResult(
-    [property:Description("Список категорий")] MaterialCategoryForAdminDto[] Items);
+    [property: Description("Список категорий")] MaterialCategoryForAdminDto[] Items);
 
 public class GetAllMaterialCategoriesQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetAllMaterialCategoriesQuery, GetAllMaterialCategoriesQueryResult>
 {
@@ -25,7 +25,7 @@ public class GetAllMaterialCategoriesQueryHandler(CatalogDbContext dbContext) : 
                 MaterialsNotAnyCount = x.Materials.Count(y => y.Count < 1)
             })
             .ToArrayAsync(ct);
-        
+
         return new GetAllMaterialCategoriesQueryResult(items);
     }
 }

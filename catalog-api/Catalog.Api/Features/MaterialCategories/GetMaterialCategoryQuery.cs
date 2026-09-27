@@ -1,8 +1,8 @@
-namespace Catalog.Api.Features.MaterialCategories;
-
+using Catalog.Api.Features.MaterialCategories.Dto;
+using Catalog.Database;
 using Core.CQRS;
-using Database;
-using Dto;
+
+namespace Catalog.Api.Features.MaterialCategories;
 
 public sealed record GetMaterialCategoryQuery(int Id) : IQuery<GetMaterialCategoryQueryResult>;
 

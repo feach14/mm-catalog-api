@@ -1,12 +1,12 @@
-namespace Catalog.Api.Controllers.Materials;
-
+using Catalog.Api.Features.Manufacturers;
+using Catalog.Api.Features.Manufacturers.Dto;
+using Catalog.Api.Features.Manufacturers.ForAdmin;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
-using Features.Manufacturers;
-using Features.Manufacturers.Dto;
-using Features.Manufacturers.ForAdmin;
 using Microsoft.AspNetCore.Authentication.Cookies;
+
+namespace Catalog.Api.Controllers.Materials;
 
 [Route("api/materials/manufacturers")]
 [OpenApiTagOrder(4)]

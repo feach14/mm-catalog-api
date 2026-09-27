@@ -1,4 +1,4 @@
-﻿namespace Catalog.Api.Enums;
+namespace Catalog.Api.Enums;
 
 public enum DirectionSortEnum : int
 {

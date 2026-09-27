@@ -1,7 +1,7 @@
-﻿namespace Catalog.Database;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+
+namespace Catalog.Database;
 
 internal class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<CatalogDbContext>
 {

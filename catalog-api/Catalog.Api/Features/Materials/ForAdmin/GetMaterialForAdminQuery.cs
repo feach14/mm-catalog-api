@@ -1,9 +1,9 @@
-namespace Catalog.Api.Features.Materials.ForAdmin;
-
+using Catalog.Api.Features.Materials.Dto;
+using Catalog.Database;
+using Catalog.Database.Enums;
 using Core.CQRS;
-using Database;
-using Database.Enums;
-using Materials.Dto;
+
+namespace Catalog.Api.Features.Materials.ForAdmin;
 
 public sealed record GetMaterialForAdminQuery(int Id) : IQuery<GetMaterialForAdminQueryResult>;
 

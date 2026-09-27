@@ -2,7 +2,7 @@ namespace Catalog.Api.Features.MaterialCategories.Dto;
 
 public class MaterialCategoryForAdminDto
 {
-    [Description("Id категории")] 
+    [Description("Id категории")]
     public required int Id { get; init; }
 
     [Description("Название категории")]

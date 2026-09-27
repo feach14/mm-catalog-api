@@ -1,13 +1,13 @@
-namespace Catalog.Api.Features.Materials.ForAdmin;
-
+using Catalog.Database;
 using Core.CQRS;
-using Database;
 using Microsoft.Extensions.Caching.Memory;
+
+namespace Catalog.Api.Features.Materials.ForAdmin;
 
 public sealed record DeleteMaterialCommand(int Id) : ICommand<DeleteMaterialCommandResult>;
 
 public sealed record DeleteMaterialCommandResult(
-    [property:Description("Успех операции")] bool Success);
+    [property: Description("Успех операции")] bool Success);
 
 public class DeleteMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCache memoryCache) : ICommandHandler<DeleteMaterialCommand, DeleteMaterialCommandResult>
 {
