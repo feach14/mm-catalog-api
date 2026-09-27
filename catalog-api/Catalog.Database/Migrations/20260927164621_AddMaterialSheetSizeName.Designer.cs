@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Catalog.Database.Migrations
 {
     [DbContext(typeof(CatalogDbContext))]
-    [Migration("20260927160947_NormalizeMaterialSheetSizes")]
-    partial class NormalizeMaterialSheetSizes
+    [Migration("20260927164621_AddMaterialSheetSizeName")]
+    partial class AddMaterialSheetSizeName
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -245,6 +245,12 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("height");
 
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
                     b.Property<int>("OrderByCol")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
@@ -258,13 +264,13 @@ namespace Catalog.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_material_sheet_sizes");
 
-                    b.HasIndex("Height", "Width")
-                        .IsUnique()
-                        .HasDatabaseName("ix_material_sheet_sizes_height_width");
-
                     b.HasIndex("OrderByCol")
                         .IsUnique()
                         .HasDatabaseName("ix_material_sheet_sizes_order_by_col");
+
+                    b.HasIndex("Height", "Width")
+                        .IsUnique()
+                        .HasDatabaseName("ix_material_sheet_sizes_height_width");
 
                     b.ToTable("material_sheet_sizes", "catalog");
                 });

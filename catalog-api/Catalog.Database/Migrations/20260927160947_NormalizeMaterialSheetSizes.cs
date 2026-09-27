@@ -18,7 +18,6 @@ namespace Catalog.Database.Migrations
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     height = table.Column<int>(type: "integer", nullable: false),
                     width = table.Column<int>(type: "integer", nullable: false),
                     order_by_col = table.Column<int>(type: "integer", nullable: false, defaultValue: 0)
@@ -77,9 +76,8 @@ namespace Catalog.Database.Migrations
                     FROM parsed
                     WHERE height IS NOT NULL AND width IS NOT NULL
                 )
-                INSERT INTO catalog.material_sheet_sizes (name, height, width, order_by_col)
-                SELECT height::text || '×' || width::text, height, width,
-                       row_number() OVER (ORDER BY height, width)::integer
+                INSERT INTO catalog.material_sheet_sizes (height, width, order_by_col)
+                SELECT height, width, row_number() OVER (ORDER BY height, width)::integer
                 FROM distinct_sizes;
 
                 WITH parsed AS (

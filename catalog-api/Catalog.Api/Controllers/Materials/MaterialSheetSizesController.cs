@@ -9,7 +9,7 @@ using Features.MaterialSheetSizes.ForAdmin;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
 [Route("api/materials/sheet-sizes")]
-[OpenApiTagOrder(1)]
+[OpenApiTagOrder(3)]
 [Authorize(AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
 [ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию")]
 public sealed class MaterialSheetSizesController : BaseApiController

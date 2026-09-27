@@ -1,7 +1,7 @@
 ﻿namespace Catalog.Api.Features.Materials.Public.Dto;
 
 using System.Diagnostics.CodeAnalysis;
-using MaterialSheetSizes.Dto;
+using Materials.Dto;
 
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
 public sealed record GetMaterialQueryResult
@@ -24,14 +24,8 @@ public sealed record GetMaterialQueryResult
     [Description("Id изображения материала")]
     public required Guid? Image { get; init; }
     
-    [Description("Id категории")]
-    public required int CategoryId { get; init; }
-    
-    [Description("Порядковый номер категории (для сортировки)")]
-    public required int CategoryOrderBy { get; init; }
-    
-    [Description("Название категории")]
-    public required string CategoryName { get; init; }
+    [Description("Категория")]
+    public required CategoryDto Category { get; init; }
     
     [Description("Количество")]
     public required int Count { get; init; }

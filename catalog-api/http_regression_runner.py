@@ -345,8 +345,11 @@ def main():
     m1, m2, m3 = [create_material(x) for x in (m1_model, m2_model, m3_model)]
     expect(request("GET", f"/api/materials/{m1}")[0], 200, "public material card")
     expect(request("GET", f"/api/materials/admin/{m1}", auth=True)[0], 200, "admin material card")
-    if json_body(request("GET", f"/api/materials/{m1}"))["sheetSize"]["id"] != primary_sheet_size_id:
+    material_card = json_body(request("GET", f"/api/materials/{m1}"))
+    if material_card["sheetSize"]["id"] != primary_sheet_size_id:
         raise AssertionError("material sheet size absent from material card")
+    if "orderByCol" in material_card["sheetSize"] or "orderByCol" in material_card["category"]:
+        raise AssertionError("nested material relations contain sorting fields")
     expect(request("DELETE", f"/api/materials/sheet-sizes/{primary_sheet_size_id}", auth=True)[0], 400, "delete used material sheet size")
     mark("SIZE-05—SIZE-06", "material relation visible; used size deletion rejected")
     expect(request("GET", f"/api/materials/categories/{cat1}")[0], 200, "public category card after material")
@@ -379,18 +382,18 @@ def main():
     expect(request("PUT", f"/api/materials/{m3}", m3_updated, auth=True)[0], 200, "update material")
     public_card = json_body(request("GET", f"/api/materials/{m3}"))
     admin_card = json_body(request("GET", f"/api/materials/admin/{m3}", auth=True))
-    if public_card["categoryId"] != cat3 or admin_card["price"] != 456.78 or admin_card["countTypeEnum"] != "SHT":
+    if public_card["category"]["id"] != cat3 or admin_card["price"] != 456.78 or admin_card["countTypeEnum"] != "SHT":
         raise AssertionError("updated material fields not visible")
 
     expect(request("POST", "/api/materials/change-order-col", {"id": m2, "direction": "UP"}, auth=True)[0], 200, "material up")
-    cat1_order = [x["id"] for x in admin_materials() if x["categoryId"] == cat1]
+    cat1_order = [x["id"] for x in admin_materials() if x["category"]["id"] == cat1]
     if cat1_order != [m2, m1]:
         raise AssertionError("material UP sorting incorrect")
-    cat3_before = [x["id"] for x in admin_materials() if x["categoryId"] == cat3]
+    cat3_before = [x["id"] for x in admin_materials() if x["category"]["id"] == cat3]
     expect(request("POST", "/api/materials/change-order-col", {"id": m2, "direction": "DOWN"}, auth=True)[0], 200, "material down")
-    if [x["id"] for x in admin_materials() if x["categoryId"] == cat3] != cat3_before:
+    if [x["id"] for x in admin_materials() if x["category"]["id"] == cat3] != cat3_before:
         raise AssertionError("sorting affected another category")
-    cat1_rows = [x for x in admin_materials() if x["categoryId"] == cat1]
+    cat1_rows = [x for x in admin_materials() if x["category"]["id"] == cat1]
     expect(request("POST", "/api/materials/change-order-col", {"id": cat1_rows[0]["id"], "direction": "UP"}, auth=True)[0], 400, "material upper boundary")
     expect(request("POST", "/api/materials/change-order-col", {"id": cat1_rows[-1]["id"], "direction": "DOWN"}, auth=True)[0], 400, "material lower boundary")
     expect(request("DELETE", f"/api/materials/categories/{cat1}", auth=True)[0], 400, "delete used category")

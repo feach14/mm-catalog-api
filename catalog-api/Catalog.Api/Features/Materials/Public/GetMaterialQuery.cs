@@ -3,7 +3,7 @@ namespace Catalog.Api.Features.Materials.Public;
 using Core.CQRS;
 using Database;
 using Dto;
-using MaterialSheetSizes.Dto;
+using Materials.Dto;
 
 public sealed record GetMaterialQuery(int Id) : IQuery<GetMaterialQueryResult>;
 
@@ -18,13 +18,11 @@ public class GetMaterialQueryHandler(CatalogDbContext dbContext) : IQueryHandler
                    Id = x.Id,
                    Name = x.Name,
                    Article = x.Article,
-                   SheetSize = new SheetSizeDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name, x.MaterialSheetSize.Height, x.MaterialSheetSize.Width, x.MaterialSheetSize.OrderByCol),
+                   SheetSize = new SheetSizeDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name, x.MaterialSheetSize.Height, x.MaterialSheetSize.Width),
                    Depth = x.Depth,
                    CommentOnMaterialIsRequired = x.CommentOnMaterialIsRequired,
                    Image = x.Images.Count != 0 ? x.Images.Select(g => g.Guid).First() : null,
-                   CategoryId = x.CategoryId, 
-                   CategoryName = x.Category.Name,
-                   CategoryOrderBy = x.Category.OrderByCol,
+                   Category = new CategoryDto(x.CategoryId, x.Category.Name),
                    OrderByCol = x.OrderByCol,
                    Count = x.Count
                })

@@ -10,7 +10,7 @@ using Features.MaterialCategories.ForAdmin.Dto;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
 [Route("api/materials/categories")]
-[OpenApiTagOrder(1)]
+[OpenApiTagOrder(2)]
 [Authorize(AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
 [ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию")]
 public class MaterialCategoriesController : BaseApiController

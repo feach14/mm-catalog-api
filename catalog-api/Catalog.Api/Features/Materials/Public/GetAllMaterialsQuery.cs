@@ -3,7 +3,7 @@ namespace Catalog.Api.Features.Materials.Public;
 using Core.CQRS;
 using Database;
 using Dto;
-using MaterialSheetSizes.Dto;
+using Materials.Dto;
 
 public sealed record GetAllMaterialsQuery(
     [property: Description("Признак: Добавить в выдачу материалы для кальулятора раскроя")] [property: FromQuery(Name = "raskroy")] bool Raskroy,
@@ -24,33 +24,48 @@ public class GetAllMaterialsQueryHandler(CatalogDbContext dbContext) : IQueryHan
 {
     public async Task<GetAllMaterialsQueryResult> Handle(GetAllMaterialsQuery query, CancellationToken ct)
     {
-        var materials = await dbContext.Materials
-            .Include(x => x.Category)
+        var materialRows = await dbContext.Materials
             .Where(x =>
                 ((query.Raskroy == true && x.ApplicableToRaskroys)
                  || (query.PvhFacades == true && x.ApplicableToPvhFacades)
                  || (query.EmalFacades == true && x.ApplicableToEmalFacades))
                 && !x.Deleted)
+            .OrderBy(x => x.Category.OrderByCol)
+                .ThenBy(x => x.OrderByCol)
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.Article,
+                SheetSize = new SheetSizeDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name, x.MaterialSheetSize.Height, x.MaterialSheetSize.Width),
+                x.Depth,
+                x.CommentOnMaterialIsRequired,
+                Image = x.Images.Count != 0 ? x.Images.Select(g => g.Guid).First() : (Guid?)null,
+                x.CategoryId,
+                CategoryName = x.Category.Name,
+                x.OrderByCol,
+                CategoryOrderBy = x.Category.OrderByCol,
+                x.Count
+            })
+            .ToListAsync(ct);
+
+        var materials = materialRows
             .Select(x => new GetMaterialQueryResult
             {
                 Id = x.Id,
                 Name = x.Name,
                 Article = x.Article,
-                SheetSize = new SheetSizeDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name, x.MaterialSheetSize.Height, x.MaterialSheetSize.Width, x.MaterialSheetSize.OrderByCol),
+                SheetSize = x.SheetSize,
                 Depth = x.Depth,
                 CommentOnMaterialIsRequired = x.CommentOnMaterialIsRequired,
-                Image = x.Images.Count != 0 ? x.Images.Select(g => g.Guid).First() : null,
-                CategoryId = x.CategoryId,
-                CategoryName = x.Category.Name,
+                Image = x.Image,
+                Category = new CategoryDto(x.CategoryId, x.CategoryName),
                 OrderByCol = x.OrderByCol,
-                CategoryOrderBy = x.Category.OrderByCol,
                 Count = x.Count
             })
-            .OrderBy(x => x.CategoryOrderBy)
-                .ThenBy(x => x.OrderByCol)
-            .ToListAsync(ct);
+            .ToList();
 
-        var categories = materials
+        var categories = materialRows
             .GroupBy(x => new { x.CategoryId, x.CategoryName, x.CategoryOrderBy })
             .Select(x => new MaterialCategoryDto
             (

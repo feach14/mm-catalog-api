@@ -2,7 +2,7 @@ namespace Catalog.Api.Features.Materials.ForAdmin;
 
 using Core.CQRS;
 using Database;
-using MaterialSheetSizes.Dto;
+using Materials.Dto;
 
 public sealed record GetAllMaterialsForAdminQuery(
     [property: Description("Признак: Добавить в выдачу материалы для кальулятора раскроя")] [property: FromQuery(Name = "raskroy")] bool Raskroy,
@@ -20,8 +20,7 @@ public sealed record GetMaterialsQueryForAdminItemResult(
     [property: Description("Артикул материала")] string Article,
     [property: Description("Размер материала")] SheetSizeDto SheetSize,
     [property: Description("Толщина плиты")] double Depth,
-    [property: Description("Id категории")] int CategoryId,
-    [property: Description("Название категории")] string CategoryName,
+    [property: Description("Категория")] CategoryDto Category,
     [property: Description("Ссылка на внешний источник")] string? ExternalLink,
     [property: Description("Количество")] int Count,
     [property: Description("Порядковый номер записи (для сортировки)")] int OrderByCol,
@@ -50,8 +49,7 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
                     x.MaterialSheetSize.Id,
                     x.MaterialSheetSize.Name,
                     x.MaterialSheetSize.Height,
-                    x.MaterialSheetSize.Width,
-                    x.MaterialSheetSize.OrderByCol),
+                    x.MaterialSheetSize.Width),
                 x.Depth,
                 x.ExternalLink,
                 x.CategoryId,
@@ -67,8 +65,7 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
                 Article: x.Article,
                 SheetSize: x.SheetSize,
                 Depth: x.Depth,
-                CategoryId: x.CategoryId,
-                CategoryName: x.CategoryName,
+                Category: new CategoryDto(x.CategoryId, x.CategoryName),
                 ExternalLink: x.ExternalLink,
                 Count: x.Count,
                 OrderByCol: x.OrderByCol,

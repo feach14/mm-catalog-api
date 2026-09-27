@@ -3,7 +3,7 @@ namespace Catalog.Api.Features.Materials.ForAdmin;
 using Core.CQRS;
 using Database;
 using Database.Enums;
-using MaterialSheetSizes.Dto;
+using Materials.Dto;
 
 public sealed record GetMaterialForAdminQuery(int Id) : IQuery<GetMaterialForAdminQueryResult>;
 
@@ -19,9 +19,9 @@ public sealed record GetMaterialForAdminQueryResult(
     [property: Description("Использование материала в калькуляторе фасадов ПВХ")] bool ApplicableToPvhFacades,
     [property: Description("Использование материала в калькуляторе фасадов эмаль")] bool ApplicableToEmalFacades,
     [property: Description("Id изображения материала")] Guid? Image,
-    [property: Description("Id категории")] int CategoryId,
-    [property: Description("Название категории")] string CategoryName,
+    [property: Description("Категория")] CategoryDto Category,
     [property: Description("Количество")] int Count,
+    [property: Description("Порядковый номер записи (для сортировки)")] int OrderByCol,
     [property: Description("Признак: Комментарий к материалу обязателен при оформлении заявки(расчета)")] bool CommentOnMaterialIsRequired,
     [property: Description("Признак: Разрешено добавлять вторым(и более) элементом списка расчетов в заявке")] bool AllowSecondItemInOrder,
     [property: Description("Ссылка на внешний источник")] string? ExternalLink,
@@ -44,8 +44,7 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
                            x.MaterialSheetSize.Id,
                            x.MaterialSheetSize.Name,
                            x.MaterialSheetSize.Height,
-                           x.MaterialSheetSize.Width,
-                           x.MaterialSheetSize.OrderByCol),
+                           x.MaterialSheetSize.Width),
                        x.Depth,
                        x.KvM,
                        x.PerimetrM,
@@ -59,6 +58,7 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
                        x.CategoryId,
                        CategoryName = x.Category.Name,
                        x.Count,
+                       x.OrderByCol,
                        x.Price,
                        x.CountTypeEnum
                    })
@@ -77,9 +77,9 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
             ApplicableToPvhFacades: queryResult.ApplicableToPvhFacades,
             ApplicableToEmalFacades: queryResult.ApplicableToEmalFacades,
             Image: queryResult.Image,
-            CategoryId: queryResult.CategoryId,
-            CategoryName: queryResult.CategoryName,
+            Category: new CategoryDto(queryResult.CategoryId, queryResult.CategoryName),
             Count: queryResult.Count,
+            OrderByCol: queryResult.OrderByCol,
             CommentOnMaterialIsRequired: queryResult.CommentOnMaterialIsRequired,
             AllowSecondItemInOrder: queryResult.AllowSecondItemInOrder,
             ExternalLink: queryResult.ExternalLink,
