@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Design;
 internal class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<CatalogDbContext>
 {
     private const string EfMigrationsHistoryTableName = "__EFMigrationsHistory";
-    private const string DbConnString = "Host=185.151.240.63;Database=mm-debug;Username=postgres;Password=Rus140589!";
+    private const string DbConnString = "Host=185.151.240.63;Database=mm;Username=postgres;Password=Rus140589!";
 
     public CatalogDbContext CreateDbContext(string[] args)
     {
