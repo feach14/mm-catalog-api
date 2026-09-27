@@ -40,25 +40,37 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
             CountTypeEnum = command.Material.CountTypeEnum,
             OrderByCol = maxOrderByCol + 1
         };
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+
         await dbContext.Materials.AddAsync(material, ct);
         await dbContext.SaveChangesAsync(ct);
 
+        GetMaterialImageQueryResult? imageToCache = null;
         if (command.Material.Image != null)
         {
-            var fileFromCache = memoryCache.Get<CachedFileDto>(command.Material.Image);
+            var fileFromCache = await dbContext.ImageCache
+                .FirstOrDefaultAsync(x => x.Guid == command.Material.Image, ct);
             if(fileFromCache is null)
-                throw new ApplicationException("Файл с изображением материала отсутствует в кэше");
+                throw new BadHttpRequestException("Файл с изображением материала отсутствует в кэше");
             
             await dbContext.MaterialImages.AddAsync(
                 new MaterialImage {
                     Data = fileFromCache.Data,
-                    Guid = fileFromCache.FileGuid,
+                    Guid = fileFromCache.Guid,
                     MaterialId = material.Id,
-                    Type = fileFromCache.ContentType
+                    Type = fileFromCache.Type
                 }, ct);
+
+            dbContext.ImageCache.Remove(fileFromCache);
+            imageToCache = new GetMaterialImageQueryResult(fileFromCache.Data, fileFromCache.Type);
         }
         
         await dbContext.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
+        if (command.Material.Image != null && imageToCache != null)
+            memoryCache.Set(command.Material.Image.Value, imageToCache);
 
         return new CreateMaterialCommandResult(material.Id);
     }

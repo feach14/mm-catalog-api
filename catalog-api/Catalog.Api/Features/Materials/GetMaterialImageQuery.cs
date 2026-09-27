@@ -2,7 +2,6 @@ namespace Catalog.Api.Features.Materials;
 
 using Core.CQRS;
 using Database;
-using ForAdmin.Dto;
 using Microsoft.Extensions.Caching.Memory;
 
 public sealed record GetMaterialImageQuery(Guid FileGuid) : IQuery<GetMaterialImageQueryResult>;
@@ -13,9 +12,19 @@ public class GetMaterialImageQueryHandler(CatalogDbContext dbContext, IMemoryCac
 {
     public async Task<GetMaterialImageQueryResult> Handle(GetMaterialImageQuery query, CancellationToken ct)
     {
-        var cachedFile = memoryCache.Get<CachedFileDto>(query.FileGuid);
+        var imageFromMemory = memoryCache.Get<GetMaterialImageQueryResult>(query.FileGuid);
+        if (imageFromMemory != null)
+            return imageFromMemory;
+
+        var cachedFile = await dbContext.ImageCache
+            .Where(x => x.Guid == query.FileGuid)
+            .Select(x => new GetMaterialImageQueryResult(x.Data, x.Type))
+            .FirstOrDefaultAsync(ct);
         if (cachedFile != null)
-            return new GetMaterialImageQueryResult(cachedFile.Data, cachedFile.ContentType);
+        {
+            memoryCache.Set(query.FileGuid, cachedFile);
+            return cachedFile;
+        }
             
         var image = await dbContext.MaterialImages
                    .Where(x => x.Guid == query.FileGuid)
@@ -23,15 +32,7 @@ public class GetMaterialImageQueryHandler(CatalogDbContext dbContext, IMemoryCac
                    .FirstOrDefaultAsync(ct) ??
                throw new BadHttpRequestException($"Файл не найден. fileGuid={query.FileGuid}");
 
-        memoryCache.Set(query.FileGuid, 
-            new CachedFileDto
-            {
-                FileName = string.Empty,
-                Data = image.Data,
-                FileGuid = query.FileGuid,
-                ContentType = image.ContentType
-            },
-            absoluteExpirationRelativeToNow: TimeSpan.FromDays(1));
+        memoryCache.Set(query.FileGuid, image);
 
         return image;
     }

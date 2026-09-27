@@ -1,29 +1,36 @@
 namespace Catalog.Api.Features.Materials.ForAdmin;
 
 using Core.CQRS;
+using Database;
+using Database.Entities;
 using Dto;
-using Microsoft.Extensions.Caching.Memory;
 
 public sealed record UploadMaterialImageCommand(string FileName, byte[] Data, string ContentType)
     : ICommand<UploadMaterialImageCommandResult>;
 
 public sealed class UploadMaterialImageCommandResult : CachedFileDto;
 
-public class UploadMaterialImageCommandHandler(IMemoryCache memoryCache)
+public class UploadMaterialImageCommandHandler(CatalogDbContext dbContext)
     : ICommandHandler<UploadMaterialImageCommand, UploadMaterialImageCommandResult>
 {
-    public Task<UploadMaterialImageCommandResult> Handle(UploadMaterialImageCommand command, CancellationToken ct)
+    public async Task<UploadMaterialImageCommandResult> Handle(UploadMaterialImageCommand command, CancellationToken ct)
     {
         var cachedFile = new UploadMaterialImageCommandResult
         {
             FileName = command.FileName,
-            Data = command.Data,
             FileGuid = Guid.NewGuid(),
             ContentType = command.ContentType
         };
 
-        memoryCache.Set(cachedFile.FileGuid, cachedFile, TimeSpan.FromDays(1));
+        await dbContext.ImageCache.AddAsync(new ImageCache
+        {
+            Guid = cachedFile.FileGuid,
+            FileName = cachedFile.FileName,
+            Type = cachedFile.ContentType,
+            Data = command.Data
+        }, ct);
+        await dbContext.SaveChangesAsync(ct);
 
-        return Task.FromResult(cachedFile);
+        return cachedFile;
     }
 }

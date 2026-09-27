@@ -3,6 +3,7 @@ using System;
 using Catalog.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Catalog.Database.Migrations
 {
     [DbContext(typeof(CatalogDbContext))]
-    partial class CatalogDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260925165327_AddImageCache")]
+    partial class AddImageCache
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -99,6 +102,14 @@ namespace Catalog.Database.Migrations
                     b.Property<int>("CountTypeEnum")
                         .HasColumnType("integer")
                         .HasColumnName("count_type_enum");
+
+                    b.Property<bool>("DefaultEmalFacade")
+                        .HasColumnType("boolean")
+                        .HasColumnName("default_emal_facade");
+
+                    b.Property<bool>("DefaultPvhFacade")
+                        .HasColumnType("boolean")
+                        .HasColumnName("default_pvh_facade");
 
                     b.Property<bool>("Deleted")
                         .HasColumnType("boolean")

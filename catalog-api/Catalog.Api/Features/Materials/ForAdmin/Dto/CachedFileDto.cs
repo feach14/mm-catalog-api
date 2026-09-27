@@ -5,9 +5,6 @@ public class CachedFileDto
     [Description("Название файла")]
     public required string FileName { get; init; }
 
-    [JsonIgnore]
-    public required byte[] Data { get; init; }
-
     [Description("Guid файла")]
     public required Guid FileGuid { get; init; }
 

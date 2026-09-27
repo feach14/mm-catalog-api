@@ -2,24 +2,36 @@
 
 namespace Catalog.Api.Features.Materials.ForAdmin.Dto;
 
+using Database;
 using Database.Enums;
 
 public class MaterialModelValidator : AbstractValidator<MaterialModel>
 {
-    public MaterialModelValidator()
+    public MaterialModelValidator(CatalogDbContext dbContext)
     {
         RuleFor(m => m.Name).NotEmpty().WithMessage("Не указано название материала");
         RuleFor(m => m.Article).NotEmpty().WithMessage("Не указан артикул материала");
         RuleFor(m => m.Price)
             .NotNull().WithMessage("Не указана стоимость материала")
             .GreaterThan(0).When(m => m.Count > 0).WithMessage("Стоимость материала должна быть больше 0 при количестве больше 0");
-        RuleFor(m => m.CategoryId).GreaterThan(0).WithMessage("Не указана категория(коллекция) материала");
+        RuleFor(m => m.CategoryId)
+            .Cascade(CascadeMode.Stop)
+            .GreaterThan(0).WithMessage("Не указана категория(коллекция) материала")
+            .MustAsync(async (categoryId, ct) =>
+                await dbContext.MaterialCategories.AnyAsync(x => x.Id == categoryId, ct))
+            .WithMessage("Указанная категория материалов не найдена");
         RuleFor(m => m.Size).NotEmpty().WithMessage("Не указаны размеры материала");
         RuleFor(m => m.KvM).GreaterThan(0).WithMessage("Полезная площадь материала должна быть больше нуля");
         RuleFor(m => m.Depth).GreaterThan(0).WithMessage("Толщина материала должна быть больше нуля");
         RuleFor(m => m.PerimetrM).GreaterThan(0).WithMessage("Периметр материала должен быть больше нуля");
         RuleFor(m => m).Must(x => x.ApplicableToPvhFacades || x.ApplicableToEmalFacades || x.ApplicableToRaskroys)
             .WithMessage("Материал должен быть применен хотя бы к одному калькулятору");
+        RuleFor(m => m.Image)
+            .MustAsync(async (imageGuid, ct) =>
+                imageGuid is null
+                || await dbContext.ImageCache.AnyAsync(x => x.Guid == imageGuid, ct)
+                || await dbContext.MaterialImages.AnyAsync(x => x.Guid == imageGuid, ct))
+            .WithMessage("Изображение с указанным GUID не найдено");
     }
 }
 

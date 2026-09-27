@@ -26,12 +26,6 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
         if (await dbContext.Materials.AnyAsync(x => x.Name == materialName && x.Id != command.Id, ct))
             throw new BadHttpRequestException("Материал с таким названием уже существует.");
 
-        if (material.DefaultPvhFacade && !command.Material.ApplicableToPvhFacades)
-            throw new BadHttpRequestException("Материал по умолчанию для калькулятора фасадов ПВХ. Должно быть выставлено 'Применимо к фасадам ПВХ'");
-
-        if (material.DefaultEmalFacade && !command.Material.ApplicableToEmalFacades)
-            throw new BadHttpRequestException("Материал по умолчанию для калькулятора фасадов Эмаль. Должно быть выставлено 'Применимо к фасадам Эмаль'");
-        
         material.CategoryId = command.Material.CategoryId;
         material.Article = command.Material.Article;
         material.Name = command.Material.Name;
@@ -50,30 +44,40 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
         material.CountTypeEnum = command.Material.CountTypeEnum;
 
         // Удаляем старые изображения
-        material.Images
+        var removedImages = material.Images
             .Where(img => command.Material.Image != img.Guid)
-            .ToList()
-            .ForEach(removeImg => material.Images.Remove(removeImg));
-        
+            .ToList();
+        removedImages.ForEach(removeImg => material.Images.Remove(removeImg));
+
+        GetMaterialImageQueryResult? imageToCache = null;
+
         // Сохраняем новые изображения
         if (command.Material.Image != null && material.Images.All(x => x.Guid != command.Material.Image))
         {
-            var cachedFile = memoryCache.Get<CachedFileDto>(command.Material.Image);
+            var cachedFile = await dbContext.ImageCache
+                .FirstOrDefaultAsync(x => x.Guid == command.Material.Image, ct);
             if (cachedFile is null)
-                throw new ApplicationException($"Файл {command.Material.Image} отсутствует в кэше");
+                throw new BadHttpRequestException($"Файл {command.Material.Image} отсутствует в кэше");
 
             material.Images.Add(new MaterialImage
             {
                 Data = cachedFile.Data,
-                Type = cachedFile.ContentType,
+                Type = cachedFile.Type,
                 Guid = command.Material.Image.Value,
                 MaterialId = material.Id
             });
+
+            dbContext.ImageCache.Remove(cachedFile);
+            imageToCache = new GetMaterialImageQueryResult(cachedFile.Data, cachedFile.Type);
         }
         
         dbContext.Materials.Update(material);
 
         await dbContext.SaveChangesAsync(ct);
+
+        removedImages.ForEach(image => memoryCache.Remove(image.Guid));
+        if (command.Material.Image != null && imageToCache != null)
+            memoryCache.Set(command.Material.Image.Value, imageToCache);
         
         return new UpdateMaterialCommandResult(true);
     }
