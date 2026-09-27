@@ -13,9 +13,11 @@ public sealed record Material
     public required int CategoryId { get; set; }
     public MaterialCategory Category { get; private set; }
 
+    public required int MaterialSheetSizeId { get; set; }
+    public MaterialSheetSize MaterialSheetSize { get; private set; }
+
     public required string Name { get; set; }
     public required string Article { get; set; }
-    public required string Size { get; set; } // Размер плиты
     public required double Depth { get; set; }
     public required double KvM { get; set; }
     public required double PerimetrM { get; set; }

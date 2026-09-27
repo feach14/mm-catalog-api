@@ -1,6 +1,7 @@
 ﻿namespace Catalog.Api.Features.Materials.Public.Dto;
 
 using System.Diagnostics.CodeAnalysis;
+using MaterialSheetSizes.Dto;
 
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
 public sealed record GetMaterialQueryResult
@@ -14,8 +15,8 @@ public sealed record GetMaterialQueryResult
     [Description("Артикул материала")]
     public required string Article { get; init; }
     
-    [Description("Размер плиты")]
-    public required string Size { get; init; }
+    [Description("Размер материала")]
+    public required SheetSizeDto SheetSize { get; init; }
     
     [Description("Толщина плиты")]
     public required double Depth { get; init; }

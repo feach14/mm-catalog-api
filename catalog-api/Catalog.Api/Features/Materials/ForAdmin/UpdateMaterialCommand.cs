@@ -27,9 +27,9 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
             throw new BadHttpRequestException("Материал с таким названием уже существует.");
 
         material.CategoryId = command.Material.CategoryId;
+        material.MaterialSheetSizeId = command.Material.SheetSizeId;
         material.Article = command.Material.Article;
         material.Name = command.Material.Name;
-        material.Size = command.Material.Size;
         material.Depth = command.Material.Depth;
         material.KvM = command.Material.KvM;
         material.PerimetrM = command.Material.PerimetrM;

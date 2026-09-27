@@ -23,9 +23,9 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
         var material = new Material
         {
             CategoryId = command.Material.CategoryId,
+            MaterialSheetSizeId = command.Material.SheetSizeId,
             Article = command.Material.Article,
             Name = command.Material.Name,
-            Size = command.Material.Size,
             Depth = command.Material.Depth,
             KvM = command.Material.KvM,
             PerimetrM = command.Material.PerimetrM,

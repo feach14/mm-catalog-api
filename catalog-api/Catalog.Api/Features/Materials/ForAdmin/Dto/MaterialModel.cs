@@ -20,7 +20,12 @@ public class MaterialModelValidator : AbstractValidator<MaterialModel>
             .MustAsync(async (categoryId, ct) =>
                 await dbContext.MaterialCategories.AnyAsync(x => x.Id == categoryId, ct))
             .WithMessage("Указанная категория материалов не найдена");
-        RuleFor(m => m.Size).NotEmpty().WithMessage("Не указаны размеры материала");
+        RuleFor(m => m.SheetSizeId)
+            .Cascade(CascadeMode.Stop)
+            .GreaterThan(0).WithMessage("Не указан размер материала")
+            .MustAsync(async (sheetSizeId, ct) =>
+                await dbContext.MaterialSheetSizes.AnyAsync(x => x.Id == sheetSizeId, ct))
+            .WithMessage("Указанный размер материала не найден");
         RuleFor(m => m.KvM).GreaterThan(0).WithMessage("Полезная площадь материала должна быть больше нуля");
         RuleFor(m => m.Depth).GreaterThan(0).WithMessage("Толщина материала должна быть больше нуля");
         RuleFor(m => m.PerimetrM).GreaterThan(0).WithMessage("Периметр материала должен быть больше нуля");
@@ -52,8 +57,8 @@ public sealed record MaterialModel
     [Description("Количество")]
     public int Count { get; init; }
     
-    [Description("Размер плиты")]
-    public required string Size { get; init; }
+    [Description("Id размера материала")]
+    public int SheetSizeId { get; init; }
     
     [Description("Толщина материала")]
     public double Depth { get; init; }

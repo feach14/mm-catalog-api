@@ -22,6 +22,8 @@ server_log = None
 results = {}
 created_materials = []
 created_categories = []
+created_sheet_sizes = []
+primary_sheet_size_id = None
 guids = []
 
 
@@ -134,6 +136,12 @@ def categories():
     return json_body(response)["items"]
 
 
+def sheet_sizes():
+    response = request("GET", "/api/materials/sheet-sizes")
+    expect(response[0], 200, "material sheet sizes list")
+    return json_body(response)["items"]
+
+
 def admin_materials():
     response = request("GET", "/api/materials/admin?raskroy=true&pvhFacades=true&emalFacades=true", auth=True)
     expect(response[0], 200, "admin material list")
@@ -154,14 +162,24 @@ def create_category(name):
     return category_id
 
 
+def create_sheet_size(name, height, width):
+    response = request("POST", "/api/materials/sheet-sizes", {
+        "name": name, "height": height, "width": width
+    }, auth=True)
+    expect(response[0], 200, "create material sheet size")
+    size_id = json_body(response)["id"]
+    created_sheet_sizes.append(size_id)
+    return size_id
+
+
 def material_model(name, category_id, flag, image=None):
     return {
         "categoryId": category_id,
+        "sheetSizeId": primary_sheet_size_id,
         "name": name,
         "article": "ART-" + name[-8:],
         "image": image,
         "count": 2,
-        "size": "2800x2070",
         "depth": 18,
         "kvM": 5.796,
         "perimetrM": 9.74,
@@ -204,9 +222,17 @@ def cleanup():
                 created_categories.remove(category_id)
         except Exception:
             pass
+    for size_id in list(reversed(created_sheet_sizes)):
+        try:
+            response = request("DELETE", f"/api/materials/sheet-sizes/{size_id}", auth=True)
+            if response[0] == 200:
+                created_sheet_sizes.remove(size_id)
+        except Exception:
+            pass
 
 
 def main():
+    global primary_sheet_size_id
     prefix = "codex-http-" + time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
     png = b"\x89PNG\r\n\x1a\n" + b"catalog-png-test"
     jpeg = b"\xff\xd8\xff\xe0" + b"catalog-jpeg-test" + b"\xff\xd9"
@@ -217,6 +243,35 @@ def main():
     expect(request("GET", "/api/materials/admin?raskroy=true", auth=True)[0], 200, "authorized client")
     mark("PREP-01—PREP-03", "manager cookie received; authorized and anonymous clients prepared")
 
+    primary_sheet_size_id = create_sheet_size("ЛДСП", 2800, 2070)
+    secondary_sheet_size_id = create_sheet_size("Столешница", 2440, 1220)
+    expect(request("GET", "/api/materials/sheet-sizes")[0], 200, "public material sheet sizes")
+    expect(request("GET", f"/api/materials/sheet-sizes/{primary_sheet_size_id}")[0], 200, "public material sheet size card")
+    expect(request("POST", "/api/materials/sheet-sizes", {"name": "Другое название", "height": 2800, "width": 2070}, auth=True)[0], 400, "duplicate material sheet size")
+    expect(request("POST", "/api/materials/sheet-sizes", {"name": "ЛДСП", "height": 1111, "width": 2222}, auth=True)[0], 400, "duplicate material sheet size name")
+    temporary_sheet_size_id = create_sheet_size("Временный", 300, 300)
+    expect(request("PUT", f"/api/materials/sheet-sizes/{temporary_sheet_size_id}", {"name": "Временный обновлённый", "height": 301, "width": 301}, auth=True)[0], 200, "update material sheet size")
+    expect(request("DELETE", f"/api/materials/sheet-sizes/{temporary_sheet_size_id}", auth=True)[0], 200, "delete free material sheet size")
+    created_sheet_sizes.remove(temporary_sheet_size_id)
+    mark("SIZE-01—SIZE-04", "create/list/card/duplicate/update/free delete passed")
+
+    own_sizes = [x for x in sheet_sizes() if x["id"] in (primary_sheet_size_id, secondary_sheet_size_id)]
+    if [x["id"] for x in own_sizes] != [primary_sheet_size_id, secondary_sheet_size_id]:
+        raise AssertionError("created material sheet size order is incorrect")
+    expect(request("POST", "/api/materials/sheet-sizes/change-order-col", {
+        "id": secondary_sheet_size_id, "direction": "UP"
+    }, auth=True)[0], 200, "move material sheet size up")
+    own_sizes = [x for x in sheet_sizes() if x["id"] in (primary_sheet_size_id, secondary_sheet_size_id)]
+    if [x["id"] for x in own_sizes] != [secondary_sheet_size_id, primary_sheet_size_id]:
+        raise AssertionError("material sheet size was not moved up")
+    expect(request("POST", "/api/materials/sheet-sizes/change-order-col", {
+        "id": secondary_sheet_size_id, "direction": "DOWN"
+    }, auth=True)[0], 200, "move material sheet size down")
+    own_sizes = [x for x in sheet_sizes() if x["id"] in (primary_sheet_size_id, secondary_sheet_size_id)]
+    if [x["id"] for x in own_sizes] != [primary_sheet_size_id, secondary_sheet_size_id]:
+        raise AssertionError("material sheet size was not moved down")
+    mark("SIZE-08—SIZE-09", "material sheet size moved up and down")
+
     expect(request("GET", "/api/materials?raskroy=true")[0], 200, "public materials")
     expect(request("GET", "/api/materials/categories")[0], 200, "public categories")
     expect(request("GET", "/api/materials/admin?raskroy=true")[0], 401, "anonymous admin list")
@@ -225,6 +280,8 @@ def main():
         ("PUT", "/api/materials/categories/1", {"name": "x", "externalLink": "x"}),
         ("DELETE", "/api/materials/categories/1", None),
         ("POST", "/api/materials/categories/change-order-col", {"categoryId": 1, "direction": "UP"}),
+        ("POST", "/api/materials/sheet-sizes", {"name": "x", "height": 1, "width": 1}),
+        ("POST", "/api/materials/sheet-sizes/change-order-col", {"id": 1, "direction": "UP"}),
     ]
     for method, path, body in anonymous_mutations:
         expect(request(method, path, body)[0], 401, f"anonymous {method} {path}")
@@ -288,6 +345,10 @@ def main():
     m1, m2, m3 = [create_material(x) for x in (m1_model, m2_model, m3_model)]
     expect(request("GET", f"/api/materials/{m1}")[0], 200, "public material card")
     expect(request("GET", f"/api/materials/admin/{m1}", auth=True)[0], 200, "admin material card")
+    if json_body(request("GET", f"/api/materials/{m1}"))["sheetSize"]["id"] != primary_sheet_size_id:
+        raise AssertionError("material sheet size absent from material card")
+    expect(request("DELETE", f"/api/materials/sheet-sizes/{primary_sheet_size_id}", auth=True)[0], 400, "delete used material sheet size")
+    mark("SIZE-05—SIZE-06", "material relation visible; used size deletion rejected")
     expect(request("GET", f"/api/materials/categories/{cat1}")[0], 200, "public category card after material")
     png_response = request("GET", "/api/materials/images/" + images[0][0])
     expect(png_response[0], 200, "bound PNG")
@@ -310,7 +371,7 @@ def main():
     m3_updated = copy.deepcopy(m3_model)
     m3_updated.update({
         "categoryId": cat3, "name": prefix + "-mat-emal-updated", "article": "UPDATED",
-        "count": 7, "size": "2440x1220", "depth": 16, "kvM": 2.9768,
+        "count": 7, "sheetSizeId": secondary_sheet_size_id, "depth": 16, "kvM": 2.9768,
         "perimetrM": 7.32, "price": 456.78, "countTypeEnum": "SHT",
         "applicableToRaskroys": True, "applicableToEmalFacades": False,
         "commentOnMaterialIsRequired": True, "allowSecondItemInOrder": False
@@ -374,7 +435,7 @@ def main():
     for bad_category in (0, 2147483000):
         bad = copy.deepcopy(base_invalid); bad["categoryId"] = bad_category; bad["name"] += str(bad_category)
         expect(request("POST", "/api/materials", bad, auth=True)[0], 400, "bad category")
-    for field, value in (("size", ""), ("depth", 0), ("kvM", -1), ("perimetrM", 0)):
+    for field, value in (("sheetSizeId", 0), ("depth", 0), ("kvM", -1), ("perimetrM", 0)):
         bad = copy.deepcopy(base_invalid); bad[field] = value; bad["name"] += "-" + field
         expect(request("POST", "/api/materials", bad, auth=True)[0], 400, "bad dimensions")
     bad = copy.deepcopy(base_invalid); bad["price"] = 0
@@ -409,6 +470,10 @@ def main():
     for category_id in (cat1, cat2, cat3):
         expect(request("DELETE", f"/api/materials/categories/{category_id}", auth=True)[0], 200, "delete free category")
         created_categories.remove(category_id)
+    for size_id in (primary_sheet_size_id, secondary_sheet_size_id):
+        expect(request("DELETE", f"/api/materials/sheet-sizes/{size_id}", auth=True)[0], 200, "delete free material sheet size")
+        created_sheet_sizes.remove(size_id)
+    mark("SIZE-07", "free material sheet sizes deleted")
     mark("CAT-10", "free categories deleted")
     remaining_category_ids = {x["id"] for x in categories()}
     if {cat1, cat2, cat3} & remaining_category_ids:

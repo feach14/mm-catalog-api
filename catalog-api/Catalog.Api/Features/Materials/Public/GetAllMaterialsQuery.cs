@@ -3,6 +3,7 @@ namespace Catalog.Api.Features.Materials.Public;
 using Core.CQRS;
 using Database;
 using Dto;
+using MaterialSheetSizes.Dto;
 
 public sealed record GetAllMaterialsQuery(
     [property: Description("Признак: Добавить в выдачу материалы для кальулятора раскроя")] [property: FromQuery(Name = "raskroy")] bool Raskroy,
@@ -35,7 +36,7 @@ public class GetAllMaterialsQueryHandler(CatalogDbContext dbContext) : IQueryHan
                 Id = x.Id,
                 Name = x.Name,
                 Article = x.Article,
-                Size = x.Size,
+                SheetSize = new SheetSizeDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name, x.MaterialSheetSize.Height, x.MaterialSheetSize.Width, x.MaterialSheetSize.OrderByCol),
                 Depth = x.Depth,
                 CommentOnMaterialIsRequired = x.CommentOnMaterialIsRequired,
                 Image = x.Images.Count != 0 ? x.Images.Select(g => g.Guid).First() : null,

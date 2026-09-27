@@ -3,6 +3,7 @@ namespace Catalog.Api.Features.Materials.ForAdmin;
 using Core.CQRS;
 using Database;
 using Database.Enums;
+using MaterialSheetSizes.Dto;
 
 public sealed record GetMaterialForAdminQuery(int Id) : IQuery<GetMaterialForAdminQueryResult>;
 
@@ -10,7 +11,7 @@ public sealed record GetMaterialForAdminQueryResult(
     [property: Description("Id материала")] int Id,
     [property: Description("Название материала")] string Name,
     [property: Description("Артикул материала")] string Article,
-    [property: Description("Размер плиты")] string Size,
+    [property: Description("Размер материала")] SheetSizeDto SheetSize,
     [property: Description("Толщина плиты")] double Depth,
     [property: Description("Количество кв. м. в плите")] double KvM,
     [property: Description("Количество метров по периметру плиты")] double PerimetrM,
@@ -39,7 +40,12 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
                        x.Id,
                        x.Name,
                        x.Article,
-                       x.Size,
+                       SheetSize = new SheetSizeDto(
+                           x.MaterialSheetSize.Id,
+                           x.MaterialSheetSize.Name,
+                           x.MaterialSheetSize.Height,
+                           x.MaterialSheetSize.Width,
+                           x.MaterialSheetSize.OrderByCol),
                        x.Depth,
                        x.KvM,
                        x.PerimetrM,
@@ -63,7 +69,7 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
             Id: queryResult.Id,
             Name: queryResult.Name,
             Article: queryResult.Article,
-            Size: queryResult.Size,
+            SheetSize: queryResult.SheetSize,
             Depth: queryResult.Depth,
             KvM: queryResult.KvM,
             PerimetrM: queryResult.PerimetrM,

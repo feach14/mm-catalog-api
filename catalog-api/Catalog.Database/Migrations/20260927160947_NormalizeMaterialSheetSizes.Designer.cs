@@ -3,6 +3,7 @@ using System;
 using Catalog.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Catalog.Database.Migrations
 {
     [DbContext(typeof(CatalogDbContext))]
-    partial class CatalogDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260927160947_NormalizeMaterialSheetSizes")]
+    partial class NormalizeMaterialSheetSizes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -261,13 +264,13 @@ namespace Catalog.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_material_sheet_sizes");
 
-                    b.HasIndex("OrderByCol")
-                        .IsUnique()
-                        .HasDatabaseName("ix_material_sheet_sizes_order_by_col");
-
                     b.HasIndex("Height", "Width")
                         .IsUnique()
                         .HasDatabaseName("ix_material_sheet_sizes_height_width");
+
+                    b.HasIndex("OrderByCol")
+                        .IsUnique()
+                        .HasDatabaseName("ix_material_sheet_sizes_order_by_col");
 
                     b.ToTable("material_sheet_sizes", "catalog");
                 });
