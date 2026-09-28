@@ -1,4 +1,3 @@
-using Catalog.Api.Features.Materials;
 using Catalog.Api.Features.Materials.Dto;
 using Catalog.Api.Features.Materials.Public.Dto;
 using Catalog.Database;
@@ -35,9 +34,7 @@ public class GetAllMaterialsQueryHandler(CatalogDbContext dbContext) : IQueryHan
 {
     public async Task<GetAllMaterialsQueryResult> Handle(GetAllMaterialsQuery query, CancellationToken ct)
     {
-        var materialsQuery = dbContext.Materials
-            .Where(x => !x.Deleted)
-            .FilterByCalculators(query.Calculator);
+        var materialsQuery = dbContext.Materials.FilterByCalculators(query.Calculator);
 
         if (query.InStock.HasValue)
             materialsQuery = query.InStock.Value

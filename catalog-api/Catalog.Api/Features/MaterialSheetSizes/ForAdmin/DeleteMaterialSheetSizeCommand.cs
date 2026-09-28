@@ -1,4 +1,6 @@
+using Catalog.Api.Features.History;
 using Catalog.Database;
+using Catalog.Database.Enums;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
@@ -6,7 +8,7 @@ namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
 public sealed record DeleteMaterialSheetSizeCommand(int Id) : ICommand<DeleteMaterialSheetSizeCommandResult>;
 public sealed record DeleteMaterialSheetSizeCommandResult(bool Success);
 
-public sealed class DeleteMaterialSheetSizeCommandHandler(CatalogDbContext dbContext)
+public sealed class DeleteMaterialSheetSizeCommandHandler(CatalogDbContext dbContext, ICatalogHistoryWriter historyWriter)
     : ICommandHandler<DeleteMaterialSheetSizeCommand, DeleteMaterialSheetSizeCommandResult>
 {
     public async Task<DeleteMaterialSheetSizeCommandResult> Handle(DeleteMaterialSheetSizeCommand command, CancellationToken ct)
@@ -17,6 +19,11 @@ public sealed class DeleteMaterialSheetSizeCommandHandler(CatalogDbContext dbCon
             throw new BadHttpRequestException("Нельзя удалить размер, используемый материалами.");
 
         dbContext.MaterialSheetSizes.Remove(size);
+        historyWriter.Add(
+            CatalogHistoryActionType.Delete,
+            CatalogHistoryEntityType.SheetSize,
+            size.Id,
+            $"Удалён размер плиты #{size.Id} «{size.Name}». Перед удалением: {size.Height}×{size.Width}, показывать в фильтрах — {(size.ShowInFilters ? "Да" : "Нет")}.");
         await dbContext.SaveChangesAsync(ct);
         return new DeleteMaterialSheetSizeCommandResult(true);
     }

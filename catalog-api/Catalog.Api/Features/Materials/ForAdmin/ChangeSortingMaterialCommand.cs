@@ -18,11 +18,11 @@ public class ChangeSortingMaterialCommandHandler(CatalogDbContext dbContext) : I
     {
         var materialEntity = await dbContext.Materials
             .Include(x => x.Category)
-            .FirstOrDefaultAsync(x => x.Id == command.Id && !x.Deleted, ct)
+            .FirstOrDefaultAsync(x => x.Id == command.Id, ct)
             ?? throw new BadHttpRequestException($"Материал с id={command.Id} не найден.");
 
         var materials = await dbContext.Materials
-            .Where(x => x.CategoryId == materialEntity.CategoryId && !x.Deleted)
+            .Where(x => x.CategoryId == materialEntity.CategoryId)
             .OrderBy(x => x.OrderByCol)
             .ToArrayAsync(ct);
 

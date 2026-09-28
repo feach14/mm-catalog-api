@@ -1,6 +1,8 @@
+using Catalog.Api.Features.History;
 using Catalog.Api.Features.Materials.ForAdmin.Dto;
 using Catalog.Database;
 using Catalog.Database.Entities;
+using Catalog.Database.Enums;
 using Core.CQRS;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -11,7 +13,7 @@ public sealed record UpdateMaterialCommand(int Id, MaterialModel Material) : ICo
 public sealed record UpdateMaterialCommandResult(
     [property: Description("Успех операции")] bool Success);
 
-public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCache memoryCache) : ICommandHandler<UpdateMaterialCommand, UpdateMaterialCommandResult>
+public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCache memoryCache, ICatalogHistoryWriter historyWriter) : ICommandHandler<UpdateMaterialCommand, UpdateMaterialCommandResult>
 {
     public async Task<UpdateMaterialCommandResult> Handle(UpdateMaterialCommand command, CancellationToken ct)
     {
@@ -25,6 +27,30 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
         var materialName = command.Material.Name.Trim();
         if (await dbContext.Materials.AnyAsync(x => x.Name == materialName && x.Id != command.Id, ct))
             throw new BadHttpRequestException("Материал с таким названием уже существует.");
+
+        var oldImage = material.Images.Select(x => (Guid?)x.Guid).SingleOrDefault();
+        var changes = new List<string>();
+        AddChange(changes, "категория", material.CategoryId, command.Material.CategoryId);
+        AddChange(changes, "размер", material.MaterialSheetSizeId, command.Material.SheetSizeId);
+        AddChange(changes, "производитель", material.MaterialManufacturerId, command.Material.ManufacturerId);
+        AddChange(changes, "название", material.Name, command.Material.Name, true);
+        AddChange(changes, "артикул", material.Article, command.Material.Article, true);
+        AddChange(changes, "толщина", material.Depth, command.Material.Depth);
+        AddChange(changes, "площадь", material.KvM, command.Material.KvM);
+        AddChange(changes, "периметр", material.PerimetrM, command.Material.PerimetrM);
+        AddChange(changes, "количество", material.Count, command.Material.Count);
+        AddChange(changes, "ссылка", material.ExternalLink, command.Material.ExternalLink, true);
+        AddChange(changes, "раскрой", material.ApplicableToRaskroys, command.Material.ApplicableToRaskroys);
+        AddChange(changes, "фасады ПВХ", material.ApplicableToPvhFacades, command.Material.ApplicableToPvhFacades);
+        AddChange(changes, "фасады эмаль", material.ApplicableToEmalFacades, command.Material.ApplicableToEmalFacades);
+        AddChange(changes, "обязательный комментарий", material.CommentOnMaterialIsRequired, command.Material.CommentOnMaterialIsRequired);
+        AddChange(changes, "второй элемент в заказе", material.AllowSecondItemInOrder, command.Material.AllowSecondItemInOrder);
+        AddChange(changes, "цена", material.Price, command.Material.Price);
+        AddChange(changes, "единица", material.CountTypeEnum, command.Material.CountTypeEnum);
+        AddChange(changes, "изображение", oldImage, command.Material.Image);
+
+        if (changes.Count == 0)
+            return new UpdateMaterialCommandResult(true);
 
         material.CategoryId = command.Material.CategoryId;
         material.MaterialSheetSizeId = command.Material.SheetSizeId;
@@ -73,6 +99,11 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
         }
 
         dbContext.Materials.Update(material);
+        historyWriter.Add(
+            CatalogHistoryActionType.Update,
+            CatalogHistoryEntityType.Material,
+            material.Id,
+            $"Материал #{material.Id} «{material.Name}» изменён: {string.Join(", ", changes)}.");
 
         await dbContext.SaveChangesAsync(ct);
 
@@ -81,5 +112,16 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
             memoryCache.Set(command.Material.Image.Value, imageToCache);
 
         return new UpdateMaterialCommandResult(true);
+    }
+
+    private static void AddChange<T>(List<string> changes, string name, T oldValue, T newValue, bool quote = false)
+    {
+        if (EqualityComparer<T>.Default.Equals(oldValue, newValue))
+            return;
+        var oldText = oldValue?.ToString() ?? "нет";
+        var newText = newValue?.ToString() ?? "нет";
+        changes.Add(quote
+            ? $"{name} «{oldText}» → «{newText}»"
+            : $"{name} {oldText} → {newText}");
     }
 }

@@ -1,4 +1,6 @@
+using Catalog.Api.Features.History;
 using Catalog.Database;
+using Catalog.Database.Enums;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Manufacturers.ForAdmin;
@@ -6,7 +8,7 @@ namespace Catalog.Api.Features.Manufacturers.ForAdmin;
 public sealed record DeleteManufacturerCommand(int Id) : ICommand<DeleteManufacturerCommandResult>;
 public sealed record DeleteManufacturerCommandResult([property: Description("Успех операции")] bool Success);
 
-public sealed class DeleteManufacturerCommandHandler(CatalogDbContext dbContext)
+public sealed class DeleteManufacturerCommandHandler(CatalogDbContext dbContext, ICatalogHistoryWriter historyWriter)
     : ICommandHandler<DeleteManufacturerCommand, DeleteManufacturerCommandResult>
 {
     public async Task<DeleteManufacturerCommandResult> Handle(DeleteManufacturerCommand command, CancellationToken ct)
@@ -17,6 +19,11 @@ public sealed class DeleteManufacturerCommandHandler(CatalogDbContext dbContext)
             throw new BadHttpRequestException("Нельзя удалить производителя, который используется материалами.");
 
         dbContext.MaterialManufacturers.Remove(manufacturer);
+        historyWriter.Add(
+            CatalogHistoryActionType.Delete,
+            CatalogHistoryEntityType.Manufacturer,
+            manufacturer.Id,
+            $"Удалён производитель #{manufacturer.Id} «{manufacturer.Name}».");
         await dbContext.SaveChangesAsync(ct);
         return new DeleteManufacturerCommandResult(true);
     }

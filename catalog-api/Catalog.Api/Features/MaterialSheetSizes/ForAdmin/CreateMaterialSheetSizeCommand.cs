@@ -1,5 +1,7 @@
+using Catalog.Api.Features.History;
 using Catalog.Database;
 using Catalog.Database.Entities;
+using Catalog.Database.Enums;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
@@ -7,7 +9,7 @@ namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
 public sealed record CreateMaterialSheetSizeCommand(SheetSizeModel Model) : ICommand<CreateMaterialSheetSizeCommandResult>;
 public sealed record CreateMaterialSheetSizeCommandResult(int Id);
 
-public sealed class CreateMaterialSheetSizeCommandHandler(CatalogDbContext dbContext)
+public sealed class CreateMaterialSheetSizeCommandHandler(CatalogDbContext dbContext, ICatalogHistoryWriter historyWriter)
     : ICommandHandler<CreateMaterialSheetSizeCommand, CreateMaterialSheetSizeCommandResult>
 {
     public async Task<CreateMaterialSheetSizeCommandResult> Handle(CreateMaterialSheetSizeCommand command, CancellationToken ct)
@@ -28,8 +30,16 @@ public sealed class CreateMaterialSheetSizeCommandHandler(CatalogDbContext dbCon
             ShowInFilters = command.Model.ShowInFilters,
             OrderByCol = maxOrderByCol + 1
         };
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
         dbContext.MaterialSheetSizes.Add(size);
         await dbContext.SaveChangesAsync(ct);
+        historyWriter.Add(
+            CatalogHistoryActionType.Create,
+            CatalogHistoryEntityType.SheetSize,
+            size.Id,
+            $"Создан размер плиты #{size.Id} «{size.Name}»: {size.Height}×{size.Width}, показывать в фильтрах — {(size.ShowInFilters ? "Да" : "Нет")}.");
+        await dbContext.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return new CreateMaterialSheetSizeCommandResult(size.Id);
     }
 }

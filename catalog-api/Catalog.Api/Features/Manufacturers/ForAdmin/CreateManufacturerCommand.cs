@@ -1,5 +1,7 @@
+using Catalog.Api.Features.History;
 using Catalog.Database;
 using Catalog.Database.Entities;
+using Catalog.Database.Enums;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Manufacturers.ForAdmin;
@@ -22,15 +24,23 @@ public sealed class CreateManufacturerCommandValidator : AbstractValidator<Creat
     }
 }
 
-public sealed class CreateManufacturerCommandHandler(CatalogDbContext dbContext)
+public sealed class CreateManufacturerCommandHandler(CatalogDbContext dbContext, ICatalogHistoryWriter historyWriter)
     : ICommandHandler<CreateManufacturerCommand, CreateManufacturerCommandResult>
 {
     public async Task<CreateManufacturerCommandResult> Handle(CreateManufacturerCommand command, CancellationToken ct)
     {
         var maxOrderByCol = await dbContext.MaterialManufacturers.MaxAsync(x => (int?)x.OrderByCol, ct) ?? 0;
         var manufacturer = new MaterialManufacturer { Name = command.Name.Trim(), OrderByCol = maxOrderByCol + 1 };
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
         dbContext.MaterialManufacturers.Add(manufacturer);
         await dbContext.SaveChangesAsync(ct);
+        historyWriter.Add(
+            CatalogHistoryActionType.Create,
+            CatalogHistoryEntityType.Manufacturer,
+            manufacturer.Id,
+            $"Создан производитель #{manufacturer.Id} «{manufacturer.Name}».");
+        await dbContext.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return new CreateManufacturerCommandResult(manufacturer.Id);
     }
 }

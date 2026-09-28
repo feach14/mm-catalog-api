@@ -2,6 +2,7 @@
 import copy
 import json
 import os
+import re
 import socket
 import ssl
 import subprocess
@@ -28,6 +29,35 @@ created_manufacturers = []
 primary_sheet_size_id = None
 primary_manufacturer_id = None
 guids = []
+
+
+def load_test_credentials():
+    default_path = os.path.abspath(os.path.join(
+        ROOT, "..", "..", "mm-accounts-api", "accounts-api", "docs", "TEST_CREDENTIALS.md"))
+    path = os.environ.get("ACCOUNTS_TEST_CREDENTIALS_FILE", default_path)
+    try:
+        with open(path, encoding="utf-8") as credentials_file:
+            contents = credentials_file.read()
+    except OSError as error:
+        raise RuntimeError(f"Cannot read Accounts API test credentials at {path}: {error}") from error
+
+    password_match = re.search(r"^- Пароль: `([^`]+)`$", contents, re.MULTILINE)
+    if password_match is None:
+        raise RuntimeError(f"Test password is missing in {path}")
+
+    role_labels = {
+        "user": "Обычный пользователь",
+        "manager": "Менеджер",
+        "administrator": "Администратор",
+        "tester": "Тестер",
+    }
+    credentials = {"password": password_match.group(1)}
+    for role, label in role_labels.items():
+        match = re.search(rf"^\|\s*{re.escape(label)}\s*\|\s*`([^`]+)`", contents, re.MULTILINE)
+        if match is None:
+            raise RuntimeError(f"Credentials for role {role} are missing in {path}")
+        credentials[role] = match.group(1)
+    return credentials
 
 
 def request(method, path, data=None, auth=False, auth_cookie=None, headers=None, raw=False, base=API):
@@ -133,9 +163,9 @@ def restart_server():
     start_server()
 
 
-def signin(phone, role):
+def signin(phone, password, role):
     response = request("POST", "/api/sign/in", {
-        "phone": phone, "password": "140589", "isManager": True
+        "phone": phone, "password": password, "isManager": False
     }, base=ACCOUNTS)
     expect(response[0], 200, f"{role} sign-in")
     raw_cookie = response[1].get("Set-Cookie")
@@ -160,6 +190,28 @@ def manufacturers():
     response = request("GET", "/api/materials/manufacturers")
     expect(response[0], 200, "manufacturers list")
     return json_body(response)["items"]
+
+
+def history(**filters):
+    parameters = {"page": filters.pop("page", 1), "pageSize": filters.pop("page_size", 200)}
+    parameters.update({key: value for key, value in filters.items() if value is not None})
+    response = request("GET", "/api/catalog/history?" + urllib.parse.urlencode(parameters), auth=True)
+    expect(response[0], 200, "catalog history")
+    return json_body(response)
+
+
+def relation_counts(path, relation_id):
+    list_response = request("GET", path)
+    expect(list_response[0], 200, f"{path} list for counters")
+    list_item = next(item for item in json_body(list_response)["items"] if item["id"] == relation_id)
+    card_response = request("GET", f"{path}/{relation_id}")
+    expect(card_response[0], 200, f"{path} card for counters")
+    card = json_body(card_response)
+    list_counts = (list_item["materialsAnyCount"], list_item["materialsNotAnyCount"])
+    card_counts = (card["materialsAnyCount"], card["materialsNotAnyCount"])
+    if list_counts != card_counts:
+        raise AssertionError(f"counter mismatch between list and card for {path}/{relation_id}")
+    return list_counts
 
 
 def admin_materials():
@@ -287,22 +339,44 @@ def main():
         raise AssertionError("SheetSizeDto OpenAPI required properties are incomplete")
     mark("DOC-01", "SheetSizeDto OpenAPI schema contains all response properties and required fields")
 
-    user_cookie = signin("79600487056", "user")
-    manager_cookie = signin("79600487057", "manager")
-    admin_cookie = signin("79600487058", "administrator")
+    credentials = load_test_credentials()
+    user_cookie = signin(credentials["user"], credentials["password"], "user")
+    tester_cookie = signin(credentials["tester"], credentials["password"], "tester")
+    manager_cookie = signin(credentials["manager"], credentials["password"], "manager")
+    admin_cookie = signin(credentials["administrator"], credentials["password"], "administrator")
     cookie = manager_cookie
     role_probes = [
         ("GET", "/api/materials/admin", 200),
+        ("GET", "/api/catalog/history", 200),
         ("DELETE", "/api/materials/categories/2147483647", 400),
         ("DELETE", "/api/materials/sheet-sizes/2147483647", 400),
         ("DELETE", "/api/materials/manufacturers/2147483647", 400),
     ]
     for method, path, authorized_status in role_probes:
         expect(request(method, path, auth_cookie=user_cookie)[0], 403, f"ordinary user {method} {path}")
+        expect(request(method, path, auth_cookie=tester_cookie)[0], authorized_status, f"tester {method} {path}")
         expect(request(method, path, auth_cookie=admin_cookie)[0], authorized_status, f"administrator {method} {path}")
     expect(request("GET", "/api/materials/admin", auth_cookie=manager_cookie)[0], 200, "manager")
-    mark("PREP-01—PREP-03", "user, manager and administrator cookies received; anonymous client prepared")
-    mark("AUTH-08—AUTH-10", "manager and administrator allowed; ordinary user forbidden across protected controllers")
+    expect(request("GET", "/api/catalog/history")[0], 401, "anonymous history")
+    expect(request("GET", "/api/catalog/history", auth_cookie=user_cookie)[0], 403, "ordinary user history")
+    expect(request("GET", "/api/catalog/history?pageSize=201", auth_cookie=manager_cookie)[0], 400, "history page size validation")
+    mark("PREP-01—PREP-03", "user, tester, manager and administrator cookies received; anonymous client prepared")
+    mark("AUTH-08—AUTH-11", "tester, manager and administrator allowed; ordinary user forbidden across protected controllers")
+
+    tester_probe_name = prefix + "-tester-no-history"
+    tester_create = request("POST", "/api/materials/manufacturers", {"name": tester_probe_name}, auth_cookie=tester_cookie)
+    expect(tester_create[0], 200, "tester create manufacturer without history")
+    tester_probe_id = json_body(tester_create)["id"]
+    created_manufacturers.append(tester_probe_id)
+    expect(request("PUT", f"/api/materials/manufacturers/{tester_probe_id}", {
+        "name": tester_probe_name + "-updated"
+    }, auth_cookie=tester_cookie)[0], 200, "tester update manufacturer without history")
+    expect(request("DELETE", f"/api/materials/manufacturers/{tester_probe_id}", auth_cookie=tester_cookie)[0], 200,
+           "tester delete manufacturer without history")
+    created_manufacturers.remove(tester_probe_id)
+    if history(search=tester_probe_name)["totalCount"] != 0:
+        raise AssertionError("tester operations created catalog history events")
+    mark("HIST-13", "tester create/update/delete succeeded without catalog history events")
 
     primary_sheet_size_id = create_sheet_size(prefix + "-size-a", dimension_base, dimension_base + 1)
     secondary_sheet_size_id = create_sheet_size(prefix + "-size-b", dimension_base + 2, dimension_base + 3)
@@ -312,6 +386,7 @@ def main():
     expect(request("POST", "/api/materials/sheet-sizes", {"name": prefix + "-size-a", "height": dimension_base + 4, "width": dimension_base + 5}, auth=True)[0], 400, "duplicate material sheet size name")
     temporary_sheet_size_id = create_sheet_size(prefix + "-size-temp", dimension_base + 6, dimension_base + 7)
     expect(request("PUT", f"/api/materials/sheet-sizes/{temporary_sheet_size_id}", {"name": prefix + "-size-updated", "height": dimension_base + 8, "width": dimension_base + 9}, auth=True)[0], 200, "update material sheet size")
+    expect(request("PUT", f"/api/materials/sheet-sizes/{temporary_sheet_size_id}", {"name": prefix + "-size-updated", "height": dimension_base + 8, "width": dimension_base + 9}, auth=True)[0], 200, "no-op material sheet size update")
     expect(request("DELETE", f"/api/materials/sheet-sizes/{temporary_sheet_size_id}", auth=True)[0], 200, "delete free material sheet size")
     created_sheet_sizes.remove(temporary_sheet_size_id)
     mark("SIZE-01—SIZE-04", "create/list/card/duplicate/update/free delete passed")
@@ -339,6 +414,7 @@ def main():
     expect(request("POST", "/api/materials/manufacturers", {"name": prefix + "-manufacturer-a"}, auth=True)[0], 400, "duplicate manufacturer")
     temporary_manufacturer_id = create_manufacturer(prefix + "-manufacturer-temp")
     expect(request("PUT", f"/api/materials/manufacturers/{temporary_manufacturer_id}", {"name": prefix + "-manufacturer-updated"}, auth=True)[0], 200, "update manufacturer")
+    expect(request("PUT", f"/api/materials/manufacturers/{temporary_manufacturer_id}", {"name": prefix + "-manufacturer-updated"}, auth=True)[0], 200, "no-op manufacturer update")
     expect(request("DELETE", f"/api/materials/manufacturers/{temporary_manufacturer_id}", auth=True)[0], 200, "delete free manufacturer")
     created_manufacturers.remove(temporary_manufacturer_id)
     expect(request("POST", "/api/materials/manufacturers/change-order-col", {"id": secondary_manufacturer_id, "direction": "UP"}, auth=True)[0], 200, "manufacturer up")
@@ -387,6 +463,9 @@ def main():
         "name": prefix + "-cat-b-updated", "externalLink": "https://example.test/updated"
     }, auth=True)
     expect(response[0], 200, "update category")
+    expect(request("PUT", f"/api/materials/categories/{cat2}", {
+        "name": prefix + "-cat-b-updated", "externalLink": "https://example.test/updated"
+    }, auth=True)[0], 200, "no-op category update")
     updated = json_body(request("GET", f"/api/materials/categories/{cat2}"))
     if updated["name"] != prefix + "-cat-b-updated":
         raise AssertionError("category update not visible")
@@ -435,6 +514,9 @@ def main():
     invalid_manufacturer_model = material_model(prefix + "-invalid-manufacturer", cat1, "raskroy")
     invalid_manufacturer_model["manufacturerId"] = 2147483647
     expect(request("POST", "/api/materials", invalid_manufacturer_model, auth=True)[0], 400, "invalid manufacturer id")
+    zero_manufacturer_model = material_model(prefix + "-zero-manufacturer", cat1, "raskroy")
+    zero_manufacturer_model["manufacturerId"] = 0
+    expect(request("POST", "/api/materials", zero_manufacturer_model, auth=True)[0], 400, "zero manufacturer id")
     expect(request("GET", f"/api/materials/{m1}")[0], 200, "public material card")
     expect(request("GET", f"/api/materials/admin/{m1}", auth=True)[0], 200, "admin material card")
     material_card = json_body(request("GET", f"/api/materials/{m1}"))
@@ -485,6 +567,7 @@ def main():
         "commentOnMaterialIsRequired": True, "allowSecondItemInOrder": False
     })
     expect(request("PUT", f"/api/materials/{m3}", m3_updated, auth=True)[0], 200, "update material")
+    expect(request("PUT", f"/api/materials/{m3}", m3_updated, auth=True)[0], 200, "no-op material update")
     public_card = json_body(request("GET", f"/api/materials/{m3}"))
     admin_card = json_body(request("GET", f"/api/materials/admin/{m3}", auth=True))
     if public_card["category"]["id"] != cat3 or admin_card["price"] != 456.78 or admin_card["countTypeEnum"] != "SHT":
@@ -558,19 +641,30 @@ def main():
     expect(request("POST", "/api/materials/change-order-col", {"id": m1, "direction": "SIDEWAYS"}, auth=True)[0], 400, "invalid direction")
     bad = copy.deepcopy(base_invalid); bad["name"] += "-guid"; bad["image"] = str(uuid.uuid4())
     expect(request("POST", "/api/materials", bad, auth=True)[0], 400, "missing image GUID")
-    mark("VAL-01—VAL-09", "all negative models and missing ids/GUID returned 400")
+    mark("VAL-01—VAL-10", "all negative models and missing ids/GUID returned 400")
 
+    counter_targets = (
+        ("/api/materials/categories", cat1),
+        ("/api/materials/sheet-sizes", primary_sheet_size_id),
+        ("/api/materials/manufacturers", primary_manufacturer_id)
+    )
+    counters_before_delete = [relation_counts(path, relation_id) for path, relation_id in counter_targets]
     expect(request("GET", "/api/materials/images/" + images[2][0])[0], 200, "WebP before delete")
     expect(delete_material(m1)[0], 200, "delete material")
     expect(request("GET", "/api/materials/images/" + images[2][0])[0], 400, "WebP after delete")
-    expect(request("GET", f"/api/materials/{m1}")[0], 200, "deleted public card")
-    expect(request("GET", f"/api/materials/admin/{m1}", auth=True)[0], 200, "deleted admin card")
+    expect(request("GET", f"/api/materials/{m1}")[0], 400, "deleted public card")
+    expect(request("GET", f"/api/materials/admin/{m1}", auth=True)[0], 400, "deleted admin card")
     if m1 in {x["id"] for x in admin_materials()} or m1 in {x["id"] for x in public_materials("Raskroy")}:
         raise AssertionError("deleted material remained in a list")
+    counters_after_delete = [relation_counts(path, relation_id) for path, relation_id in counter_targets]
+    for before, after in zip(counters_before_delete, counters_after_delete):
+        if after != (before[0] - 1, before[1]):
+            raise AssertionError(f"physically deleted material remained in relation counters: {before} -> {after}")
     expect(delete_material(m1)[0], 400, "repeat material delete")
     for guid, _, _ in images:
         expect(request("GET", "/api/materials/images/" + guid)[0], 400, "final image GUID check")
-    mark("MAT-09—MAT-11", "delete/list absence/repeat delete/deleted cards passed")
+    mark("MAT-09—MAT-11", "physical delete/list and card absence/repeat delete passed")
+    mark("CAT-11, SIZE-10, MFR-11", "physically deleted material excluded from list and card counters")
     mark("IMG-13—IMG-14", "delete invalidated WebP; all three GUIDs unavailable")
 
     expect(delete_material(m2)[0], 200, "cleanup m2")
@@ -596,6 +690,32 @@ def main():
     for guid, _, _ in images:
         expect(request("GET", "/api/materials/images/" + guid)[0], 400, "FIN image check")
     mark("FIN-01—FIN-03", "materials/categories removed and GUIDs unavailable")
+
+    prefix_history = history(search=prefix)
+    if prefix_history["totalCount"] != 30:
+        raise AssertionError(f"unexpected history event count: {prefix_history['totalCount']} instead of 30")
+    items = prefix_history["items"]
+    if any(item["userPhone"] != credentials["manager"] for item in items):
+        raise AssertionError("history contains an incorrect initiator phone")
+    action_counts = {action: sum(item["actionType"] == action for item in items) for action in ("Create", "Update", "Delete")}
+    if action_counts != {"Create": 12, "Update": 6, "Delete": 12}:
+        raise AssertionError(f"history action counts are incorrect: {action_counts}")
+    entity_counts = {entity: sum(item["entityType"] == entity for item in items) for entity in ("Material", "Category", "Manufacturer", "SheetSize")}
+    if entity_counts != {"Material": 9, "Category": 7, "Manufacturer": 7, "SheetSize": 7}:
+        raise AssertionError(f"history entity counts are incorrect: {entity_counts}")
+    if not all(f"#{item['entityId']}" in item["message"] for item in items):
+        raise AssertionError("history message does not contain its entity id")
+    if history(search=prefix, actionType="Create")["totalCount"] != 12:
+        raise AssertionError("history action filter failed")
+    if history(search=prefix, entityType="Material")["totalCount"] != 9:
+        raise AssertionError("history entity filter failed")
+    if history(search=prefix, userPhone=credentials["manager"])["totalCount"] != 30:
+        raise AssertionError("history phone filter failed")
+    if history(search=prefix, page_size=1)["totalCount"] != 30 or len(history(search=prefix, page_size=1)["items"]) != 1:
+        raise AssertionError("history pagination failed")
+    if history(search=prefix, **{"from": "2000-01-01T00:00:00Z", "to": "2100-01-01T00:00:00Z"})["totalCount"] != 30:
+        raise AssertionError("history date filters failed")
+    mark("HIST-01—HIST-12", "CRUD audit, no-op/sorting exclusion, phone, messages, authorization, filters and pagination passed")
 
     print(json.dumps({"success": True, "prefix": prefix, "results": results}, ensure_ascii=False, indent=2))
 

@@ -1,4 +1,3 @@
-using Catalog.Api.Features.Materials;
 using Catalog.Api.Features.Materials.Dto;
 using Catalog.Database;
 using Core.CQRS;
@@ -43,9 +42,7 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
 {
     public async Task<GetAllMaterialsForAdminQueryResult> Handle(GetAllMaterialsForAdminQuery query, CancellationToken ct)
     {
-        var materialsQuery = dbContext.Materials
-            .Where(x => !x.Deleted)
-            .FilterByCalculators(query.Calculator);
+        var materialsQuery = dbContext.Materials.FilterByCalculators(query.Calculator);
 
         if (query.CategoryId.HasValue)
             materialsQuery = materialsQuery.Where(x => x.CategoryId == query.CategoryId.Value);

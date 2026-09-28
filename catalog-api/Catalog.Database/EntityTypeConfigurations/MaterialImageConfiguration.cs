@@ -12,6 +12,7 @@ public class MaterialImageConfiguration : IEntityTypeConfiguration<MaterialImage
         eb.Property(x => x.Type).HasMaxLength(30);
         eb.HasOne(x => x.Material)
             .WithMany(x => x.Images)
-            .HasForeignKey(x => x.MaterialId);
+            .HasForeignKey(x => x.MaterialId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

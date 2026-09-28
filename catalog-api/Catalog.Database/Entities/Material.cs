@@ -26,7 +26,6 @@ public sealed record Material
     public required double PerimetrM { get; set; }
     public int Count { get; set; }
     public string? ExternalLink { get; set; }
-    public bool Deleted { get; set; }
     public bool CommentOnMaterialIsRequired { get; set; }
     public bool AllowSecondItemInOrder { get; set; }
     public required decimal Price { get; set; }

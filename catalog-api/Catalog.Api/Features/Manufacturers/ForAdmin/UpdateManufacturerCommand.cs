@@ -1,4 +1,6 @@
+using Catalog.Api.Features.History;
 using Catalog.Database;
+using Catalog.Database.Enums;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Manufacturers.ForAdmin;
@@ -32,14 +34,23 @@ public sealed class UpdateManufacturerCommandValidator : AbstractValidator<Updat
     }
 }
 
-public sealed class UpdateManufacturerCommandHandler(CatalogDbContext dbContext)
+public sealed class UpdateManufacturerCommandHandler(CatalogDbContext dbContext, ICatalogHistoryWriter historyWriter)
     : ICommandHandler<UpdateManufacturerCommand, UpdateManufacturerCommandResult>
 {
     public async Task<UpdateManufacturerCommandResult> Handle(UpdateManufacturerCommand command, CancellationToken ct)
     {
         var manufacturer = await dbContext.MaterialManufacturers.FirstOrDefaultAsync(x => x.Id == command.Id, ct)
             ?? throw new BadHttpRequestException($"Производитель с id={command.Id} не найден.");
-        manufacturer.Name = command.Name.Trim();
+        var newName = command.Name.Trim();
+        if (manufacturer.Name == newName)
+            return new UpdateManufacturerCommandResult(true);
+        var oldName = manufacturer.Name;
+        manufacturer.Name = newName;
+        historyWriter.Add(
+            CatalogHistoryActionType.Update,
+            CatalogHistoryEntityType.Manufacturer,
+            manufacturer.Id,
+            $"Производитель #{manufacturer.Id} изменён: название «{oldName}» → «{newName}».");
         await dbContext.SaveChangesAsync(ct);
         return new UpdateManufacturerCommandResult(true);
     }

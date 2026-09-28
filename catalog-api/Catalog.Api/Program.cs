@@ -11,6 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.UseSharedDevelopmentHttpsCertificate("catalog-api.debug.feach.ru");
 
 builder.Services.Configure<AppSettingsConfig>(builder.Configuration.Bind);
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<Catalog.Api.Features.History.ICatalogHistoryWriter, Catalog.Api.Features.History.CatalogHistoryWriter>();
 var appSettingsConfig = builder.Configuration.Get<AppSettingsConfig>()
                         ?? throw new InvalidOperationException($"Missing {nameof(AppSettingsConfig)}");
 

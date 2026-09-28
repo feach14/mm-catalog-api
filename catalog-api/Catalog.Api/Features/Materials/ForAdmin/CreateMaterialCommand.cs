@@ -1,6 +1,8 @@
+using Catalog.Api.Features.History;
 using Catalog.Api.Features.Materials.ForAdmin.Dto;
 using Catalog.Database;
 using Catalog.Database.Entities;
+using Catalog.Database.Enums;
 using Core.CQRS;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -10,7 +12,7 @@ public sealed record CreateMaterialCommand(MaterialModel Material) : ICommand<Cr
 
 public sealed record CreateMaterialCommandResult([property: Description("Id материала")] int Id);
 
-public class CreateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCache memoryCache) : ICommandHandler<CreateMaterialCommand, CreateMaterialCommandResult>
+public class CreateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCache memoryCache, ICatalogHistoryWriter historyWriter) : ICommandHandler<CreateMaterialCommand, CreateMaterialCommandResult>
 {
     public async Task<CreateMaterialCommandResult> Handle(CreateMaterialCommand command, CancellationToken ct)
     {
@@ -68,6 +70,11 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
             imageToCache = new GetMaterialImageQueryResult(fileFromCache.Data, fileFromCache.Type);
         }
 
+        historyWriter.Add(
+            CatalogHistoryActionType.Create,
+            CatalogHistoryEntityType.Material,
+            material.Id,
+            $"Создан материал #{material.Id} «{material.Name}»: артикул {material.Article}, категория #{material.CategoryId}, производитель #{material.MaterialManufacturerId}, размер #{material.MaterialSheetSizeId}, количество {material.Count}, цена {material.Price}, изображение {(command.Material.Image.HasValue ? command.Material.Image.Value : "нет")}.");
         await dbContext.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
