@@ -30,9 +30,11 @@ primary_manufacturer_id = None
 guids = []
 
 
-def request(method, path, data=None, auth=False, headers=None, raw=False, base=API):
+def request(method, path, data=None, auth=False, auth_cookie=None, headers=None, raw=False, base=API):
     hdrs = dict(headers or {})
-    if auth and cookie:
+    if auth_cookie:
+        hdrs["Cookie"] = auth_cookie
+    elif auth and cookie:
         hdrs["Cookie"] = cookie
     body = data
     if data is not None and not raw:
@@ -131,16 +133,15 @@ def restart_server():
     start_server()
 
 
-def signin():
-    global cookie
+def signin(phone, role):
     response = request("POST", "/api/sign/in", {
-        "phone": "79600487056", "password": "140589", "isManager": True
+        "phone": phone, "password": "140589", "isManager": True
     }, base=ACCOUNTS)
-    expect(response[0], 200, "manager sign-in")
+    expect(response[0], 200, f"{role} sign-in")
     raw_cookie = response[1].get("Set-Cookie")
     if not raw_cookie or "AccountsApiCookie=" not in raw_cookie:
-        raise AssertionError("AccountsApiCookie was not returned")
-    cookie = raw_cookie.split(";", 1)[0]
+        raise AssertionError(f"AccountsApiCookie was not returned for {role}")
+    return raw_cookie.split(";", 1)[0]
 
 
 def categories():
@@ -268,7 +269,7 @@ def cleanup():
 
 
 def main():
-    global primary_sheet_size_id, primary_manufacturer_id
+    global cookie, primary_sheet_size_id, primary_manufacturer_id
     prefix = "codex-http-" + time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
     dimension_base = 10000 + int(uuid.uuid4().hex[:4], 16)
     png = b"\x89PNG\r\n\x1a\n" + b"catalog-png-test"
@@ -276,9 +277,22 @@ def main():
     webp = b"RIFF" + (20).to_bytes(4, "little") + b"WEBP" + b"catalog-webp-test"
 
     start_server()
-    signin()
-    expect(request("GET", "/api/materials/admin", auth=True)[0], 200, "authorized client")
-    mark("PREP-01—PREP-03", "manager cookie received; authorized and anonymous clients prepared")
+    user_cookie = signin("79600487056", "user")
+    manager_cookie = signin("79600487057", "manager")
+    admin_cookie = signin("79600487058", "administrator")
+    cookie = manager_cookie
+    role_probes = [
+        ("GET", "/api/materials/admin", 200),
+        ("DELETE", "/api/materials/categories/2147483647", 400),
+        ("DELETE", "/api/materials/sheet-sizes/2147483647", 400),
+        ("DELETE", "/api/materials/manufacturers/2147483647", 400),
+    ]
+    for method, path, authorized_status in role_probes:
+        expect(request(method, path, auth_cookie=user_cookie)[0], 403, f"ordinary user {method} {path}")
+        expect(request(method, path, auth_cookie=admin_cookie)[0], authorized_status, f"administrator {method} {path}")
+    expect(request("GET", "/api/materials/admin", auth_cookie=manager_cookie)[0], 200, "manager")
+    mark("PREP-01—PREP-03", "user, manager and administrator cookies received; anonymous client prepared")
+    mark("AUTH-08—AUTH-10", "manager and administrator allowed; ordinary user forbidden across protected controllers")
 
     primary_sheet_size_id = create_sheet_size(prefix + "-size-a", dimension_base, dimension_base + 1)
     secondary_sheet_size_id = create_sheet_size(prefix + "-size-b", dimension_base + 2, dimension_base + 3)
@@ -423,7 +437,7 @@ def main():
     expect(png_response[0], 200, "bound PNG")
     if png_response[2] != png:
         raise AssertionError("bound PNG mismatch")
-    mark("AUTH-01—AUTH-08", "public lists/cards/image, anonymous protected calls, and authorized call passed")
+    mark("AUTH-01—AUTH-07", "public lists/cards/image and anonymous protected calls passed")
     mark("IMG-06—IMG-07", "material created after restart with PNG; card and image passed")
 
     admin_ids = {x["id"] for x in admin_materials()}

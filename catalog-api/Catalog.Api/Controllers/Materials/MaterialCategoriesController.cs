@@ -11,8 +11,11 @@ namespace Catalog.Api.Controllers.Materials;
 
 [Route("api/materials/categories")]
 [OpenApiTagOrder(2)]
-[Authorize(AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
+[Authorize(
+    AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
+    Roles = AppConstants.AdministrationRoles)]
 [ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию")]
+[ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав менеджера или администратора")]
 public class MaterialCategoriesController : BaseApiController
 {
     [HttpGet]
