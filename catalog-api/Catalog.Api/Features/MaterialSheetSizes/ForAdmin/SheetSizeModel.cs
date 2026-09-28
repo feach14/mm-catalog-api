@@ -3,7 +3,8 @@ namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
 public sealed record SheetSizeModel(
     [property: Description("Название размера материала")] string Name,
     [property: Description("Высота материала")] int Height,
-    [property: Description("Ширина материала")] int Width);
+    [property: Description("Ширина материала")] int Width,
+    [property: Description("Показывать размер материала в фильтрах")] bool ShowInFilters);
 
 public sealed class SheetSizeModelValidator : AbstractValidator<SheetSizeModel>
 {

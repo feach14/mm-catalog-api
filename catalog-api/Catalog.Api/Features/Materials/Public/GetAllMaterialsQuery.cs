@@ -1,3 +1,4 @@
+using Catalog.Api.Features.Materials;
 using Catalog.Api.Features.Materials.Dto;
 using Catalog.Api.Features.Materials.Public.Dto;
 using Catalog.Database;
@@ -6,10 +7,19 @@ using Core.CQRS;
 namespace Catalog.Api.Features.Materials.Public;
 
 public sealed record GetAllMaterialsQuery(
-    [property: Description("Признак: Добавить в выдачу материалы для кальулятора раскроя")][property: FromQuery(Name = "raskroy")] bool Raskroy,
-    [property: Description("Признак: Добавить в выдачу материалы для калькулятора фасадов ПВХ")][property: FromQuery(Name = "pvhFacades")] bool PvhFacades,
-    [property: Description("Признак: Добавить в выдачу материалы для калькулятора фасадов эмаль")][property: FromQuery(Name = "emalFacades")] bool EmalFacades
+    [property: Description("Калькулятор: Raskroy, PvhFacades или EmalFacades. Для выбора нескольких калькуляторов повторите параметр calculator. Без параметра возвращаются все материалы.")][property: FromQuery(Name = "calculator")]
+    MaterialCalculator[]? Calculator
 ) : IQuery<GetAllMaterialsQueryResult>;
+
+public sealed class GetAllMaterialsQueryValidator : AbstractValidator<GetAllMaterialsQuery>
+{
+    public GetAllMaterialsQueryValidator()
+    {
+        RuleForEach(x => x.Calculator!)
+            .IsInEnum()
+            .When(x => x.Calculator is not null);
+    }
+}
 
 public sealed record GetAllMaterialsQueryResult(
     [property: Description("Список материалов")] List<GetMaterialQueryResult> Materials,
@@ -24,12 +34,11 @@ public class GetAllMaterialsQueryHandler(CatalogDbContext dbContext) : IQueryHan
 {
     public async Task<GetAllMaterialsQueryResult> Handle(GetAllMaterialsQuery query, CancellationToken ct)
     {
-        var materialRows = await dbContext.Materials
-            .Where(x =>
-                ((query.Raskroy == true && x.ApplicableToRaskroys)
-                 || (query.PvhFacades == true && x.ApplicableToPvhFacades)
-                 || (query.EmalFacades == true && x.ApplicableToEmalFacades))
-                && !x.Deleted)
+        var materialsQuery = dbContext.Materials
+            .Where(x => !x.Deleted)
+            .FilterByCalculators(query.Calculator);
+
+        var materialRows = await materialsQuery
             .OrderBy(x => x.Category.OrderByCol)
                 .ThenBy(x => x.OrderByCol)
             .Select(x => new

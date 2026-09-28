@@ -24,6 +24,7 @@ public sealed class UpdateMaterialSheetSizeCommandHandler(CatalogDbContext dbCon
         size.Name = command.Model.Name;
         size.Height = command.Model.Height;
         size.Width = command.Model.Width;
+        size.ShowInFilters = command.Model.ShowInFilters;
         await dbContext.SaveChangesAsync(ct);
         return new UpdateMaterialSheetSizeCommandResult(true);
     }

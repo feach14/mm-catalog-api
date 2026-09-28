@@ -12,6 +12,7 @@ public sealed class MaterialSheetSizeConfiguration : IEntityTypeConfiguration<Ma
         eb.Property(x => x.Name).IsRequired().HasMaxLength(100);
         eb.Property(x => x.Height).IsRequired();
         eb.Property(x => x.Width).IsRequired();
+        eb.Property(x => x.ShowInFilters).IsRequired().HasDefaultValue(false);
         eb.Property(x => x.OrderByCol).IsRequired().HasDefaultValue(0);
         eb.HasIndex(x => new { x.Height, x.Width }).IsUnique();
         eb.HasIndex(x => x.OrderByCol).IsUnique();

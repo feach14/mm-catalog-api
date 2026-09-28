@@ -162,14 +162,15 @@ def manufacturers():
 
 
 def admin_materials():
-    response = request("GET", "/api/materials/admin?raskroy=true&pvhFacades=true&emalFacades=true", auth=True)
+    response = request("GET", "/api/materials/admin", auth=True)
     expect(response[0], 200, "admin material list")
     return json_body(response)["materials"]
 
 
-def public_materials(flag="raskroy"):
-    response = request("GET", f"/api/materials?{flag}=true")
-    expect(response[0], 200, f"public list {flag}")
+def public_materials(*calculators):
+    query = "" if not calculators else "?" + urllib.parse.urlencode({"calculator": calculators}, doseq=True)
+    response = request("GET", f"/api/materials{query}")
+    expect(response[0], 200, f"public list {calculators or 'all'}")
     return json_body(response)["materials"]
 
 
@@ -276,7 +277,7 @@ def main():
 
     start_server()
     signin()
-    expect(request("GET", "/api/materials/admin?raskroy=true", auth=True)[0], 200, "authorized client")
+    expect(request("GET", "/api/materials/admin", auth=True)[0], 200, "authorized client")
     mark("PREP-01—PREP-03", "manager cookie received; authorized and anonymous clients prepared")
 
     primary_sheet_size_id = create_sheet_size(prefix + "-size-a", dimension_base, dimension_base + 1)
@@ -326,9 +327,9 @@ def main():
     expect(request("POST", "/api/materials/manufacturers/change-order-col", {"id": all_manufacturers[-1]["id"], "direction": "DOWN"}, auth=True)[0], 400, "manufacturer lower boundary")
     mark("MFR-01—MFR-06", "manufacturer CRUD, duplicate, sorting and boundaries passed")
 
-    expect(request("GET", "/api/materials?raskroy=true")[0], 200, "public materials")
+    expect(request("GET", "/api/materials?calculator=Raskroy")[0], 200, "public materials")
     expect(request("GET", "/api/materials/categories")[0], 200, "public categories")
-    expect(request("GET", "/api/materials/admin?raskroy=true")[0], 401, "anonymous admin list")
+    expect(request("GET", "/api/materials/admin")[0], 401, "anonymous admin list")
     anonymous_mutations = [
         ("POST", "/api/materials/categories", {"name": "x", "externalLink": "x"}),
         ("PUT", "/api/materials/categories/1", {"name": "x", "externalLink": "x"}),
@@ -428,13 +429,22 @@ def main():
     admin_ids = {x["id"] for x in admin_materials()}
     if not {m1, m2, m3}.issubset(admin_ids):
         raise AssertionError("created materials absent from admin list")
-    for flag, expected_id in (("raskroy", m1), ("pvhFacades", m2), ("emalFacades", m3)):
-        ids = {x["id"] for x in public_materials(flag)}
+    unfiltered_ids = {x["id"] for x in public_materials()}
+    if not {m1, m2, m3}.issubset(unfiltered_ids):
+        raise AssertionError("unfiltered public list omitted test materials")
+
+    for calculator, expected_id in (("Raskroy", m1), ("PvhFacades", m2), ("EmalFacades", m3)):
+        ids = {x["id"] for x in public_materials(calculator)}
         if expected_id not in ids:
-            raise AssertionError(f"filter {flag} omitted expected material")
+            raise AssertionError(f"filter {calculator} omitted expected material")
         wrong_test_ids = ({m1, m2, m3} - {expected_id}) & ids
         if wrong_test_ids:
-            raise AssertionError(f"filter {flag} returned inapplicable test material")
+            raise AssertionError(f"filter {calculator} returned inapplicable test material")
+
+    combined_ids = {x["id"] for x in public_materials("Raskroy", "PvhFacades")}
+    if not {m1, m2}.issubset(combined_ids) or m3 in combined_ids:
+        raise AssertionError("combined calculator filter returned incorrect test materials")
+    expect(request("GET", "/api/materials?calculator=Unknown")[0], 400, "invalid calculator")
 
     m3_updated = copy.deepcopy(m3_model)
     m3_updated.update({
@@ -525,7 +535,7 @@ def main():
     expect(request("GET", "/api/materials/images/" + images[2][0])[0], 400, "WebP after delete")
     expect(request("GET", f"/api/materials/{m1}")[0], 200, "deleted public card")
     expect(request("GET", f"/api/materials/admin/{m1}", auth=True)[0], 200, "deleted admin card")
-    if m1 in {x["id"] for x in admin_materials()} or m1 in {x["id"] for x in public_materials("raskroy")}:
+    if m1 in {x["id"] for x in admin_materials()} or m1 in {x["id"] for x in public_materials("Raskroy")}:
         raise AssertionError("deleted material remained in a list")
     expect(delete_material(m1)[0], 400, "repeat material delete")
     for guid, _, _ in images:

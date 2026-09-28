@@ -19,7 +19,7 @@ public class MaterialsController : BaseApiController
     [HttpGet]
     [AllowAnonymous]
     [EndpointSummary(nameof(Materials))]
-    [EndpointDescription("Публичный список материалов")]
+    [EndpointDescription("Публичный список материалов. Пример фильтра: ?calculator=Raskroy&calculator=PvhFacades")]
     [ProducesResponseType(typeof(GetAllMaterialsQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Материалы и их категории")]
     public Task<GetAllMaterialsQueryResult> Materials(
         [FromQuery] GetAllMaterialsQuery query,
@@ -38,7 +38,7 @@ public class MaterialsController : BaseApiController
 
     [HttpGet("admin")]
     [EndpointSummary(nameof(MaterialsForAdminPanel))]
-    [EndpointDescription("Список материалов для административной панели")]
+    [EndpointDescription("Список материалов для административной панели. Пример фильтра: ?calculator=Raskroy&calculator=PvhFacades")]
     [ProducesResponseType(typeof(GetAllMaterialsForAdminQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Список материалов")]
     public Task<GetAllMaterialsForAdminQueryResult> MaterialsForAdminPanel(
         [FromQuery] GetAllMaterialsForAdminQuery query,

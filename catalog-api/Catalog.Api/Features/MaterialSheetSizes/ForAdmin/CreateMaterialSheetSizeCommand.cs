@@ -25,6 +25,7 @@ public sealed class CreateMaterialSheetSizeCommandHandler(CatalogDbContext dbCon
             Name = command.Model.Name,
             Height = command.Model.Height,
             Width = command.Model.Width,
+            ShowInFilters = command.Model.ShowInFilters,
             OrderByCol = maxOrderByCol + 1
         };
         dbContext.MaterialSheetSizes.Add(size);

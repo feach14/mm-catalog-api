@@ -1,3 +1,4 @@
+using Catalog.Api.Features.Materials;
 using Catalog.Api.Features.Materials.Dto;
 using Catalog.Database;
 using Core.CQRS;
@@ -5,11 +6,20 @@ using Core.CQRS;
 namespace Catalog.Api.Features.Materials.ForAdmin;
 
 public sealed record GetAllMaterialsForAdminQuery(
-    [property: Description("Признак: Добавить в выдачу материалы для кальулятора раскроя")][property: FromQuery(Name = "raskroy")] bool Raskroy,
-    [property: Description("Признак: Добавить в выдачу материалы для калькулятора фасадов ПВХ")][property: FromQuery(Name = "pvhFacades")] bool PvhFacades,
-    [property: Description("Признак: Добавить в выдачу материалы для калькулятора фасадов эмаль")][property: FromQuery(Name = "emalFacades")] bool EmalFacades,
+    [property: Description("Калькулятор: Raskroy, PvhFacades или EmalFacades. Для выбора нескольких калькуляторов повторите параметр calculator. Без параметра возвращаются все материалы.")][property: FromQuery(Name = "calculator")]
+    MaterialCalculator[]? Calculator,
     [property: Description("Id категории(коллекции) материала")][property: FromQuery(Name = "categoryId")] int? CategoryId
 ) : IQuery<GetAllMaterialsForAdminQueryResult>;
+
+public sealed class GetAllMaterialsForAdminQueryValidator : AbstractValidator<GetAllMaterialsForAdminQuery>
+{
+    public GetAllMaterialsForAdminQueryValidator()
+    {
+        RuleForEach(x => x.Calculator!)
+            .IsInEnum()
+            .When(x => x.Calculator is not null);
+    }
+}
 
 public sealed record GetAllMaterialsForAdminQueryResult(
     [property: Description("Список материалов")] GetMaterialsQueryForAdminItemResult[] Materials);
@@ -32,13 +42,14 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
 {
     public async Task<GetAllMaterialsForAdminQueryResult> Handle(GetAllMaterialsForAdminQuery query, CancellationToken ct)
     {
-        var materials = (await dbContext.Materials
-            .Where(x =>
-                ((query.Raskroy == true && x.ApplicableToRaskroys)
-                 || (query.PvhFacades == true && x.ApplicableToPvhFacades)
-                 || (query.EmalFacades == true && x.ApplicableToEmalFacades))
-                && (query.CategoryId == null || x.CategoryId == query.CategoryId.Value)
-                && !x.Deleted)
+        var materialsQuery = dbContext.Materials
+            .Where(x => !x.Deleted)
+            .FilterByCalculators(query.Calculator);
+
+        if (query.CategoryId.HasValue)
+            materialsQuery = materialsQuery.Where(x => x.CategoryId == query.CategoryId.Value);
+
+        var materials = (await materialsQuery
             .OrderBy(x => x.Category.OrderByCol)
                 .ThenBy(x => x.OrderByCol)
             .Select(x => new
