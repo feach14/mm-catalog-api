@@ -21,6 +21,7 @@ CTX = ssl._create_unverified_context()
 cookie = None
 server = None
 server_log = None
+history_run_id = None
 results = {}
 created_materials = []
 created_categories = []
@@ -318,10 +319,190 @@ def cleanup():
                 created_manufacturers.remove(manufacturer_id)
         except Exception:
             pass
+    if history_run_id:
+        try:
+            request("DELETE", f"/api/catalog/history/test-runs/{history_run_id}", auth=True)
+        except Exception:
+            pass
+
+
+def run_history_scenarios(history_prefix, dimension_base, manager_cookie, tester_cookie, manager_phone):
+    category_name = history_prefix + "-category"
+    category_model = {"name": category_name, "externalLink": "https://example.test/history-category"}
+    response = request("POST", "/api/materials/categories", category_model, auth_cookie=manager_cookie)
+    expect(response[0], 200, "history category create")
+    category_id = json_body(response)["id"]
+    created_categories.append(category_id)
+
+    size_name = history_prefix + "-size"
+    size_model = {"name": size_name, "height": dimension_base + 100, "width": dimension_base + 101}
+    response = request("POST", "/api/materials/sheet-sizes", size_model, auth_cookie=manager_cookie)
+    expect(response[0], 200, "history sheet size create")
+    size_id = json_body(response)["id"]
+    created_sheet_sizes.append(size_id)
+
+    manufacturer_name = history_prefix + "-manufacturer"
+    response = request("POST", "/api/materials/manufacturers", {
+        "name": manufacturer_name
+    }, auth_cookie=manager_cookie)
+    expect(response[0], 200, "history manufacturer create")
+    manufacturer_id = json_body(response)["id"]
+    created_manufacturers.append(manufacturer_id)
+
+    material_name = history_prefix + "-material"
+    material = material_model(material_name, category_id, "raskroy")
+    material.update({"sheetSizeId": size_id, "manufacturerId": manufacturer_id})
+    response = request("POST", "/api/materials", material, auth_cookie=manager_cookie)
+    expect(response[0], 200, "history material create")
+    material_id = json_body(response)["id"]
+    created_materials.append(material_id)
+
+    created_history = history(search=history_prefix)
+    if created_history["totalCount"] != 4:
+        raise AssertionError("history create events are not isolated")
+
+    updated_category_name = category_name + "-updated"
+    updated_category_model = dict(category_model, name=updated_category_name)
+    expect(request("PUT", f"/api/materials/categories/{category_id}", updated_category_model,
+                   auth_cookie=manager_cookie)[0], 200, "history category update")
+
+    updated_size_name = size_name + "-updated"
+    updated_size_model = dict(size_model, name=updated_size_name)
+    expect(request("PUT", f"/api/materials/sheet-sizes/{size_id}", updated_size_model,
+                   auth_cookie=manager_cookie)[0], 200, "history sheet size update")
+
+    updated_manufacturer_name = manufacturer_name + "-updated"
+    updated_manufacturer_model = {"name": updated_manufacturer_name}
+    expect(request("PUT", f"/api/materials/manufacturers/{manufacturer_id}", updated_manufacturer_model,
+                   auth_cookie=manager_cookie)[0], 200, "history manufacturer update")
+
+    updated_material_name = material_name + "-updated"
+    updated_material = copy.deepcopy(material)
+    updated_material["name"] = updated_material_name
+    expect(request("PUT", f"/api/materials/{material_id}", updated_material,
+                   auth_cookie=manager_cookie)[0], 200, "history material update")
+
+    updated_history = history(search=history_prefix)
+    if updated_history["totalCount"] != 8:
+        raise AssertionError("history update events are not isolated")
+    update_items = [item for item in updated_history["items"] if item["actionType"] == "Update"]
+    expected_name_changes = {
+        "Category": (category_name, updated_category_name),
+        "SheetSize": (size_name, updated_size_name),
+        "Manufacturer": (manufacturer_name, updated_manufacturer_name),
+        "Material": (material_name, updated_material_name),
+    }
+    if len(update_items) != 4:
+        raise AssertionError("history update event count is incorrect")
+    for item in update_items:
+        old_name, new_name = expected_name_changes[item["entityType"]]
+        if "назван" not in item["message"] or old_name not in item["message"] or new_name not in item["message"]:
+            raise AssertionError("history update does not contain the expected old and new value")
+        if item["message"].count("→") != 1:
+            raise AssertionError("history update contains fields that were not changed")
+
+    expect(request("PUT", f"/api/materials/categories/{category_id}", updated_category_model,
+                   auth_cookie=manager_cookie)[0], 200, "history category no-op")
+    expect(request("PUT", f"/api/materials/sheet-sizes/{size_id}", updated_size_model,
+                   auth_cookie=manager_cookie)[0], 200, "history sheet size no-op")
+    expect(request("PUT", f"/api/materials/manufacturers/{manufacturer_id}", updated_manufacturer_model,
+                   auth_cookie=manager_cookie)[0], 200, "history manufacturer no-op")
+    expect(request("PUT", f"/api/materials/{material_id}", updated_material,
+                   auth_cookie=manager_cookie)[0], 200, "history material no-op")
+    if history(search=history_prefix)["totalCount"] != 8:
+        raise AssertionError("no-op update created a history event")
+
+    helper_name = history_prefix + "-sort-helper"
+    response = request("POST", "/api/materials/categories", {
+        "name": helper_name, "externalLink": "https://example.test/history-sort-helper"
+    }, auth_cookie=tester_cookie)
+    expect(response[0], 200, "history sorting helper create")
+    helper_id = json_body(response)["id"]
+    created_categories.append(helper_id)
+    expect(request("POST", "/api/materials/categories/change-order-col", {
+        "categoryId": helper_id, "direction": "UP"
+    }, auth_cookie=manager_cookie)[0], 200, "history sorting up")
+    expect(request("POST", "/api/materials/categories/change-order-col", {
+        "categoryId": helper_id, "direction": "DOWN"
+    }, auth_cookie=manager_cookie)[0], 200, "history sorting down")
+    expect(request("DELETE", f"/api/materials/categories/{helper_id}",
+                   auth_cookie=tester_cookie)[0], 200, "history sorting helper cleanup")
+    created_categories.remove(helper_id)
+    if history(search=history_prefix)["totalCount"] != 8:
+        raise AssertionError("sorting or tester cleanup created a history event")
+
+    expect(request("POST", "/api/materials/categories", {
+        "name": updated_category_name, "externalLink": "https://example.test/duplicate"
+    }, auth_cookie=manager_cookie)[0], 400, "history unsuccessful command")
+    if history(search=history_prefix)["totalCount"] != 8:
+        raise AssertionError("unsuccessful command created a history event")
+    if len([item for item in categories() if item["name"] == updated_category_name]) != 1:
+        raise AssertionError("unsuccessful command partially changed catalog data")
+
+    expect(request("DELETE", f"/api/materials/{material_id}", auth_cookie=manager_cookie)[0],
+           200, "history material delete")
+    created_materials.remove(material_id)
+    expect(request("DELETE", f"/api/materials/categories/{category_id}", auth_cookie=manager_cookie)[0],
+           200, "history category delete")
+    created_categories.remove(category_id)
+    expect(request("DELETE", f"/api/materials/sheet-sizes/{size_id}", auth_cookie=manager_cookie)[0],
+           200, "history sheet size delete")
+    created_sheet_sizes.remove(size_id)
+    expect(request("DELETE", f"/api/materials/manufacturers/{manufacturer_id}", auth_cookie=manager_cookie)[0],
+           200, "history manufacturer delete")
+    created_manufacturers.remove(manufacturer_id)
+
+    prefix_history = history(search=history_prefix)
+    if prefix_history["totalCount"] != 12:
+        raise AssertionError(f"unexpected isolated history event count: {prefix_history['totalCount']} instead of 12")
+    items = prefix_history["items"]
+    if any(item["userPhone"] != manager_phone for item in items):
+        raise AssertionError("history contains an incorrect initiator phone")
+    action_counts = {action: sum(item["actionType"] == action for item in items)
+                     for action in ("Create", "Update", "Delete")}
+    if action_counts != {"Create": 4, "Update": 4, "Delete": 4}:
+        raise AssertionError(f"history action counts are incorrect: {action_counts}")
+    entity_counts = {entity: sum(item["entityType"] == entity for item in items)
+                     for entity in ("Material", "Category", "Manufacturer", "SheetSize")}
+    if entity_counts != {"Material": 3, "Category": 3, "Manufacturer": 3, "SheetSize": 3}:
+        raise AssertionError(f"history entity counts are incorrect: {entity_counts}")
+    if not all(f"#{item['entityId']}" in item["message"] for item in items):
+        raise AssertionError("history message does not contain its entity id")
+    expected_deleted_names = {
+        "Category": updated_category_name,
+        "SheetSize": updated_size_name,
+        "Manufacturer": updated_manufacturer_name,
+        "Material": updated_material_name,
+    }
+    for item in (item for item in items if item["actionType"] == "Delete"):
+        if expected_deleted_names[item["entityType"]] not in item["message"]:
+            raise AssertionError("history delete event does not contain the pre-delete snapshot")
+
+    if history(search=history_prefix, actionType="Create")["totalCount"] != 4:
+        raise AssertionError("history action filter failed")
+    if history(search=history_prefix, entityType="Material")["totalCount"] != 3:
+        raise AssertionError("history entity filter failed")
+    if history(search=history_prefix, userPhone=manager_phone)["totalCount"] != 12:
+        raise AssertionError("history phone filter failed")
+    if history(search=history_prefix, **{"from": "2000-01-01T00:00:00Z", "to": "2100-01-01T00:00:00Z"})["totalCount"] != 12:
+        raise AssertionError("history date filters failed")
+    if history(search=history_prefix.upper())["totalCount"] != 12:
+        raise AssertionError("case-insensitive history search failed")
+    first_page = history(search=history_prefix, page_size=1)
+    second_page = history(search=history_prefix, page=2, page_size=1)
+    if first_page["totalCount"] != 12 or len(first_page["items"]) != 1 or len(second_page["items"]) != 1:
+        raise AssertionError("history pagination failed")
+    if first_page["items"][0]["id"] == second_page["items"][0]["id"]:
+        raise AssertionError("history pages contain the same item")
+    expect(request("GET", "/api/catalog/history?pageSize=0", auth_cookie=manager_cookie)[0],
+           400, "history zero page size validation")
+    ordered_keys = [(item["occurredAt"], item["id"]) for item in items]
+    if ordered_keys != sorted(ordered_keys, reverse=True):
+        raise AssertionError("history sorting is incorrect")
 
 
 def main():
-    global cookie, primary_sheet_size_id, primary_manufacturer_id
+    global cookie, history_run_id, primary_sheet_size_id, primary_manufacturer_id
     prefix = "codex-http-" + time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
     dimension_base = 10000 + int(uuid.uuid4().hex[:4], 16)
     png = b"\x89PNG\r\n\x1a\n" + b"catalog-png-test"
@@ -331,20 +512,36 @@ def main():
     start_server()
     openapi_response = request("GET", "/swagger/v1/swagger.json")
     expect(openapi_response[0], 200, "OpenAPI document")
-    sheet_size_schema = json_body(openapi_response)["components"]["schemas"]["SheetSizeDto"]
+    openapi_document = json_body(openapi_response)
+    sheet_size_schema = openapi_document["components"]["schemas"]["SheetSizeDto"]
     required_sheet_size_properties = {"id", "name", "height", "width", "showInFilters", "orderByCol"}
     if not required_sheet_size_properties.issubset(sheet_size_schema.get("properties", {})):
         raise AssertionError("SheetSizeDto OpenAPI properties are incomplete")
     if not required_sheet_size_properties.issubset(set(sheet_size_schema.get("required", []))):
         raise AssertionError("SheetSizeDto OpenAPI required properties are incomplete")
     mark("DOC-01", "SheetSizeDto OpenAPI schema contains all response properties and required fields")
+    cleanup_operation = openapi_document["paths"]["/api/catalog/history/test-runs/{runId}"]["delete"]
+    cleanup_parameters = cleanup_operation.get("parameters", [])
+    if len(cleanup_parameters) != 1 or cleanup_parameters[0].get("name") != "runId":
+        raise AssertionError("history cleanup OpenAPI path parameter is incorrect")
+    cleanup_parameter_schema = cleanup_parameters[0].get("schema", {})
+    cleanup_parameter_types = cleanup_parameter_schema.get("type", [])
+    if isinstance(cleanup_parameter_types, str):
+        cleanup_parameter_types = [cleanup_parameter_types]
+    if "integer" not in cleanup_parameter_types or cleanup_parameter_schema.get("format") != "int32":
+        raise AssertionError("history cleanup OpenAPI path parameter type is incorrect")
+    if cleanup_parameters[0].get("description") != "Числовой id тестового HIST-прогона":
+        raise AssertionError("history cleanup OpenAPI path parameter description is incorrect")
+    if not {"200", "400", "401", "403"}.issubset(cleanup_operation.get("responses", {})):
+        raise AssertionError("history cleanup OpenAPI responses are incomplete")
+    mark("DOC-02", "history cleanup OpenAPI path parameter and responses are documented")
 
     credentials = load_test_credentials()
     user_cookie = signin(credentials["user"], credentials["password"], "user")
     tester_cookie = signin(credentials["tester"], credentials["password"], "tester")
     manager_cookie = signin(credentials["manager"], credentials["password"], "manager")
     admin_cookie = signin(credentials["administrator"], credentials["password"], "administrator")
-    cookie = manager_cookie
+    cookie = tester_cookie
     role_probes = [
         ("GET", "/api/materials/admin", 200),
         ("GET", "/api/catalog/history", 200),
@@ -360,8 +557,19 @@ def main():
     expect(request("GET", "/api/catalog/history")[0], 401, "anonymous history")
     expect(request("GET", "/api/catalog/history", auth_cookie=user_cookie)[0], 403, "ordinary user history")
     expect(request("GET", "/api/catalog/history?pageSize=201", auth_cookie=manager_cookie)[0], 400, "history page size validation")
+    cleanup_probe_path = "/api/catalog/history/test-runs/1"
+    expect(request("DELETE", cleanup_probe_path)[0], 401, "anonymous history cleanup")
+    expect(request("DELETE", cleanup_probe_path, auth_cookie=user_cookie)[0], 403, "ordinary user history cleanup")
+    expect(request("DELETE", cleanup_probe_path, auth_cookie=manager_cookie)[0], 403, "manager history cleanup")
+    expect(request("DELETE", cleanup_probe_path, auth_cookie=admin_cookie)[0], 403, "administrator history cleanup")
+    expect(request("DELETE", "/api/catalog/history/test-runs/not-an-int",
+                   auth_cookie=tester_cookie)[0], 400, "history cleanup run id validation")
+    tester_cleanup_probe = request("DELETE", cleanup_probe_path, auth_cookie=tester_cookie)
+    expect(tester_cleanup_probe[0], 200, "tester history cleanup")
+    if json_body(tester_cleanup_probe)["deletedCount"] != 0:
+        raise AssertionError("history cleanup probe deleted unrelated events")
     mark("PREP-01—PREP-03", "user, tester, manager and administrator cookies received; anonymous client prepared")
-    mark("AUTH-08—AUTH-11", "tester, manager and administrator allowed; ordinary user forbidden across protected controllers")
+    mark("AUTH-08—AUTH-12", "protected access and tester-only history cleanup authorization passed")
 
     tester_probe_name = prefix + "-tester-no-history"
     tester_create = request("POST", "/api/materials/manufacturers", {"name": tester_probe_name}, auth_cookie=tester_cookie)
@@ -691,33 +899,43 @@ def main():
         expect(request("GET", "/api/materials/images/" + guid)[0], 400, "FIN image check")
     mark("FIN-01—FIN-03", "materials/categories removed and GUIDs unavailable")
 
-    prefix_history = history(search=prefix)
-    if prefix_history["totalCount"] != 30:
-        raise AssertionError(f"unexpected history event count: {prefix_history['totalCount']} instead of 30")
-    items = prefix_history["items"]
-    if any(item["userPhone"] != credentials["manager"] for item in items):
-        raise AssertionError("history contains an incorrect initiator phone")
-    action_counts = {action: sum(item["actionType"] == action for item in items) for action in ("Create", "Update", "Delete")}
-    if action_counts != {"Create": 12, "Update": 6, "Delete": 12}:
-        raise AssertionError(f"history action counts are incorrect: {action_counts}")
-    entity_counts = {entity: sum(item["entityType"] == entity for item in items) for entity in ("Material", "Category", "Manufacturer", "SheetSize")}
-    if entity_counts != {"Material": 9, "Category": 7, "Manufacturer": 7, "SheetSize": 7}:
-        raise AssertionError(f"history entity counts are incorrect: {entity_counts}")
-    if not all(f"#{item['entityId']}" in item["message"] for item in items):
-        raise AssertionError("history message does not contain its entity id")
-    if history(search=prefix, actionType="Create")["totalCount"] != 12:
-        raise AssertionError("history action filter failed")
-    if history(search=prefix, entityType="Material")["totalCount"] != 9:
-        raise AssertionError("history entity filter failed")
-    if history(search=prefix, userPhone=credentials["manager"])["totalCount"] != 30:
-        raise AssertionError("history phone filter failed")
-    if history(search=prefix, page_size=1)["totalCount"] != 30 or len(history(search=prefix, page_size=1)["items"]) != 1:
-        raise AssertionError("history pagination failed")
-    if history(search=prefix, **{"from": "2000-01-01T00:00:00Z", "to": "2100-01-01T00:00:00Z"})["totalCount"] != 30:
-        raise AssertionError("history date filters failed")
-    mark("HIST-01—HIST-12", "CRUD audit, no-op/sorting exclusion, phone, messages, authorization, filters and pagination passed")
+    if history(search=prefix)["totalCount"] != 0:
+        raise AssertionError("tester functional scenarios created catalog history events")
+    mark("HIST-13", "tester functional CRUD and cleanup created no catalog history events")
 
-    print(json.dumps({"success": True, "prefix": prefix, "results": results}, ensure_ascii=False, indent=2))
+    history_run_id = int(uuid.uuid4().hex[:7], 16) + 1
+    history_prefix = f"codex-history-{history_run_id}"
+    run_history_scenarios(
+        history_prefix,
+        dimension_base,
+        manager_cookie,
+        tester_cookie,
+        credentials["manager"])
+    mark("HIST-01—HIST-12", "isolated manager CRUD audit, no-op/sorting exclusion, phone, snapshots, authorization, filters, search and pagination passed")
+
+    cleanup_response = request(
+        "DELETE",
+        f"/api/catalog/history/test-runs/{history_run_id}",
+        auth_cookie=tester_cookie)
+    expect(cleanup_response[0], 200, "test history cleanup")
+    if json_body(cleanup_response)["deletedCount"] != 12:
+        raise AssertionError("test history cleanup deleted an unexpected number of events")
+    if history(search=history_prefix)["totalCount"] != 0:
+        raise AssertionError("test history events remained after cleanup")
+    completed_history_run_id = history_run_id
+    history_run_id = None
+    mark("HIST-14", "tester-only endpoint deleted all 12 isolated history events and left none")
+
+    observed_history_total_count = history()["totalCount"]
+
+    print(json.dumps({
+        "success": True,
+        "prefix": prefix,
+        "historyRunId": completed_history_run_id,
+        "historyPrefix": history_prefix,
+        "observedHistoryTotalCount": observed_history_total_count,
+        "results": results
+    }, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

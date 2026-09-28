@@ -5,14 +5,22 @@ using Core.CQRS;
 namespace Catalog.Api.Features.History;
 
 public sealed record GetCatalogHistoryQuery(
-    [property: FromQuery(Name = "page")] int Page = 1,
-    [property: FromQuery(Name = "pageSize")] int PageSize = 50,
-    [property: FromQuery(Name = "actionType")] CatalogHistoryActionType? ActionType = null,
-    [property: FromQuery(Name = "entityType")] CatalogHistoryEntityType? EntityType = null,
-    [property: FromQuery(Name = "userPhone")] string? UserPhone = null,
-    [property: FromQuery(Name = "from")] DateTimeOffset? From = null,
-    [property: FromQuery(Name = "to")] DateTimeOffset? To = null,
-    [property: FromQuery(Name = "search")] string? Search = null) : IQuery<GetCatalogHistoryQueryResult>;
+    [property: Description("Номер страницы")]
+    [property: FromQuery] int Page = 1,
+    [property: Description("Количество записей на странице")]
+    [property: FromQuery] int PageSize = 50,
+    [property: Description("Тип действия: создание, изменение или удаление")]
+    [property: FromQuery] CatalogHistoryActionType? ActionType = null,
+    [property: Description("Тип сущности каталога")]
+    [property: FromQuery] CatalogHistoryEntityType? EntityType = null,
+    [property: Description("Номер телефона пользователя, выполнившего изменение")]
+    [property: FromQuery] string? UserPhone = null,
+    [property: Description("Начало периода изменений")]
+    [property: FromQuery] DateTimeOffset? From = null,
+    [property: Description("Окончание периода изменений")]
+    [property: FromQuery] DateTimeOffset? To = null,
+    [property: Description("Строка поиска в описании изменения")]
+    [property: FromQuery] string? Search = null) : IQuery<GetCatalogHistoryQueryResult>;
 
 public sealed class GetCatalogHistoryQueryValidator : AbstractValidator<GetCatalogHistoryQuery>
 {
@@ -27,19 +35,19 @@ public sealed class GetCatalogHistoryQueryValidator : AbstractValidator<GetCatal
 }
 
 public sealed record CatalogHistoryItemDto(
-    long Id,
-    DateTimeOffset OccurredAt,
-    CatalogHistoryActionType ActionType,
-    CatalogHistoryEntityType EntityType,
-    int EntityId,
-    string UserPhone,
-    string Message);
+    [property: Description("Id записи истории")] long Id,
+    [property: Description("Дата и время изменения")] DateTimeOffset OccurredAt,
+    [property: Description("Тип действия: создание, изменение или удаление")] CatalogHistoryActionType ActionType,
+    [property: Description("Тип изменённой сущности каталога")] CatalogHistoryEntityType EntityType,
+    [property: Description("Id изменённой сущности")] int EntityId,
+    [property: Description("Номер телефона пользователя, выполнившего изменение")] string UserPhone,
+    [property: Description("Описание изменения")] string Message);
 
 public sealed record GetCatalogHistoryQueryResult(
-    CatalogHistoryItemDto[] Items,
-    int TotalCount,
-    int Page,
-    int PageSize);
+    [property: Description("Записи истории изменений")] CatalogHistoryItemDto[] Items,
+    [property: Description("Общее количество записей")] int TotalCount,
+    [property: Description("Номер текущей страницы")] int Page,
+    [property: Description("Количество записей на странице")] int PageSize);
 
 public sealed class GetCatalogHistoryQueryHandler(CatalogDbContext dbContext)
     : IQueryHandler<GetCatalogHistoryQuery, GetCatalogHistoryQueryResult>
