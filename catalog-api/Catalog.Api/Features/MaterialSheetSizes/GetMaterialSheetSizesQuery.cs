@@ -14,7 +14,15 @@ public sealed class GetMaterialSheetSizesQueryHandler(CatalogDbContext dbContext
     {
         var items = await dbContext.MaterialSheetSizes
             .OrderBy(x => x.OrderByCol)
-            .Select(x => new SheetSizeDto(x.Id, x.Name, x.Height, x.Width, x.ShowInFilters, x.OrderByCol))
+            .Select(x => new SheetSizeDto(
+                x.Id,
+                x.Name,
+                x.Height,
+                x.Width,
+                x.ShowInFilters,
+                x.OrderByCol,
+                x.Materials.Count(material => material.Count > 0),
+                x.Materials.Count(material => material.Count < 1)))
             .ToArrayAsync(ct);
         return new GetMaterialSheetSizesQueryResult(items);
     }

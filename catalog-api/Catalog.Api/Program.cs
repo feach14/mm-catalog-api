@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.UseSharedDevelopmentHttpsCertificate("catalog-api.debug.feach.ru");
 
 builder.Services.Configure<AppSettingsConfig>(builder.Configuration.Bind);
 var appSettingsConfig = builder.Configuration.Get<AppSettingsConfig>()

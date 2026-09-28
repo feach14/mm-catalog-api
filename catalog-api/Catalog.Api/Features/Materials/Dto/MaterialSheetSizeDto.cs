@@ -1,6 +1,6 @@
 namespace Catalog.Api.Features.Materials.Dto;
 
-public sealed record SheetSizeDto(
+public sealed record MaterialSheetSizeDto(
     [property: Description("Id размера материала")] int Id,
     [property: Description("Название размера материала")] string Name,
     [property: Description("Высота материала")] int Height,

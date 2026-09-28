@@ -12,7 +12,12 @@ public sealed class GetManufacturerQueryHandler(CatalogDbContext dbContext)
     public async Task<ManufacturerDto> Handle(GetManufacturerQuery query, CancellationToken ct) =>
         await dbContext.MaterialManufacturers
             .Where(x => x.Id == query.Id)
-            .Select(x => new ManufacturerDto(x.Id, x.Name, x.OrderByCol))
+            .Select(x => new ManufacturerDto(
+                x.Id,
+                x.Name,
+                x.OrderByCol,
+                x.Materials.Count(material => material.Count > 0),
+                x.Materials.Count(material => material.Count < 1)))
             .SingleOrDefaultAsync(ct)
         ?? throw new BadHttpRequestException($"Производитель с id={query.Id} не найден.");
 }

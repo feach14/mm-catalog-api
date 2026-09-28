@@ -277,6 +277,16 @@ def main():
     webp = b"RIFF" + (20).to_bytes(4, "little") + b"WEBP" + b"catalog-webp-test"
 
     start_server()
+    openapi_response = request("GET", "/swagger/v1/swagger.json")
+    expect(openapi_response[0], 200, "OpenAPI document")
+    sheet_size_schema = json_body(openapi_response)["components"]["schemas"]["SheetSizeDto"]
+    required_sheet_size_properties = {"id", "name", "height", "width", "showInFilters", "orderByCol"}
+    if not required_sheet_size_properties.issubset(sheet_size_schema.get("properties", {})):
+        raise AssertionError("SheetSizeDto OpenAPI properties are incomplete")
+    if not required_sheet_size_properties.issubset(set(sheet_size_schema.get("required", []))):
+        raise AssertionError("SheetSizeDto OpenAPI required properties are incomplete")
+    mark("DOC-01", "SheetSizeDto OpenAPI schema contains all response properties and required fields")
+
     user_cookie = signin("79600487056", "user")
     manager_cookie = signin("79600487057", "manager")
     admin_cookie = signin("79600487058", "administrator")
@@ -367,6 +377,12 @@ def main():
     for category_id in (cat1, cat2, cat3):
         response = request("GET", f"/api/materials/categories/{category_id}")
         expect(response[0], 200, "public category card")
+    expect(request("POST", "/api/materials/categories", {
+        "name": prefix + "-cat-a", "externalLink": "https://example.test/duplicate"
+    }, auth=True)[0], 400, "duplicate category name")
+    duplicate_categories = [x for x in categories() if x["name"] == prefix + "-cat-a"]
+    if len(duplicate_categories) != 1:
+        raise AssertionError("duplicate category was created")
     response = request("PUT", f"/api/materials/categories/{cat2}", {
         "name": prefix + "-cat-b-updated", "externalLink": "https://example.test/updated"
     }, auth=True)
@@ -382,7 +398,7 @@ def main():
     all_categories = categories()
     expect(request("POST", "/api/materials/categories/change-order-col", {"categoryId": all_categories[0]["id"], "direction": "UP"}, auth=True)[0], 400, "category upper boundary")
     expect(request("POST", "/api/materials/categories/change-order-col", {"categoryId": all_categories[-1]["id"], "direction": "DOWN"}, auth=True)[0], 400, "category lower boundary")
-    mark("CAT-01—CAT-08", "create/list/cards/update/sorting and both boundaries passed")
+    mark("CAT-01—CAT-08", "create/list/cards/duplicate protection/update/sorting and both boundaries passed")
 
     payload, headers = multipart("file", "anon.png", png, "image/png")
     expect(request("POST", "/api/materials/images", payload, headers=headers, raw=True)[0], 401, "anonymous image upload")

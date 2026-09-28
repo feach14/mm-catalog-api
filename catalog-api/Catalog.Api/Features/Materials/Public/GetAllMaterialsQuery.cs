@@ -8,7 +8,8 @@ namespace Catalog.Api.Features.Materials.Public;
 
 public sealed record GetAllMaterialsQuery(
     [property: Description("Калькулятор: Raskroy, PvhFacades или EmalFacades. Для выбора нескольких калькуляторов повторите параметр calculator. Без параметра возвращаются все материалы.")][property: FromQuery(Name = "calculator")]
-    MaterialCalculator[]? Calculator
+    MaterialCalculator[]? Calculator,
+    [property: Description("Наличие материала: true — count > 0, false — count < 1. Без параметра возвращаются все материалы.")][property: FromQuery(Name = "inStock")] bool? InStock
 ) : IQuery<GetAllMaterialsQueryResult>;
 
 public sealed class GetAllMaterialsQueryValidator : AbstractValidator<GetAllMaterialsQuery>
@@ -38,6 +39,11 @@ public class GetAllMaterialsQueryHandler(CatalogDbContext dbContext) : IQueryHan
             .Where(x => !x.Deleted)
             .FilterByCalculators(query.Calculator);
 
+        if (query.InStock.HasValue)
+            materialsQuery = query.InStock.Value
+                ? materialsQuery.Where(x => x.Count > 0)
+                : materialsQuery.Where(x => x.Count < 1);
+
         var materialRows = await materialsQuery
             .OrderBy(x => x.Category.OrderByCol)
                 .ThenBy(x => x.OrderByCol)
@@ -46,7 +52,7 @@ public class GetAllMaterialsQueryHandler(CatalogDbContext dbContext) : IQueryHan
                 x.Id,
                 x.Name,
                 x.Article,
-                SheetSize = new SheetSizeDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name, x.MaterialSheetSize.Height, x.MaterialSheetSize.Width),
+                SheetSize = new MaterialSheetSizeDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name, x.MaterialSheetSize.Height, x.MaterialSheetSize.Width),
                 Manufacturer = new ManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
                 x.Depth,
                 x.CommentOnMaterialIsRequired,

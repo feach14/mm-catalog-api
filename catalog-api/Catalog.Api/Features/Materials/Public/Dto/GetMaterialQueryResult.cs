@@ -16,7 +16,7 @@ public sealed record GetMaterialQueryResult
     public required string Article { get; init; }
 
     [Description("Размер материала")]
-    public required SheetSizeDto SheetSize { get; init; }
+    public required MaterialSheetSizeDto SheetSize { get; init; }
 
     [Description("Производитель")]
     public required ManufacturerDto Manufacturer { get; init; }

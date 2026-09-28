@@ -11,7 +11,7 @@ public sealed record GetMaterialForAdminQueryResult(
     [property: Description("Id материала")] int Id,
     [property: Description("Название материала")] string Name,
     [property: Description("Артикул материала")] string Article,
-    [property: Description("Размер материала")] SheetSizeDto SheetSize,
+    [property: Description("Размер материала")] MaterialSheetSizeDto SheetSize,
     [property: Description("Производитель")] ManufacturerDto Manufacturer,
     [property: Description("Толщина плиты")] double Depth,
     [property: Description("Количество кв. м. в плите")] double KvM,
@@ -41,7 +41,7 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
                        x.Id,
                        x.Name,
                        x.Article,
-                       SheetSize = new SheetSizeDto(
+                       SheetSize = new MaterialSheetSizeDto(
                            x.MaterialSheetSize.Id,
                            x.MaterialSheetSize.Name,
                            x.MaterialSheetSize.Height,

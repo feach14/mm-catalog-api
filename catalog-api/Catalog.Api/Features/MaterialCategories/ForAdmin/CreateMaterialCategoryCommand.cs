@@ -14,7 +14,6 @@ public class CreateMaterialCategoryCommandHandler(CatalogDbContext dbContext) : 
 {
     public async Task<CreateMaterialCategoryCommandResult> Handle(CreateMaterialCategoryCommand command, CancellationToken ct)
     {
-
         var maxOrderByCol = await dbContext.MaterialCategories.MaxAsync(x => (int?)x.OrderByCol, ct) ?? 0;
 
         var materialCategory = new MaterialCategory

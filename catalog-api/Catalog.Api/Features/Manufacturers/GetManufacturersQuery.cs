@@ -14,7 +14,12 @@ public sealed class GetManufacturersQueryHandler(CatalogDbContext dbContext)
     {
         var items = await dbContext.MaterialManufacturers
             .OrderBy(x => x.OrderByCol)
-            .Select(x => new ManufacturerDto(x.Id, x.Name, x.OrderByCol))
+            .Select(x => new ManufacturerDto(
+                x.Id,
+                x.Name,
+                x.OrderByCol,
+                x.Materials.Count(material => material.Count > 0),
+                x.Materials.Count(material => material.Count < 1)))
             .ToArrayAsync(ct);
         return new GetManufacturersQueryResult(items);
     }

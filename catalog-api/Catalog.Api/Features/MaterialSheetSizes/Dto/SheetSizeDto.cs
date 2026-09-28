@@ -6,4 +6,6 @@ public sealed record SheetSizeDto(
     [property: Description("Высота материала")] int Height,
     [property: Description("Ширина материала")] int Width,
     [property: Description("Показывать размер материала в фильтрах")] bool ShowInFilters,
-    [property: Description("Порядковый номер записи (для сортировки)")] int OrderByCol);
+    [property: Description("Порядковый номер записи (для сортировки)")] int OrderByCol,
+    [property: Description("Количество материалов в наличии")] int MaterialsAnyCount,
+    [property: Description("Количество материалов не в наличии")] int MaterialsNotAnyCount);
