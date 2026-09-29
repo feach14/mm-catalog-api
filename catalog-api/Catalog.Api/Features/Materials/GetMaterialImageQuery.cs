@@ -14,13 +14,13 @@ public class GetMaterialImageQueryHandler(CatalogDbContext dbContext, IMemoryCac
     public async Task<GetMaterialImageQueryResult> Handle(GetMaterialImageQuery query, CancellationToken ct)
     {
         var imageFromMemory = memoryCache.Get<ImageCache>(query.FileGuid);
-        if (imageFromMemory != null)
+        if (imageFromMemory is not null)
             return new GetMaterialImageQueryResult(imageFromMemory.Data, imageFromMemory.Type);
 
         var cachedFile = await dbContext.ImageCache
             .Where(x => x.Guid == query.FileGuid)
             .FirstOrDefaultAsync(ct);
-        if (cachedFile != null)
+        if (cachedFile is not null)
         {
             memoryCache.Set(query.FileGuid, cachedFile);
             return new GetMaterialImageQueryResult(cachedFile.Data, cachedFile.Type);
@@ -33,7 +33,7 @@ public class GetMaterialImageQueryHandler(CatalogDbContext dbContext, IMemoryCac
         if (image is null)
             throw new BadHttpRequestException($"Файл не найден. fileGuid={query.FileGuid}");
 
-        memoryCache.Set(image.Guid, new ImageCache
+        memoryCache.Set(query.FileGuid, new ImageCache
         {
             Data = image.Data,
             Guid = image.Guid,

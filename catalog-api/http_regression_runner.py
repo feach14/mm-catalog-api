@@ -90,6 +90,7 @@ def expect(status, expected, label):
 
 def mark(case, detail):
     results[case] = detail
+    print(f"ПРОЙДЕН {case}: {detail}", file=sys.stderr, flush=True)
 
 
 def multipart(name, filename, content, content_type, fields=None):
@@ -509,6 +510,322 @@ def run_history_scenarios(history_prefix, dimension_base, manager_cookie, tester
         raise AssertionError("history sorting is incorrect")
 
 
+def public_query(endpoint, parameters):
+    response = request("GET", "/api/materials/" + endpoint + "?" + urllib.parse.urlencode(parameters, doseq=True))
+    expect(response[0], 200, f"{endpoint} {parameters}")
+    return json_body(response)
+
+
+def equal(actual, expected, label):
+    if actual != expected:
+        raise AssertionError(f"{label}: expected {expected!r}, got {actual!r}")
+
+
+def problem(response, label, field=None):
+    expect(response[0], 400, label)
+    body = json_body(response)
+    equal(body.get("status"), 400, label + " ProblemDetails status")
+    if not body.get("title"):
+        raise AssertionError(label + ": missing ProblemDetails title")
+    if field and not any(field.lower() in key.lower() for key in body.get("errors", {})):
+        raise AssertionError(label + ": missing field validation error for " + field)
+
+
+def run_search_facet_scenarios(prefix, dimension_base):
+    marker = prefix + "-search"
+    cats = [create_category(marker + f"-cat-{i}") for i in range(3)]
+    makers = [create_manufacturer(marker + f"-maker-{i}") for i in range(3)]
+    sizes = [create_sheet_size(marker + f"-size-{i}", dimension_base + 20 + i * 2,
+                               dimension_base + 21 + i * 2) for i in range(3)]
+    for i, size_id in enumerate(sizes):
+        expect(request("PUT", f"/api/materials/sheet-sizes/{size_id}", {
+            "name": marker + f"-size-{i}", "height": dimension_base + 20 + i * 2,
+            "width": dimension_base + 21 + i * 2, "showInFilters": i != 1
+        }, auth=True)[0], 200, "configure facet size")
+    rows = []
+    for i, letter in enumerate("ABCDE"):
+        model = material_model(marker + "-" + letter, cats[i % 2], "raskroy" if i % 2 == 0 else "pvhFacades")
+        model.update(manufacturerId=makers[(i // 2) % 2], sheetSizeId=sizes[i % 2],
+                     depth=16 + 2 * (i % 2), count=i % 2, article=marker + f"-article-{i}")
+        rows.append(dict(model, id=create_material(model)))
+
+    def matches(row, params, excluded=None):
+        search = params.get("search", "").strip().lower()
+        if search not in row["name"].lower() and search not in row["article"].lower():
+            return False
+        for key in ("categoryId", "manufacturerId", "sheetSizeId", "depth"):
+            if key != excluded and params.get(key) and row[key] not in params[key]:
+                return False
+        if excluded != "inStock" and "inStock" in params:
+            if (row["count"] > 0) != (params["inStock"] == "true"):
+                return False
+        flags = {"Raskroy": "applicableToRaskroys", "PvhFacades": "applicableToPvhFacades"}
+        return not params.get("calculator") or any(row[flags[c]] for c in params["calculator"])
+
+    def search_check(params):
+        body = public_query("search", params)
+        expected = {r["id"] for r in rows if matches(r, params)}
+        equal({r["id"] for r in body["items"]}, expected, "search IDs")
+        equal(len(body["items"]), len(expected), "search duplicates")
+        equal(body["totalCount"], len(expected), "search total")
+        return body
+
+    for term in (rows[0]["name"], rows[1]["article"]):
+        search_check({"search": term})
+        search_check({"search": "  " + term.upper() + "  "})
+    mark("SEARCH-01", "Проверены поиск по названию и артикулу, независимость от регистра и удаление пробелов по краям")
+    for symbol in ("%", "_", "\\"):
+        model = material_model(prefix + "-literal-" + symbol, cats[0], "raskroy")
+        material_id = create_material(model)
+        control = material_model(prefix + "-literal-X" + str(ord(symbol)), cats[0], "raskroy")
+        control_id = create_material(control)
+        body = public_query("search", {"search": model["name"]})
+        equal([r["id"] for r in body["items"]], [material_id], "literal search")
+        expect(delete_material(material_id)[0], 200, "literal cleanup")
+        expect(delete_material(control_id)[0], 200, "literal control cleanup")
+    mark("SEARCH-02", "Спецсимволы шаблонов LIKE обрабатываются буквально")
+    choices = {"categoryId": cats[:2], "manufacturerId": makers[:2], "sheetSizeId": sizes[:2],
+               "depth": [16, 18], "calculator": ["Raskroy", "PvhFacades"]}
+    for key, values in choices.items():
+        search_check({"search": marker, key: values + values})
+    for stock in ("true", "false"):
+        search_check({"search": marker, **choices, "categoryId": [cats[0]], "inStock": stock})
+    mark("SEARCH-03", "Проверены условия ИЛИ и И, повторяющиеся значения и наличие")
+    for sort, expected in (("NameAsc", rows), ("NameDesc", list(reversed(rows))),
+                           ("CatalogOrder", [rows[i] for i in (0, 2, 4, 1, 3)])):
+        collected = []
+        for page, length in ((1, 2), (2, 2), (3, 1), (4, 0)):
+            params = {"search": marker, "sort": sort, "pageSize": 2, "page": page}
+            body = public_query("search", params)
+            equal((body["totalCount"], body["page"], body["pageSize"], len(body["items"])),
+                  (5, page, 2, length), "page metadata")
+            equal(public_query("search", params), body, "repeat page")
+            collected.extend(r["id"] for r in body["items"])
+        equal(collected, [r["id"] for r in expected], sort)
+    mark("SEARCH-04", "Проверены все страницы и пустая страница за пределами выдачи")
+    mark("SEARCH-05", "Все способы сортировки сохраняют порядок при переходе между страницами")
+    for params in ({"page": 0}, {"page": -1}, {"pageSize": 0}, {"pageSize": 97},
+                   {"page": 2147483647, "pageSize": 96}):
+        problem(request("GET", "/api/materials/search?" + urllib.parse.urlencode(params)), "page boundary")
+    for size in (1, 96):
+        body = public_query("search", {"search": marker, "pageSize": size})
+        equal(len(body["items"]), min(size, 5), "valid page size")
+    mark("SEARCH-06", "Проверены границы пагинации и защита от переполнения")
+    for endpoint in ("search", "filters"):
+        public_query(endpoint, {"search": "x" * 250})
+        invalid = [{"search": "x" * 251}]
+        for key, values in choices.items():
+            public_query(endpoint, {"search": marker, key: [values[0]] * 100})
+            invalid.append({key: [values[0]] * 101})
+        for key in ("categoryId", "manufacturerId", "sheetSizeId"):
+            invalid.extend({key: value} for value in (0, 2147483647))
+        invalid.extend({"depth": value} for value in (0, -1, "NaN", "Infinity"))
+        invalid.append({"calculator": "Unknown"})
+        if endpoint == "search":
+            invalid.append({"sort": "Unknown"})
+        for params in invalid:
+            problem(request("GET", "/api/materials/" + endpoint + "?" + urllib.parse.urlencode(params, doseq=True)),
+                    f"{endpoint} invalid {next(iter(params))}", next(iter(params)))
+    mark("SEARCH-07", "Проверены валидаторы и ограничения обоих методов API")
+    empty = public_query("search", {"search": marker + "-missing", "page": 2, "pageSize": 3})
+    equal(empty, {"items": [], "totalCount": 0, "page": 2, "pageSize": 3}, "empty search")
+    mark("SEARCH-08", "Проверен контракт пустой выдачи")
+
+    groups = {"categories": ("categoryId", "id", cats), "manufacturers": ("manufacturerId", "id", makers),
+              "sheetSizes": ("sheetSizeId", "id", sizes), "depths": ("depth", "value", [16, 18])}
+
+    def facets_check(params):
+        body = public_query("filters", params)
+        for group, (field, key, values) in groups.items():
+            expected = {}
+            for value in sorted(set(values + params.get(field, []))):
+                count = sum(matches(r, params, field) and r[field] == value for r in rows)
+                visible = field != "sheetSizeId" or value != sizes[1]
+                if (count and visible) or value in params.get(field, []):
+                    expected[value] = count
+            actual = body[group]
+            equal({item[key]: item["count"] for item in actual}, expected, group + " counts")
+            equal([item[key] for item in actual], list(expected), group + " order/duplicates")
+        counts = {value: sum(matches(r, params, "inStock") and (r["count"] > 0) == value for r in rows)
+                  for value in (True, False)}
+        equal({item["value"]: item["count"] for item in body["availability"]}, counts, "availability")
+        equal(len(body["availability"]), 2, "availability unique")
+        return body
+
+    for field in ("categoryId", "manufacturerId", "sheetSizeId", "depth"):
+        facets_check({"search": marker, field: [choices[field][0]]})
+    mark("FACET-01", "При расчёте каждой группы исключается её собственный фильтр")
+    facets_check({"search": marker, "categoryId": [cats[0]], "manufacturerId": [makers[0]],
+                  "sheetSizeId": [sizes[0]], "depth": [16], "calculator": ["Raskroy"], "inStock": "false"})
+    mark("FACET-02", "Счётчики при совместных ограничениях сверены с исходными тестовыми данными")
+    facets_check({"search": marker, "categoryId": [cats[2]], "manufacturerId": [makers[2]],
+                  "sheetSizeId": [sizes[2]], "depth": [99]})
+    mark("FACET-03", "Выбранные значения с нулевыми счётчиками сохранены")
+    facets_check({"search": marker})
+    facets_check({"search": marker, "sheetSizeId": [sizes[1]]})
+    search_check({"search": marker, "sheetSizeId": [sizes[1]]})
+    mark("FACET-04", "Скрытый размер отсутствует среди вариантов до выбора, но доступен для поиска")
+    for stock in ("true", "false"):
+        facets_check({"search": marker, "inStock": stock})
+    rows[0]["count"] = 1
+    expect(request("PUT", f'/api/materials/{rows[0]["id"]}',
+                   {k: v for k, v in rows[0].items() if k != "id"}, auth=True)[0], 200, "change stock")
+    for stock in ("true", "false"):
+        facets_check({"search": marker, "inStock": stock})
+    mark("FACET-05", "Проверены изменение наличия и счётчики обоих вариантов наличия")
+    facets_check({"search": marker, **{key: values * 2 for key, values in choices.items()}})
+    mark("FACET-06", "Проверены порядок вариантов фильтров и повторяющиеся выбранные значения")
+    facets_check({"search": marker + "-missing"})
+    facets_check({"search": marker + "-missing", "categoryId": [cats[0]]})
+    mark("FACET-07", "Проверены пустые группы фильтров и выбранная категория с нулевым счётчиком")
+    for row in rows:
+        expect(delete_material(row["id"])[0], 200, "search fixture cleanup")
+    for ids, path, tracked in ((cats, "categories", created_categories), (sizes, "sheet-sizes", created_sheet_sizes),
+                               (makers, "manufacturers", created_manufacturers)):
+        for entity_id in ids:
+            expect(request("DELETE", f"/api/materials/{path}/{entity_id}", auth=True)[0], 200, "facet fixture cleanup")
+            tracked.remove(entity_id)
+
+
+def run_variant_scenarios(prefix, category_id, png):
+    fields = {"image": ("Original", "original"), "thumbnail240": ("Thumbnail240", "thumbnail240"),
+              "thumbnail480": ("Thumbnail480", "thumbnail480")}
+    uploaded = {}
+    model = material_model(prefix + "-variants-A", category_id, "raskroy")
+    material_id = None
+
+    def new_image(field):
+        kind, _ = fields[field]
+        content = png + uuid.uuid4().bytes
+        response = upload(prefix + "-variant.png", content, "image/png", kind)
+        expect(response[0], 200, "variant upload")
+        value = json_body(response)
+        guid = value["fileGuid"]
+        uploaded[guid] = (field, content)
+        equal(value["imageType"], kind, "upload image type")
+        equal(value["contentType"], "image/png", "upload MIME")
+        return guid
+
+    def file_check(guid):
+        response = request("GET", "/api/materials/images/" + guid)
+        expect(response[0], 200, "variant file")
+        equal(response[2], uploaded[guid][1], "variant bytes")
+        equal({k.lower(): v for k, v in response[1].items()}["content-type"], "image/png", "variant MIME")
+
+    def snapshots(entity_id):
+        cards = []
+        for path, auth in ((f"/api/materials/{entity_id}", False), (f"/api/materials/admin/{entity_id}", True)):
+            response = request("GET", path, auth=auth)
+            expect(response[0], 200, "variant card")
+            cards.append(json_body(response))
+        return cards
+
+    def check_model():
+        expected = {output: model.get(field) for field, (_, output) in fields.items()}
+        cards = snapshots(material_id)
+        search = public_query("search", {"search": model["name"]})
+        equal(len(search["items"]), 1, "variant search count")
+        for card in cards + search["items"]:
+            equal(card["images"], expected, "variant projection")
+            equal(card["article"], model["article"], "variant article")
+        for guid in expected.values():
+            if guid:
+                file_check(guid)
+
+    def update():
+        expect(request("PUT", f"/api/materials/{material_id}", model, auth=True)[0], 200, "variant update")
+        check_model()
+
+    try:
+        model.update({field: new_image(field) for field in fields})
+        material_id = create_material(model)
+        check_model()
+        mark("VAR-01", "Проверены три назначения изображений, поля ответов, MIME-типы и байты файлов")
+        for field in fields:
+            wrong_field = next(other for other in fields if other != field)
+            wrong_guid = new_image(wrong_field)
+            bad = dict(model, **{field: wrong_guid})
+            before = snapshots(material_id)
+            problem(request("PUT", f"/api/materials/{material_id}", bad, auth=True), "wrong image type update")
+            equal(snapshots(material_id), before, "failed update unchanged")
+            bad.update(name=prefix + "-wrong-type", **{other: None for other in fields if other != field})
+            problem(request("POST", "/api/materials", bad, auth=True), "wrong image type create")
+            equal(public_query("search", {"search": bad["name"]})["totalCount"], 0, "rejected create absent")
+            file_check(wrong_guid)
+        mark("VAR-02", "POST и PUT отклоняют изображения неверного назначения без изменения данных")
+        update()
+        model["article"] += "-updated"
+        update()
+        mark("VAR-03", "Повторное сохранение и изменение обычного поля сохраняют все изображения")
+        for field in ("thumbnail240", "thumbnail480"):
+            old = model[field]
+            file_check(old)
+            model[field] = new_image(field)
+            update()
+            problem(request("GET", "/api/materials/images/" + old), "replaced thumbnail")
+        mark("VAR-04", "Замена отдельной миниатюры делает прежний GUID недоступным, включая кеш")
+        other = material_model(prefix + "-variants-B", category_id, "raskroy")
+        other.update({field: new_image(field) for field in fields})
+        other_id = create_material(other)
+        for field in ("thumbnail240", "thumbnail480"):
+            before_a, before_b = snapshots(material_id), snapshots(other_id)
+            bad = dict(other, **{field: model[field]})
+            problem(request("PUT", f"/api/materials/{other_id}", bad, auth=True), "foreign thumbnail update")
+            equal(snapshots(material_id), before_a, "owner unchanged")
+            equal(snapshots(other_id), before_b, "recipient unchanged")
+            bad.update(name=prefix + "-foreign-variant", **{key: None for key in fields if key != field})
+            problem(request("POST", "/api/materials", bad, auth=True), "foreign thumbnail create")
+            equal(public_query("search", {"search": bad["name"]})["totalCount"], 0, "foreign create absent")
+            for guid in [model[field], *[other[key] for key in fields]]:
+                file_check(guid)
+        mark("VAR-06", "Миниатюры другого материала нельзя использовать повторно")
+        new_original = new_image("image")
+        before = snapshots(material_id)
+        bad = dict(model, article="should-not-save", image=new_original, thumbnail480=str(uuid.uuid4()))
+        problem(request("PUT", f"/api/materials/{material_id}", bad, auth=True), "mixed invalid update")
+        equal(snapshots(material_id), before, "atomic refusal")
+        check_model()
+        file_check(new_original)
+        model["image"] = new_original
+        update()
+        mark("VAR-07", "Неуспешное смешанное обновление сохраняет данные; загруженный файл остаётся пригодным для привязки")
+        for field in fields:
+            old = model[field]
+            file_check(old)
+            model[field] = None
+            update()
+            problem(request("GET", "/api/materials/images/" + old), "removed image")
+        mark("VAR-05", "Каждое изображение удаляется независимо от остальных")
+        for guid in (other[field] for field in fields):
+            file_check(guid)
+        expect(delete_material(other_id)[0], 200, "delete all image variants")
+        for field in fields:
+            problem(request("GET", "/api/materials/images/" + other[field]), "deleted variant")
+        for path in (f"/api/materials/{other_id}", f"/api/materials/admin/{other_id}"):
+            problem(request("GET", path, auth=True), "deleted variant card")
+        equal(public_query("search", {"search": other["name"]})["totalCount"], 0, "deleted variant search")
+        mark("VAR-08", "Удаление материала делает все варианты изображений недоступными, включая кеш")
+    finally:
+        # Consume even uploads left by failed assertions before outer cleanup removes relations.
+        for guid, (field, _) in uploaded.items():
+            response = request("GET", "/api/materials/images/" + guid)
+            if response[0] == 200:
+                attached = any(
+                    guid in snapshots(entity_id)[1]["images"].values()
+                    for entity_id in created_materials)
+                if not attached:
+                    temporary = material_model(prefix + "-drain-" + guid, category_id, "raskroy")
+                    temporary[field] = guid
+                    temporary_id = create_material(temporary)
+                    expect(delete_material(temporary_id)[0], 200, "unused upload cleanup")
+        for entity_id in list(created_materials):
+            card = json_body(request("GET", f"/api/materials/admin/{entity_id}", auth=True))
+            if card and card.get("name", "").startswith(prefix + "-variants-"):
+                expect(delete_material(entity_id)[0], 200, "variant fixture cleanup")
+        for guid in uploaded:
+            problem(request("GET", "/api/materials/images/" + guid), "final variant cleanup")
+
+
 def main():
     global cookie, history_run_id, primary_sheet_size_id, primary_manufacturer_id
     prefix = "codex-http-" + time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
@@ -527,7 +844,7 @@ def main():
         raise AssertionError("SheetSizeDto OpenAPI properties are incomplete")
     if not required_sheet_size_properties.issubset(set(sheet_size_schema.get("required", []))):
         raise AssertionError("SheetSizeDto OpenAPI required properties are incomplete")
-    mark("DOC-01", "SheetSizeDto OpenAPI schema contains all response properties and required fields")
+    mark("DOC-01", "Схема SheetSizeDto в OpenAPI содержит все свойства ответа и обязательные поля")
     cleanup_operation = openapi_document["paths"]["/api/catalog/history/test-runs/{runId}"]["delete"]
     cleanup_parameters = cleanup_operation.get("parameters", [])
     if len(cleanup_parameters) != 1 or cleanup_parameters[0].get("name") != "runId":
@@ -542,7 +859,7 @@ def main():
         raise AssertionError("history cleanup OpenAPI path parameter description is incorrect")
     if not {"200", "400", "401", "403"}.issubset(cleanup_operation.get("responses", {})):
         raise AssertionError("history cleanup OpenAPI responses are incomplete")
-    mark("DOC-02", "history cleanup OpenAPI path parameter and responses are documented")
+    mark("DOC-02", "Параметр пути и ответы метода очистки истории описаны в OpenAPI")
 
     credentials = load_test_credentials()
     user_cookie = signin(credentials["user"], credentials["password"], "user")
@@ -576,8 +893,8 @@ def main():
     expect(tester_cleanup_probe[0], 200, "tester history cleanup")
     if json_body(tester_cleanup_probe)["deletedCount"] != 0:
         raise AssertionError("history cleanup probe deleted unrelated events")
-    mark("PREP-01—PREP-03", "user, tester, manager and administrator cookies received; anonymous client prepared")
-    mark("AUTH-08—AUTH-12", "protected access and tester-only history cleanup authorization passed")
+    mark("PREP-01—PREP-03", "Получены cookie пользователя, тестера, менеджера и администратора; подготовлен анонимный клиент")
+    mark("AUTH-08—AUTH-12", "Проверены доступ к закрытым методам и разрешение очистки истории только тестеру")
 
     tester_probe_name = prefix + "-tester-no-history"
     tester_create = request("POST", "/api/materials/manufacturers", {"name": tester_probe_name}, auth_cookie=tester_cookie)
@@ -592,7 +909,7 @@ def main():
     created_manufacturers.remove(tester_probe_id)
     if history(search=tester_probe_name)["totalCount"] != 0:
         raise AssertionError("tester operations created catalog history events")
-    mark("HIST-13", "tester create/update/delete succeeded without catalog history events")
+    mark("HIST-13", "Создание, изменение и удаление тестером выполнены без событий истории каталога")
 
     primary_sheet_size_id = create_sheet_size(prefix + "-size-a", dimension_base, dimension_base + 1)
     secondary_sheet_size_id = create_sheet_size(prefix + "-size-b", dimension_base + 2, dimension_base + 3)
@@ -605,7 +922,7 @@ def main():
     expect(request("PUT", f"/api/materials/sheet-sizes/{temporary_sheet_size_id}", {"name": prefix + "-size-updated", "height": dimension_base + 8, "width": dimension_base + 9}, auth=True)[0], 200, "no-op material sheet size update")
     expect(request("DELETE", f"/api/materials/sheet-sizes/{temporary_sheet_size_id}", auth=True)[0], 200, "delete free material sheet size")
     created_sheet_sizes.remove(temporary_sheet_size_id)
-    mark("SIZE-01—SIZE-04", "create/list/card/duplicate/update/free delete passed")
+    mark("SIZE-01—SIZE-04", "Проверены создание, список, карточка, защита от дублей, изменение и удаление свободного размера")
 
     own_sizes = [x for x in sheet_sizes() if x["id"] in (primary_sheet_size_id, secondary_sheet_size_id)]
     if [x["id"] for x in own_sizes] != [primary_sheet_size_id, secondary_sheet_size_id]:
@@ -622,7 +939,7 @@ def main():
     own_sizes = [x for x in sheet_sizes() if x["id"] in (primary_sheet_size_id, secondary_sheet_size_id)]
     if [x["id"] for x in own_sizes] != [primary_sheet_size_id, secondary_sheet_size_id]:
         raise AssertionError("material sheet size was not moved down")
-    mark("SIZE-08—SIZE-09", "material sheet size moved up and down")
+    mark("SIZE-08—SIZE-09", "Размер материала перемещён вверх и вниз")
 
     primary_manufacturer_id = create_manufacturer(prefix + "-manufacturer-a")
     secondary_manufacturer_id = create_manufacturer(prefix + "-manufacturer-b")
@@ -641,7 +958,7 @@ def main():
     all_manufacturers = manufacturers()
     expect(request("POST", "/api/materials/manufacturers/change-order-col", {"id": all_manufacturers[0]["id"], "direction": "UP"}, auth=True)[0], 400, "manufacturer upper boundary")
     expect(request("POST", "/api/materials/manufacturers/change-order-col", {"id": all_manufacturers[-1]["id"], "direction": "DOWN"}, auth=True)[0], 400, "manufacturer lower boundary")
-    mark("MFR-01—MFR-06", "manufacturer CRUD, duplicate, sorting and boundaries passed")
+    mark("MFR-01—MFR-06", "Проверены операции с производителями, защита от дублей, сортировка и её границы")
 
     expect(request("GET", "/api/materials?calculator=Raskroy")[0], 200, "public materials")
     expect(request("GET", "/api/materials/categories")[0], 200, "public categories")
@@ -693,7 +1010,7 @@ def main():
     all_categories = categories()
     expect(request("POST", "/api/materials/categories/change-order-col", {"categoryId": all_categories[0]["id"], "direction": "UP"}, auth=True)[0], 400, "category upper boundary")
     expect(request("POST", "/api/materials/categories/change-order-col", {"categoryId": all_categories[-1]["id"], "direction": "DOWN"}, auth=True)[0], 400, "category lower boundary")
-    mark("CAT-01—CAT-08", "create/list/cards/duplicate protection/update/sorting and both boundaries passed")
+    mark("CAT-01—CAT-08", "Проверены создание, список, карточки, защита от дублей, изменение, сортировка и обе её границы")
 
     payload, headers = multipart(
         "file", "anon.png", png, "image/png", {"imageType": "Original"})
@@ -715,14 +1032,14 @@ def main():
         expect(response[0], 200, "uploaded image GET")
         if response[1].get("Content-Type") != content_type or response[2] != content:
             raise AssertionError("uploaded image bytes/content-type mismatch")
-    mark("IMG-01—IMG-04", "auth, three formats, validation and pre-binding reads passed")
+    mark("IMG-01—IMG-04", "Проверены авторизация, три формата, валидация и получение файлов до привязки")
 
     restart_server()
     response = request("GET", "/api/materials/images/" + images[0][0])
     expect(response[0], 200, "PNG after restart")
     if response[2] != png:
         raise AssertionError("PNG changed after restart")
-    mark("IMG-05", "uploaded PNG survived restart")
+    mark("IMG-05", "Загруженный PNG доступен после перезапуска")
 
     m1_model = material_model(prefix + "-mat-raskroy", cat1, "raskroy", images[0][0])
     m2_model = material_model(prefix + "-mat-pvh", cat1, "pvhFacades")
@@ -745,15 +1062,15 @@ def main():
         raise AssertionError("nested material relations contain sorting fields")
     expect(request("DELETE", f"/api/materials/sheet-sizes/{primary_sheet_size_id}", auth=True)[0], 400, "delete used material sheet size")
     expect(request("DELETE", f"/api/materials/manufacturers/{primary_manufacturer_id}", auth=True)[0], 400, "delete used manufacturer")
-    mark("MFR-07—MFR-08", "material relation visible; used manufacturer deletion rejected")
-    mark("SIZE-05—SIZE-06", "material relation visible; used size deletion rejected")
+    mark("MFR-07—MFR-08", "Связь с материалом отображается; удаление используемого производителя отклонено")
+    mark("SIZE-05—SIZE-06", "Связь с материалом отображается; удаление используемого размера отклонено")
     expect(request("GET", f"/api/materials/categories/{cat1}")[0], 200, "public category card after material")
     png_response = request("GET", "/api/materials/images/" + images[0][0])
     expect(png_response[0], 200, "bound PNG")
     if png_response[2] != png:
         raise AssertionError("bound PNG mismatch")
-    mark("AUTH-01—AUTH-07", "public lists/cards/image and anonymous protected calls passed")
-    mark("IMG-06—IMG-07", "material created after restart with PNG; card and image passed")
+    mark("AUTH-01—AUTH-07", "Проверены публичные списки, карточки, изображение и анонимные обращения к закрытым методам")
+    mark("IMG-06—IMG-07", "После перезапуска создан материал с PNG; проверены карточка и изображение")
 
     admin_ids = {x["id"] for x in admin_materials()}
     if not {m1, m2, m3}.issubset(admin_ids):
@@ -802,8 +1119,17 @@ def main():
     expect(request("POST", "/api/materials/change-order-col", {"id": cat1_rows[0]["id"], "direction": "UP"}, auth=True)[0], 400, "material upper boundary")
     expect(request("POST", "/api/materials/change-order-col", {"id": cat1_rows[-1]["id"], "direction": "DOWN"}, auth=True)[0], 400, "material lower boundary")
     expect(request("DELETE", f"/api/materials/categories/{cat1}", auth=True)[0], 400, "delete used category")
-    mark("CAT-09", "used category deletion rejected and entities retained")
-    mark("MAT-01—MAT-08", "create/lists/cards/filters/update/sorting/isolation/boundaries passed")
+    mark("CAT-09", "Удаление используемой категории отклонено; связанные сущности сохранены")
+    mark("MAT-01—MAT-08", "Проверены создание, списки, карточки, фильтры, изменение, сортировка, её изоляция и границы")
+
+    foreign_create_model = material_model(prefix + "-foreign-image-create", cat2, "raskroy", images[0][0])
+    expect(request("POST", "/api/materials", foreign_create_model, auth=True)[0], 400, "create with another material image")
+    foreign_update_model = copy.deepcopy(m2_model)
+    foreign_update_model["image"] = images[0][0]
+    expect(request("PUT", f"/api/materials/{m2}", foreign_update_model, auth=True)[0], 400, "update with another material image")
+    if json_body(request("GET", f"/api/materials/{m2}"))["images"]["original"] is not None:
+        raise AssertionError("foreign image was attached to another material")
+    mark("VAL-11—VAL-12", "Создание и изменение отклонены при передаче изображения, привязанного к другому материалу")
 
     jpeg_model = copy.deepcopy(m1_model)
     jpeg_model["image"] = images[1][0]
@@ -818,7 +1144,7 @@ def main():
             raise AssertionError("JPEG response mismatch")
     time.sleep(1)
     expect(request("GET", "/api/materials/images/" + images[1][0])[0], 200, "later JPEG GET")
-    mark("IMG-08—IMG-10", "JPEG replacement invalidated PNG; repeated and later reads passed")
+    mark("IMG-08—IMG-10", "Замена на JPEG сделала PNG недоступным; повторное и отложенное получение прошли")
 
     webp_model = copy.deepcopy(m1_model)
     webp_model["image"] = images[2][0]
@@ -828,7 +1154,7 @@ def main():
     expect(response[0], 200, "WebP GET")
     if response[2] != webp or response[1].get("Content-Type") != "image/webp":
         raise AssertionError("WebP mismatch")
-    mark("IMG-11", "WebP replacement invalidated JPEG and returned original bytes")
+    mark("IMG-11", "Замена на WebP сделала JPEG недоступным; возвращены исходные байты WebP")
 
     restart_server()
     for _ in range(2):
@@ -836,7 +1162,7 @@ def main():
         expect(response[0], 200, "WebP after restart")
         if response[2] != webp:
             raise AssertionError("WebP changed after restart")
-    mark("IMG-12", "WebP returned twice after restart with original bytes")
+    mark("IMG-12", "После перезапуска WebP дважды получен с исходными байтами")
 
     base_invalid = material_model(prefix + "-validation", cat2, "raskroy")
     expect(request("POST", "/api/materials", {}, auth=True)[0], 400, "empty required fields")
@@ -858,7 +1184,7 @@ def main():
     expect(request("POST", "/api/materials/change-order-col", {"id": m1, "direction": "SIDEWAYS"}, auth=True)[0], 400, "invalid direction")
     bad = copy.deepcopy(base_invalid); bad["name"] += "-guid"; bad["image"] = str(uuid.uuid4())
     expect(request("POST", "/api/materials", bad, auth=True)[0], 400, "missing image GUID")
-    mark("VAL-01—VAL-10", "all negative models and missing ids/GUID returned 400")
+    mark("VAL-01—VAL-10", "Все проверенные некорректные модели и отсутствующие id/GUID вернули 400")
 
     counter_targets = (
         ("/api/materials/categories", cat1),
@@ -880,9 +1206,12 @@ def main():
     expect(delete_material(m1)[0], 400, "repeat material delete")
     for guid, _, _ in images:
         expect(request("GET", "/api/materials/images/" + guid)[0], 400, "final image GUID check")
-    mark("MAT-09—MAT-11", "physical delete/list and card absence/repeat delete passed")
-    mark("CAT-11, SIZE-10, MFR-11", "physically deleted material excluded from list and card counters")
-    mark("IMG-13—IMG-14", "delete invalidated WebP; all three GUIDs unavailable")
+    mark("MAT-09—MAT-11", "Проверены физическое удаление, отсутствие в списках и карточках, повторное удаление")
+    mark("CAT-11, SIZE-10, MFR-11", "Физически удалённый материал исключён из счётчиков списков и карточек справочников")
+    mark("IMG-13—IMG-14", "После удаления WebP недоступен; все три GUID недоступны")
+
+    run_search_facet_scenarios(prefix, dimension_base)
+    run_variant_scenarios(prefix, cat1, png)
 
     expect(delete_material(m2)[0], 200, "cleanup m2")
     expect(delete_material(m3)[0], 200, "cleanup m3")
@@ -895,9 +1224,9 @@ def main():
     for manufacturer_id in (primary_manufacturer_id, secondary_manufacturer_id):
         expect(request("DELETE", f"/api/materials/manufacturers/{manufacturer_id}", auth=True)[0], 200, "delete free manufacturer")
         created_manufacturers.remove(manufacturer_id)
-    mark("MFR-08—MFR-09", "used manufacturer protected; free manufacturers deleted")
-    mark("SIZE-07", "free material sheet sizes deleted")
-    mark("CAT-10", "free categories deleted")
+    mark("MFR-08—MFR-09", "Используемый производитель защищён от удаления; свободные производители удалены")
+    mark("SIZE-07", "Свободные размеры материалов удалены")
+    mark("CAT-10", "Свободные категории удалены")
     remaining_category_ids = {x["id"] for x in categories()}
     if {cat1, cat2, cat3} & remaining_category_ids:
         raise AssertionError("test categories remained in list")
@@ -906,11 +1235,11 @@ def main():
         raise AssertionError("test materials remained in admin list")
     for guid, _, _ in images:
         expect(request("GET", "/api/materials/images/" + guid)[0], 400, "FIN image check")
-    mark("FIN-01—FIN-03", "materials/categories removed and GUIDs unavailable")
+    mark("FIN-01—FIN-03", "Материалы и категории удалены; GUID изображений недоступны")
 
     if history(search=prefix)["totalCount"] != 0:
         raise AssertionError("tester functional scenarios created catalog history events")
-    mark("HIST-13", "tester functional CRUD and cleanup created no catalog history events")
+    mark("HIST-13", "Создание, чтение, изменение, удаление и очистка тестером не создали событий истории каталога")
 
     history_run_id = int(uuid.uuid4().hex[:7], 16) + 1
     history_prefix = f"codex-history-{history_run_id}"
@@ -920,7 +1249,7 @@ def main():
         manager_cookie,
         tester_cookie,
         credentials["manager"])
-    mark("HIST-01—HIST-12", "isolated manager CRUD audit, no-op/sorting exclusion, phone, snapshots, authorization, filters, search and pagination passed")
+    mark("HIST-01—HIST-12", "Проверены изолированный аудит операций менеджера, отсутствие событий при сохранении без изменений и сортировке, телефон, снимки данных, авторизация, фильтры, поиск и пагинация")
 
     cleanup_response = request(
         "DELETE",
@@ -933,7 +1262,7 @@ def main():
         raise AssertionError("test history events remained after cleanup")
     completed_history_run_id = history_run_id
     history_run_id = None
-    mark("HIST-14", "tester-only endpoint deleted all 12 isolated history events and left none")
+    mark("HIST-14", "Метод, доступный только тестеру, удалил все 12 изолированных событий истории; повторный поиск не вернул событий")
 
     observed_history_total_count = history()["totalCount"]
 

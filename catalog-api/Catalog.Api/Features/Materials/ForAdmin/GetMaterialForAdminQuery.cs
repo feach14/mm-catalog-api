@@ -33,68 +33,48 @@ public sealed record GetMaterialForAdminQueryResult(
 
 public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetMaterialForAdminQuery, GetMaterialForAdminQueryResult>
 {
-    public async Task<GetMaterialForAdminQueryResult> Handle(GetMaterialForAdminQuery query, CancellationToken ct)
-    {
-        var queryResult = await dbContext.Materials
-                   .Include(x => x.Images)
-                   .Where(x => x.Id == query.Id)
-                   .Select(x => new
-                   {
-                       x.Id,
-                       x.Name,
-                       x.Article,
-                       SheetSize = new MaterialSheetSizeDto(
-                           x.MaterialSheetSize.Id,
-                           x.MaterialSheetSize.Name,
-                           x.MaterialSheetSize.Height,
-                           x.MaterialSheetSize.Width),
-                       Manufacturer = new MaterialManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
-                       x.Depth,
-                       x.KvM,
-                       x.PerimetrM,
-                       x.ApplicableToRaskroys,
-                       x.ApplicableToPvhFacades,
-                       x.ApplicableToEmalFacades,
-                       x.CommentOnMaterialIsRequired,
-                       x.AllowSecondItemInOrder,
-                       x.ExternalLink,
-                       x.Images,
-                       x.CategoryId,
-                       CategoryName = x.Category.Name,
-                       x.Count,
-                       x.OrderByCol,
-                       x.Price,
-                       x.CountTypeEnum
-                   })
-                   .SingleOrDefaultAsync(ct)
-               ?? throw new BadHttpRequestException($"Материал с id={query.Id} не найден");
-
-        return new GetMaterialForAdminQueryResult(
-            Id: queryResult.Id,
-            Name: queryResult.Name,
-            Article: queryResult.Article,
-            SheetSize: queryResult.SheetSize,
-            Manufacturer: queryResult.Manufacturer,
-            Depth: queryResult.Depth,
-            KvM: queryResult.KvM,
-            PerimetrM: queryResult.PerimetrM,
-            ApplicableToRaskroys: queryResult.ApplicableToRaskroys,
-            ApplicableToPvhFacades: queryResult.ApplicableToPvhFacades,
-            ApplicableToEmalFacades: queryResult.ApplicableToEmalFacades,
-            Images: new MaterialImagesDto
-            {
-                Original = queryResult.Images.SingleOrDefault(x => x.ImageType == MaterialImageTypeEnum.Original)?.Guid,
-                Thumbnail240 = queryResult.Images.SingleOrDefault(x => x.ImageType == MaterialImageTypeEnum.Thumbnail240)?.Guid,
-                Thumbnail480 = queryResult.Images.SingleOrDefault(x => x.ImageType == MaterialImageTypeEnum.Thumbnail480)?.Guid,
-            },
-            Category: new CategoryDto(queryResult.CategoryId, queryResult.CategoryName),
-            Count: queryResult.Count,
-            OrderByCol: queryResult.OrderByCol,
-            CommentOnMaterialIsRequired: queryResult.CommentOnMaterialIsRequired,
-            AllowSecondItemInOrder: queryResult.AllowSecondItemInOrder,
-            ExternalLink: queryResult.ExternalLink,
-            Price: queryResult.Price,
-            CountTypeEnum: queryResult.CountTypeEnum
-        );
-    }
+    public async Task<GetMaterialForAdminQueryResult> Handle(GetMaterialForAdminQuery query, CancellationToken ct) =>
+        await dbContext.Materials
+            .Where(x => x.Id == query.Id)
+            .Select(x => new GetMaterialForAdminQueryResult(
+                x.Id,
+                x.Name,
+                x.Article,
+                new MaterialSheetSizeDto(
+                    x.MaterialSheetSize.Id,
+                    x.MaterialSheetSize.Name,
+                    x.MaterialSheetSize.Height,
+                    x.MaterialSheetSize.Width),
+                new MaterialManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
+                x.Depth,
+                x.KvM,
+                x.PerimetrM,
+                x.ApplicableToRaskroys,
+                x.ApplicableToPvhFacades,
+                x.ApplicableToEmalFacades,
+                new MaterialImagesDto
+                {
+                    Original = x.Images
+                        .Where(image => image.ImageType == MaterialImageTypeEnum.Original)
+                        .Select(image => (Guid?)image.Guid)
+                        .SingleOrDefault(),
+                    Thumbnail240 = x.Images
+                        .Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail240)
+                        .Select(image => (Guid?)image.Guid)
+                        .SingleOrDefault(),
+                    Thumbnail480 = x.Images
+                        .Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail480)
+                        .Select(image => (Guid?)image.Guid)
+                        .SingleOrDefault()
+                },
+                new CategoryDto(x.CategoryId, x.Category.Name),
+                x.Count,
+                x.OrderByCol,
+                x.CommentOnMaterialIsRequired,
+                x.AllowSecondItemInOrder,
+                x.ExternalLink,
+                x.Price,
+                x.CountTypeEnum))
+            .SingleOrDefaultAsync(ct)
+        ?? throw new BadHttpRequestException($"Материал с id={query.Id} не найден");
 }

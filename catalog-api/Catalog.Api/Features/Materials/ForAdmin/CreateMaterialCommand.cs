@@ -21,6 +21,21 @@ public sealed class CreateMaterialModelValidator : AbstractValidator<CreateMater
                 !await dbContext.Materials.AnyAsync(x => x.Name == name.Trim(), ct))
             .When(x => !string.IsNullOrWhiteSpace(x.Name))
             .WithMessage("Материал с таким названием уже существует");
+        RuleFor(x => x.Image)
+            .MustAsync(async (imageGuid, ct) => await dbContext.ImageCache.AnyAsync(
+                image => image.Guid == imageGuid && image.ImageType == MaterialImageTypeEnum.Original, ct))
+            .When(x => x.Image is not null)
+            .WithMessage("Оригинальное изображение с указанным GUID не найдено или имеет другое назначение");
+        RuleFor(x => x.Thumbnail240)
+            .MustAsync(async (imageGuid, ct) => await dbContext.ImageCache.AnyAsync(
+                image => image.Guid == imageGuid && image.ImageType == MaterialImageTypeEnum.Thumbnail240, ct))
+            .When(x => x.Thumbnail240 is not null)
+            .WithMessage("Миниатюра 240 с указанным GUID не найдена или имеет другое назначение");
+        RuleFor(x => x.Thumbnail480)
+            .MustAsync(async (imageGuid, ct) => await dbContext.ImageCache.AnyAsync(
+                image => image.Guid == imageGuid && image.ImageType == MaterialImageTypeEnum.Thumbnail480, ct))
+            .When(x => x.Thumbnail480 is not null)
+            .WithMessage("Миниатюра 480 с указанным GUID не найдена или имеет другое назначение");
     }
 }
 
@@ -62,7 +77,8 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
         Guid?[] images = [command.Material.Image, command.Material.Thumbnail480, command.Material.Thumbnail240];
         foreach (var imageGuid in images.Where(x => x != null))
         {
-            var fileFromImgCache = await dbContext.ImageCache.SingleAsync(x => x.Guid == imageGuid, ct);
+            var fileFromImgCache = await dbContext.ImageCache.SingleOrDefaultAsync(x => x.Guid == imageGuid, ct)
+                ?? throw new BadHttpRequestException($"Файл изображения с GUID={imageGuid} уже использован или не найден.");
             await dbContext.MaterialImages.AddAsync(new MaterialImage
             {
                 Data = fileFromImgCache.Data,

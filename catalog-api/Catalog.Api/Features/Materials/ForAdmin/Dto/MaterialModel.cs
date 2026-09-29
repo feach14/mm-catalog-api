@@ -34,32 +34,7 @@ public class MaterialModelValidator : AbstractValidator<MaterialModel>
             .Must((model, applicableToRaskroys) =>
                 applicableToRaskroys || model.ApplicableToPvhFacades || model.ApplicableToEmalFacades)
             .WithMessage("Материал должен быть применен хотя бы к одному калькулятору");
-        RuleFor(m => m.Image)
-            .MustAsync(async (imageGuid, ct) => await ImageExists(dbContext, imageGuid, MaterialImageTypeEnum.Original, ct))
-            .When(m => m.Image is not null)
-            .WithMessage("Оригинальное изображение с указанным GUID не найдено или имеет другое назначение");
-        RuleFor(m => m.Thumbnail240)
-            .MustAsync(async (imageGuid, ct) => await ImageExists(dbContext, imageGuid, MaterialImageTypeEnum.Thumbnail240, ct))
-            .When(m => m.Thumbnail240 is not null)
-            .WithMessage("Миниатюра 240 с указанным GUID не найдена или имеет другое назначение");
-        RuleFor(m => m.Thumbnail480)
-            .MustAsync(async (imageGuid, ct) => await ImageExists(dbContext, imageGuid, MaterialImageTypeEnum.Thumbnail480, ct))
-            .When(m => m.Thumbnail480 is not null)
-            .WithMessage("Миниатюра 480 с указанным GUID не найдена или имеет другое назначение");
     }
-
-    private static async Task<bool> ImageExists(
-        CatalogDbContext dbContext,
-        Guid? imageGuid,
-        MaterialImageTypeEnum imageType,
-        CancellationToken ct) =>
-        imageGuid.HasValue
-        && (await dbContext.ImageCache.AnyAsync(
-                x => x.Guid == imageGuid && x.ImageType == imageType,
-                ct)
-            || await dbContext.MaterialImages.AnyAsync(
-                x => x.Guid == imageGuid && x.ImageType == imageType,
-                ct));
 }
 
 public record MaterialModel

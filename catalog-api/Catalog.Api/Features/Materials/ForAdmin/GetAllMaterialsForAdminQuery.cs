@@ -53,43 +53,26 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
                 ? materialsQuery.Where(x => x.Count > 0)
                 : materialsQuery.Where(x => x.Count < 1);
 
-        var materials = (await materialsQuery
+        var materials = await materialsQuery
             .OrderBy(x => x.Category.OrderByCol)
-                .ThenBy(x => x.OrderByCol)
-            .Select(x => new
-            {
+            .ThenBy(x => x.OrderByCol)
+            .Select(x => new GetMaterialsQueryForAdminItemResult(
                 x.Id,
                 x.Name,
                 x.Article,
-                SheetSize = new MaterialSheetSizeDto(
+                new MaterialSheetSizeDto(
                     x.MaterialSheetSize.Id,
                     x.MaterialSheetSize.Name,
                     x.MaterialSheetSize.Height,
                     x.MaterialSheetSize.Width),
-                Manufacturer = new MaterialManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
+                new MaterialManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
                 x.Depth,
+                new CategoryDto(x.CategoryId, x.Category.Name),
                 x.ExternalLink,
-                x.CategoryId,
                 x.Count,
-                CategoryName = x.Category.Name,
                 x.OrderByCol,
-                x.Price
-            })
-            .ToArrayAsync(ct))
-            .Select(x => new GetMaterialsQueryForAdminItemResult(
-                Id: x.Id,
-                Name: x.Name,
-                Article: x.Article,
-                SheetSize: x.SheetSize,
-                Manufacturer: x.Manufacturer,
-                Depth: x.Depth,
-                Category: new CategoryDto(x.CategoryId, x.CategoryName),
-                ExternalLink: x.ExternalLink,
-                Count: x.Count,
-                OrderByCol: x.OrderByCol,
-                Price: x.Price
-            ))
-            .ToArray();
+                x.Price))
+            .ToArrayAsync(ct);
 
         return new GetAllMaterialsForAdminQueryResult(materials);
     }

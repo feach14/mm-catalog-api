@@ -115,86 +115,74 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
     {
         var categoriesBase = BaseQuery(query, ExcludedFilterEnum.Category);
         var selectedCategoryIds = query.CategoryId.Distinct().ToArray();
-        var categoryRows = await dbContext.MaterialCategories
+        var categories = await dbContext.MaterialCategories
             .AsNoTracking()
-            .Select(category => new
-            {
+            .Where(category =>
+                categoriesBase.Any(material => material.CategoryId == category.Id)
+                || selectedCategoryIds.Contains(category.Id))
+            .OrderBy(category => category.OrderByCol)
+            .ThenBy(category => category.Id)
+            .Select(category => new MaterialCategoryFilterDto(
                 category.Id,
                 category.Name,
-                category.OrderByCol,
-                Count = categoriesBase.Count(material => material.CategoryId == category.Id)
-            })
-            .Where(x => x.Count > 0 || selectedCategoryIds.Contains(x.Id))
-            .OrderBy(x => x.OrderByCol)
-            .ThenBy(x => x.Id)
+                categoriesBase.Count(material => material.CategoryId == category.Id)))
             .ToArrayAsync(ct);
 
         var manufacturersBase = BaseQuery(query, ExcludedFilterEnum.Manufacturer);
         var selectedManufacturerIds = query.ManufacturerId.Distinct().ToArray();
-        var manufacturerRows = await dbContext.MaterialManufacturers
+        var manufacturers = await dbContext.MaterialManufacturers
             .AsNoTracking()
-            .Select(manufacturer => new
-            {
+            .Where(manufacturer =>
+                manufacturersBase.Any(material => material.MaterialManufacturerId == manufacturer.Id)
+                || selectedManufacturerIds.Contains(manufacturer.Id))
+            .OrderBy(manufacturer => manufacturer.OrderByCol)
+            .ThenBy(manufacturer => manufacturer.Id)
+            .Select(manufacturer => new MaterialManufacturerFilterDto(
                 manufacturer.Id,
                 manufacturer.Name,
-                manufacturer.OrderByCol,
-                Count = manufacturersBase.Count(material => material.MaterialManufacturerId == manufacturer.Id)
-            })
-            .Where(x => x.Count > 0 || selectedManufacturerIds.Contains(x.Id))
-            .OrderBy(x => x.OrderByCol)
-            .ThenBy(x => x.Id)
+                manufacturersBase.Count(material => material.MaterialManufacturerId == manufacturer.Id)))
             .ToArrayAsync(ct);
 
         var depthsBase = BaseQuery(query, ExcludedFilterEnum.Depth);
-        var depthCounts = await depthsBase
-            .GroupBy(material => material.Depth)
-            .Select(group => new MaterialDepthFilterDto(group.Key, group.Count()))
+        var depths = await depthsBase
+            .Select(material => material.Depth)
+            .Union(query.Depth)
+            .OrderBy(value => value)
+            .Select(value => new MaterialDepthFilterDto(
+                value,
+                depthsBase.Count(material => material.Depth == value)))
             .ToArrayAsync(ct);
-        var depths = depthCounts
-            .Concat(query.Depth
-                .Distinct()
-                .Where(value => depthCounts.All(item => item.Value != value))
-                .Select(value => new MaterialDepthFilterDto(value, 0)))
-            .OrderBy(x => x.Value)
-            .ToArray();
 
         var sheetSizesBase = BaseQuery(query, ExcludedFilterEnum.SheetSize);
         var selectedSheetSizeIds = query.SheetSizeId.Distinct().ToArray();
-        var sheetSizeRows = await dbContext.MaterialSheetSizes
+        var sheetSizes = await dbContext.MaterialSheetSizes
             .AsNoTracking()
-            .Select(sheetSize => new
-            {
+            .Where(sheetSize =>
+                (sheetSize.ShowInFilters
+                 && sheetSizesBase.Any(material => material.MaterialSheetSizeId == sheetSize.Id))
+                || selectedSheetSizeIds.Contains(sheetSize.Id))
+            .OrderBy(sheetSize => sheetSize.OrderByCol)
+            .ThenBy(sheetSize => sheetSize.Id)
+            .Select(sheetSize => new MaterialSheetSizeFilterDto(
                 sheetSize.Id,
                 sheetSize.Name,
                 sheetSize.Height,
                 sheetSize.Width,
-                sheetSize.ShowInFilters,
-                sheetSize.OrderByCol,
-                Count = sheetSizesBase.Count(material => material.MaterialSheetSizeId == sheetSize.Id)
-            })
-            .Where(x => (x.ShowInFilters && x.Count > 0) || selectedSheetSizeIds.Contains(x.Id))
-            .OrderBy(x => x.OrderByCol)
-            .ThenBy(x => x.Id)
+                sheetSizesBase.Count(material => material.MaterialSheetSizeId == sheetSize.Id)))
             .ToArrayAsync(ct);
 
-        var availabilityCounts = await BaseQuery(query, ExcludedFilterEnum.Availability)
-            .GroupBy(material => material.Count > 0)
-            .Select(group => new { Value = group.Key, Count = group.Count() })
-            .ToDictionaryAsync(x => x.Value, x => x.Count, ct);
+        var availabilityBase = BaseQuery(query, ExcludedFilterEnum.Availability);
+        var availableCount = await availabilityBase.CountAsync(material => material.Count > 0, ct);
+        var unavailableCount = await availabilityBase.CountAsync(material => material.Count < 1, ct);
 
         return new GetMaterialFiltersQueryResult(
-            categoryRows.Select(x => new MaterialCategoryFilterDto(x.Id, x.Name, x.Count)).ToArray(),
-            manufacturerRows.Select(x => new MaterialManufacturerFilterDto(x.Id, x.Name, x.Count)).ToArray(),
+            categories,
+            manufacturers,
             depths,
-            sheetSizeRows.Select(x => new MaterialSheetSizeFilterDto(
-                x.Id,
-                x.Name,
-                x.Height,
-                x.Width,
-                x.Count)).ToArray(),
+            sheetSizes,
             [
-                new MaterialAvailabilityFilterDto(true, availabilityCounts.GetValueOrDefault(true)),
-                new MaterialAvailabilityFilterDto(false, availabilityCounts.GetValueOrDefault(false))
+                new MaterialAvailabilityFilterDto(true, availableCount),
+                new MaterialAvailabilityFilterDto(false, unavailableCount)
             ]);
     }
 

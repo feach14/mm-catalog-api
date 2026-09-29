@@ -6,6 +6,7 @@ using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.Public;
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum PublicMaterialSortEnum
 {
     CatalogOrder = 1,

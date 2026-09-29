@@ -129,7 +129,7 @@ public class MaterialsController : BaseApiController
      ResponseCache(Duration = ImageCacheDurationSeconds, Location = ResponseCacheLocation.Any),
      EndpointSummary(nameof(MaterialImage)),
      EndpointDescription("Изображение материала"),
-     ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK, Description = "Изображение материала"),
+     ProducesResponseType(typeof(Stream), StatusCodes.Status200OK, MediaTypeNames.Image.Png, MediaTypeNames.Image.Jpeg, "image/webp", Description = "Изображение материала"),
      ProducesResponseType(typeof(void), StatusCodes.Status304NotModified, Description = "Изображение не изменилось")]
     public async Task<IActionResult> MaterialImage(
         [FromRoute, Description("Id изображения")] Guid fileGuid,

@@ -4,6 +4,7 @@ using Catalog.Database;
 using Catalog.Database.Entities;
 using Catalog.Database.Enums;
 using Core.CQRS;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Catalog.Api.Features.Materials.ForAdmin;
 
@@ -16,6 +17,7 @@ public sealed class UpdateMaterialModelValidator : AbstractValidator<UpdateMater
     public UpdateMaterialModelValidator(CatalogDbContext dbContext, IHttpContextAccessor httpContextAccessor)
     {
         Include(new MaterialModelValidator(dbContext));
+
         RuleFor(x => x)
             .MustAsync(async (_, ct) =>
             {
@@ -25,6 +27,7 @@ public sealed class UpdateMaterialModelValidator : AbstractValidator<UpdateMater
             })
             .WithMessage("Указанный материал не существует")
             .OverridePropertyName("Id");
+
         RuleFor(x => x.Name)
             .MustAsync(async (name, ct) =>
             {
@@ -35,13 +38,49 @@ public sealed class UpdateMaterialModelValidator : AbstractValidator<UpdateMater
             })
             .When(x => !string.IsNullOrWhiteSpace(x.Name))
             .WithMessage("Материал с таким названием уже существует");
+        RuleFor(x => x.Image)
+            .MustAsync(async (imageGuid, ct) => await ImageCanBeUsed(
+                dbContext, httpContextAccessor, imageGuid, MaterialImageTypeEnum.Original, ct))
+            .When(x => x.Image is not null)
+            .WithMessage("Оригинальное изображение с указанным GUID не найдено, имеет другое назначение или принадлежит другому материалу");
+        RuleFor(x => x.Thumbnail240)
+            .MustAsync(async (imageGuid, ct) => await ImageCanBeUsed(
+                dbContext, httpContextAccessor, imageGuid, MaterialImageTypeEnum.Thumbnail240, ct))
+            .When(x => x.Thumbnail240 is not null)
+            .WithMessage("Миниатюра 240 с указанным GUID не найдена, имеет другое назначение или принадлежит другому материалу");
+        RuleFor(x => x.Thumbnail480)
+            .MustAsync(async (imageGuid, ct) => await ImageCanBeUsed(
+                dbContext, httpContextAccessor, imageGuid, MaterialImageTypeEnum.Thumbnail480, ct))
+            .When(x => x.Thumbnail480 is not null)
+            .WithMessage("Миниатюра 480 с указанным GUID не найдена, имеет другое назначение или принадлежит другому материалу");
+    }
+
+    private static async Task<bool> ImageCanBeUsed(
+        CatalogDbContext dbContext,
+        IHttpContextAccessor httpContextAccessor,
+        Guid? imageGuid,
+        MaterialImageTypeEnum imageType,
+        CancellationToken ct)
+    {
+        var routeId = httpContextAccessor.HttpContext?.Request.RouteValues["id"]?.ToString();
+        return int.TryParse(routeId, out var materialId)
+               && (await dbContext.ImageCache.AnyAsync(
+                       x => x.Guid == imageGuid && x.ImageType == imageType, ct)
+                   || await dbContext.MaterialImages.AnyAsync(
+                       x => x.Guid == imageGuid
+                            && x.ImageType == imageType
+                            && x.MaterialId == materialId,
+                       ct));
     }
 }
 
 public sealed record UpdateMaterialCommandResult(
     [property: Description("Успех операции")] bool Success);
 
-public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHistoryWriter historyWriter) : ICommandHandler<UpdateMaterialCommand, UpdateMaterialCommandResult>
+public class UpdateMaterialCommandHandler(
+    CatalogDbContext dbContext,
+    IMemoryCache memoryCache,
+    ICatalogHistoryWriter historyWriter) : ICommandHandler<UpdateMaterialCommand, UpdateMaterialCommandResult>
 {
     public async Task<UpdateMaterialCommandResult> Handle(UpdateMaterialCommand command, CancellationToken ct)
     {
@@ -97,9 +136,12 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
         material.Price = command.Material.Price;
         material.CountTypeEnum = command.Material.CountTypeEnum;
 
-        await UpdateImage(material, original, command.Material.Image, MaterialImageTypeEnum.Original, ct);
-        await UpdateImage(material, thumbnail240, command.Material.Thumbnail240, MaterialImageTypeEnum.Thumbnail240, ct);
-        await UpdateImage(material, thumbnail480, command.Material.Thumbnail480, MaterialImageTypeEnum.Thumbnail480, ct);
+        Guid?[] replacedImageGuids =
+        [
+            await UpdateImage(material, original, command.Material.Image, MaterialImageTypeEnum.Original, ct),
+            await UpdateImage(material, thumbnail240, command.Material.Thumbnail240, MaterialImageTypeEnum.Thumbnail240, ct),
+            await UpdateImage(material, thumbnail480, command.Material.Thumbnail480, MaterialImageTypeEnum.Thumbnail480, ct)
+        ];
 
         dbContext.Materials.Update(material);
         historyWriter.Add(
@@ -110,21 +152,32 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
 
         await dbContext.SaveChangesAsync(ct);
 
+        foreach (var imageGuid in replacedImageGuids.Where(x => x.HasValue))
+            memoryCache.Remove(imageGuid!.Value);
+
         return new UpdateMaterialCommandResult(true);
     }
 
-    private async Task UpdateImage(Material material, MaterialImage? currentImage, Guid? requestedGuid, MaterialImageTypeEnum imageType, CancellationToken ct)
+    private async Task<Guid?> UpdateImage(
+        Material material,
+        MaterialImage? currentImage,
+        Guid? requestedGuid,
+        MaterialImageTypeEnum imageType,
+        CancellationToken ct)
     {
         if (currentImage?.Guid == requestedGuid)
-            return;
+            return null;
 
         if (currentImage is not null)
             material.Images.Remove(currentImage);
 
         if (requestedGuid is null)
-            return;
+            return currentImage?.Guid;
 
-        var cachedFile = await dbContext.ImageCache.SingleAsync(x => x.Guid == requestedGuid.Value && x.ImageType == imageType, ct);
+        var cachedFile = await dbContext.ImageCache
+            .SingleOrDefaultAsync(x => x.Guid == requestedGuid.Value && x.ImageType == imageType, ct)
+            ?? throw new BadHttpRequestException(
+                $"Файл изображения с GUID={requestedGuid.Value} уже использован или не найден.");
 
         material.Images.Add(new MaterialImage
         {
@@ -135,6 +188,7 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
             ImageType = imageType
         });
         dbContext.ImageCache.Remove(cachedFile);
+        return currentImage?.Guid;
     }
 
     private static void AddChange<T>(List<string> changes, string name, T oldValue, T newValue, bool quote = false)

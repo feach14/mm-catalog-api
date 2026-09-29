@@ -51,42 +51,25 @@ public class GetAllMaterialsQueryHandler(CatalogDbContext dbContext) : IQueryHan
                 ? materialsQuery.Where(x => x.Count > 0)
                 : materialsQuery.Where(x => x.Count < 1);
 
-        var materialRows = await materialsQuery
+        var materials = await materialsQuery
             .OrderBy(x => x.Category.OrderByCol)
-                .ThenBy(x => x.OrderByCol)
-            .Select(x => new
-            {
+            .ThenBy(x => x.OrderByCol)
+            .Select(x => new GetAllMaterialsQueryItemResult(
                 x.Id,
                 x.Name,
                 x.Article,
-                SheetSizeId = x.MaterialSheetSize.Id,
-                SheetSizeName = x.MaterialSheetSize.Name,
-                SheetSizeHeight = x.MaterialSheetSize.Height,
-                SheetSizeWidth = x.MaterialSheetSize.Width,
-                ManufacturerId = x.MaterialManufacturer.Id,
-                ManufacturerName = x.MaterialManufacturer.Name,
+                new MaterialSheetSizeDto(
+                    x.MaterialSheetSize.Id,
+                    x.MaterialSheetSize.Name,
+                    x.MaterialSheetSize.Height,
+                    x.MaterialSheetSize.Width),
+                new MaterialManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
                 x.Depth,
-                x.CategoryId,
-                CategoryName = x.Category.Name,
+                new CategoryDto(x.CategoryId, x.Category.Name),
                 x.Count,
                 x.CommentOnMaterialIsRequired,
-                x.OrderByCol
-            })
+                x.OrderByCol))
             .ToArrayAsync(ct);
-
-        var materials = materialRows
-            .Select(x => new GetAllMaterialsQueryItemResult(
-                Id: x.Id,
-                Name: x.Name,
-                Article: x.Article,
-                SheetSize: new MaterialSheetSizeDto(x.SheetSizeId, x.SheetSizeName, x.SheetSizeHeight, x.SheetSizeWidth),
-                Manufacturer: new MaterialManufacturerDto(x.ManufacturerId, x.ManufacturerName),
-                Depth: x.Depth,
-                Category: new CategoryDto(x.CategoryId, x.CategoryName),
-                Count: x.Count,
-                CommentOnMaterialIsRequired: x.CommentOnMaterialIsRequired,
-                OrderByCol: x.OrderByCol))
-            .ToArray();
 
         return new GetAllMaterialsQueryResult(materials);
     }

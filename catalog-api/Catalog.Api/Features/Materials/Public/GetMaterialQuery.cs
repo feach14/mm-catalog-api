@@ -24,7 +24,6 @@ public class GetMaterialQueryHandler(CatalogDbContext dbContext) : IQueryHandler
 {
     public async Task<GetMaterialQueryResult> Handle(GetMaterialQuery query, CancellationToken ct)
         => await dbContext.Materials
-               .Include(x => x.Category)
                .Where(x => x.Id == query.Id)
                .Select(x => new GetMaterialQueryResult(
                    x.Id,
