@@ -39,7 +39,7 @@ public class MaterialModelValidator : AbstractValidator<MaterialModel>
             .When(m => m.Image is not null)
             .WithMessage("Оригинальное изображение с указанным GUID не найдено или имеет другое назначение");
         RuleFor(m => m.Thumbnail240)
-            .MustAsync(async (imageGuid, ct) => await ImageExists( dbContext, imageGuid, MaterialImageTypeEnum.Thumbnail240, ct))
+            .MustAsync(async (imageGuid, ct) => await ImageExists(dbContext, imageGuid, MaterialImageTypeEnum.Thumbnail240, ct))
             .When(m => m.Thumbnail240 is not null)
             .WithMessage("Миниатюра 240 с указанным GUID не найдена или имеет другое назначение");
         RuleFor(m => m.Thumbnail480)

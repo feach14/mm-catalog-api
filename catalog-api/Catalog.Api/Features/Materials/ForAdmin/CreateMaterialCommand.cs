@@ -87,10 +87,10 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
             + $"количество {material.Count}, "
             + $"цена {material.Price}, "
             + $"изображения {string.Join(';', images.Select(x => $"{(x?.ToString() ?? "нет")}"))}.");
-        
+
         await dbContext.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-            
+
         return new CreateMaterialCommandResult(material.Id);
     }
 }

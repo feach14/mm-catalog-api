@@ -83,9 +83,9 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
             ApplicableToEmalFacades: queryResult.ApplicableToEmalFacades,
             Images: new MaterialImagesDto
             {
-                Original = queryResult.Images.SingleOrDefault(x=>x.ImageType == MaterialImageTypeEnum.Original)?.Guid,
-                Thumbnail240 = queryResult.Images.SingleOrDefault(x=>x.ImageType == MaterialImageTypeEnum.Thumbnail240)?.Guid,
-                Thumbnail480 = queryResult.Images.SingleOrDefault(x=>x.ImageType == MaterialImageTypeEnum.Thumbnail480)?.Guid,
+                Original = queryResult.Images.SingleOrDefault(x => x.ImageType == MaterialImageTypeEnum.Original)?.Guid,
+                Thumbnail240 = queryResult.Images.SingleOrDefault(x => x.ImageType == MaterialImageTypeEnum.Thumbnail240)?.Guid,
+                Thumbnail480 = queryResult.Images.SingleOrDefault(x => x.ImageType == MaterialImageTypeEnum.Thumbnail480)?.Guid,
             },
             Category: new CategoryDto(queryResult.CategoryId, queryResult.CategoryName),
             Count: queryResult.Count,

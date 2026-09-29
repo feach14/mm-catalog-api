@@ -53,7 +53,7 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
         var original = material.Images.SingleOrDefault(x => x.ImageType == MaterialImageTypeEnum.Original);
         var thumbnail240 = material.Images.SingleOrDefault(x => x.ImageType == MaterialImageTypeEnum.Thumbnail240);
         var thumbnail480 = material.Images.SingleOrDefault(x => x.ImageType == MaterialImageTypeEnum.Thumbnail480);
-        
+
         var changes = new List<string>();
         AddChange(changes, "категория", material.CategoryId, command.Material.CategoryId);
         AddChange(changes, "размер", material.MaterialSheetSizeId, command.Material.SheetSizeId);
@@ -96,7 +96,7 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
         material.ExternalLink = command.Material.ExternalLink;
         material.Price = command.Material.Price;
         material.CountTypeEnum = command.Material.CountTypeEnum;
-        
+
         await UpdateImage(material, original, command.Material.Image, MaterialImageTypeEnum.Original, ct);
         await UpdateImage(material, thumbnail240, command.Material.Thumbnail240, MaterialImageTypeEnum.Thumbnail240, ct);
         await UpdateImage(material, thumbnail480, command.Material.Thumbnail480, MaterialImageTypeEnum.Thumbnail480, ct);
@@ -109,7 +109,7 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
             $"Материал #{material.Id} «{material.Name}» изменён: {string.Join(", ", changes)}.");
 
         await dbContext.SaveChangesAsync(ct);
-        
+
         return new UpdateMaterialCommandResult(true);
     }
 
@@ -117,7 +117,7 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
     {
         if (currentImage?.Guid == requestedGuid)
             return;
-        
+
         if (currentImage is not null)
             material.Images.Remove(currentImage);
 

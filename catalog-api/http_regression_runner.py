@@ -92,18 +92,26 @@ def mark(case, detail):
     results[case] = detail
 
 
-def multipart(name, filename, content, content_type):
+def multipart(name, filename, content, content_type, fields=None):
     boundary = "----CodexCatalog" + uuid.uuid4().hex
-    payload = (
+    parts = []
+    for field_name, value in (fields or {}).items():
+        parts.append(
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="{field_name}"\r\n\r\n'
+            f"{value}\r\n".encode())
+    parts.append((
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="{name}"; filename="{filename}"\r\n'
         f"Content-Type: {content_type}\r\n\r\n"
-    ).encode() + content + f"\r\n--{boundary}--\r\n".encode()
+    ).encode() + content + b"\r\n")
+    payload = b"".join(parts) + f"--{boundary}--\r\n".encode()
     return payload, {"Content-Type": f"multipart/form-data; boundary={boundary}"}
 
 
-def upload(filename, content, content_type, auth=True):
-    payload, headers = multipart("file", filename, content, content_type)
+def upload(filename, content, content_type, image_type="Original", auth=True):
+    payload, headers = multipart(
+        "file", filename, content, content_type, {"imageType": image_type})
     return request("POST", "/api/materials/images", payload, auth=auth, headers=headers, raw=True)
 
 
@@ -687,7 +695,8 @@ def main():
     expect(request("POST", "/api/materials/categories/change-order-col", {"categoryId": all_categories[-1]["id"], "direction": "DOWN"}, auth=True)[0], 400, "category lower boundary")
     mark("CAT-01—CAT-08", "create/list/cards/duplicate protection/update/sorting and both boundaries passed")
 
-    payload, headers = multipart("file", "anon.png", png, "image/png")
+    payload, headers = multipart(
+        "file", "anon.png", png, "image/png", {"imageType": "Original"})
     expect(request("POST", "/api/materials/images", payload, headers=headers, raw=True)[0], 401, "anonymous image upload")
     images = []
     for filename, content, content_type in (("test.png", png, "image/png"), ("test.jpg", jpeg, "image/jpeg"), ("test.webp", webp, "image/webp")):
@@ -799,7 +808,7 @@ def main():
     jpeg_model = copy.deepcopy(m1_model)
     jpeg_model["image"] = images[1][0]
     expect(request("PUT", f"/api/materials/{m1}", jpeg_model, auth=True)[0], 200, "replace PNG with JPEG")
-    if json_body(request("GET", f"/api/materials/{m1}"))["image"] != images[1][0]:
+    if json_body(request("GET", f"/api/materials/{m1}"))["images"]["original"] != images[1][0]:
         raise AssertionError("JPEG GUID absent from material card")
     expect(request("GET", "/api/materials/images/" + images[0][0])[0], 400, "old PNG invalidated")
     for _ in range(2):
