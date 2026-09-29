@@ -21,7 +21,9 @@ public sealed record Material
 
     public required string Name { get; set; }
     public required string Article { get; set; }
-    public required double Depth { get; set; }
+    public required int MaterialThicknessId { get; set; }
+    public MaterialThickness MaterialThickness { get; private set; }
+
     public required double KvM { get; set; }
     public required double PerimetrM { get; set; }
     public int Count { get; set; }

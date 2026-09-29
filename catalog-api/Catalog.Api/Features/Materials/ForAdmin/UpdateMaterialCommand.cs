@@ -99,7 +99,7 @@ public class UpdateMaterialCommandHandler(
         AddChange(changes, "производитель", material.MaterialManufacturerId, command.Material.ManufacturerId);
         AddChange(changes, "название", material.Name, command.Material.Name, true);
         AddChange(changes, "артикул", material.Article, command.Material.Article, true);
-        AddChange(changes, "толщина", material.Depth, command.Material.Depth);
+        AddChange(changes, "толщина", material.MaterialThicknessId, command.Material.ThicknessId);
         AddChange(changes, "площадь", material.KvM, command.Material.KvM);
         AddChange(changes, "периметр", material.PerimetrM, command.Material.PerimetrM);
         AddChange(changes, "количество", material.Count, command.Material.Count);
@@ -123,7 +123,7 @@ public class UpdateMaterialCommandHandler(
         material.MaterialManufacturerId = command.Material.ManufacturerId;
         material.Article = command.Material.Article;
         material.Name = command.Material.Name;
-        material.Depth = command.Material.Depth;
+        material.MaterialThicknessId = command.Material.ThicknessId;
         material.KvM = command.Material.KvM;
         material.PerimetrM = command.Material.PerimetrM;
         material.Count = command.Material.Count;
@@ -175,9 +175,7 @@ public class UpdateMaterialCommandHandler(
             return currentImage?.Guid;
 
         var cachedFile = await dbContext.ImageCache
-            .SingleOrDefaultAsync(x => x.Guid == requestedGuid.Value && x.ImageType == imageType, ct)
-            ?? throw new BadHttpRequestException(
-                $"Файл изображения с GUID={requestedGuid.Value} уже использован или не найден.");
+            .SingleAsync(x => x.Guid == requestedGuid.Value && x.ImageType == imageType, ct);
 
         material.Images.Add(new MaterialImage
         {

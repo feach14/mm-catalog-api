@@ -3,6 +3,7 @@ using System;
 using Catalog.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Catalog.Database.Migrations
 {
     [DbContext(typeof(CatalogDbContext))]
-    partial class CatalogDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260929195039_AddMaterialThicknesses")]
+    partial class AddMaterialThicknesses
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -169,6 +172,10 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("count_type_enum");
 
+                    b.Property<double>("Depth")
+                        .HasColumnType("double precision")
+                        .HasColumnName("depth");
+
                     b.Property<string>("ExternalLink")
                         .HasMaxLength(250)
                         .HasColumnType("character varying(250)")
@@ -186,7 +193,7 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("material_sheet_size_id");
 
-                    b.Property<int>("MaterialThicknessId")
+                    b.Property<int?>("MaterialThicknessId")
                         .HasColumnType("integer")
                         .HasColumnName("material_thickness_id");
 
@@ -452,7 +459,6 @@ namespace Catalog.Database.Migrations
                         .WithMany("Materials")
                         .HasForeignKey("MaterialThicknessId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_materials_material_thicknesses_material_thickness_id");
 
                     b.Navigation("Category");

@@ -1,5 +1,6 @@
 using Catalog.Api.Features.Materials.Dto;
 using Catalog.Api.Features.Materials.ForAdmin.Dto;
+using Catalog.Api.Features.MaterialThicknesses.Dto;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;
@@ -14,7 +15,7 @@ public sealed record GetMaterialForAdminQueryResult(
     [property: Description("Артикул материала")] string Article,
     [property: Description("Размер материала")] MaterialSheetSizeDto SheetSize,
     [property: Description("Производитель")] MaterialManufacturerDto Manufacturer,
-    [property: Description("Толщина плиты")] double Depth,
+    [property: Description("Толщина материала")] MaterialThicknessDto Thickness,
     [property: Description("Количество кв. м. в плите")] double KvM,
     [property: Description("Количество метров по периметру плиты")] double PerimetrM,
     [property: Description("Использование материала в калькуляторе раскроя")] bool ApplicableToRaskroys,
@@ -34,7 +35,7 @@ public sealed record GetMaterialForAdminQueryResult(
 public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetMaterialForAdminQuery, GetMaterialForAdminQueryResult>
 {
     public async Task<GetMaterialForAdminQueryResult> Handle(GetMaterialForAdminQuery query, CancellationToken ct) =>
-        await dbContext.Materials
+        await dbContext.Materials.AsNoTracking()
             .Where(x => x.Id == query.Id)
             .Select(x => new GetMaterialForAdminQueryResult(
                 x.Id,
@@ -46,7 +47,7 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
                     x.MaterialSheetSize.Height,
                     x.MaterialSheetSize.Width),
                 new MaterialManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
-                x.Depth,
+                new MaterialThicknessDto(x.MaterialThickness.Id, x.MaterialThickness.Name, x.MaterialThickness.Value),
                 x.KvM,
                 x.PerimetrM,
                 x.ApplicableToRaskroys,

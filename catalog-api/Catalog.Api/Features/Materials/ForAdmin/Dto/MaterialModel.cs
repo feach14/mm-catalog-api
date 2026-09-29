@@ -28,7 +28,11 @@ public class MaterialModelValidator : AbstractValidator<MaterialModel>
             .MustAsync(async (manufacturerId, ct) => await dbContext.MaterialManufacturers.AnyAsync(x => x.Id == manufacturerId, ct))
             .WithMessage("Указанный производитель не найден");
         RuleFor(m => m.KvM).GreaterThan(0).WithMessage("Полезная площадь материала должна быть больше нуля");
-        RuleFor(m => m.Depth).GreaterThan(0).WithMessage("Толщина материала должна быть больше нуля");
+        RuleFor(m => m.ThicknessId)
+            .Cascade(CascadeMode.Stop)
+            .GreaterThan(0).WithMessage("Не указана толщина материала")
+            .MustAsync(async (id, ct) => await dbContext.MaterialThicknesses.AsNoTracking().AnyAsync(x => x.Id == id, ct))
+            .WithMessage("Указанная толщина материала не найдена");
         RuleFor(m => m.PerimetrM).GreaterThan(0).WithMessage("Периметр материала должен быть больше нуля");
         RuleFor(m => m.ApplicableToRaskroys)
             .Must((model, applicableToRaskroys) =>
@@ -66,8 +70,8 @@ public record MaterialModel
     [Description("Id производителя")]
     public int ManufacturerId { get; init; }
 
-    [Description("Толщина материала")]
-    public double Depth { get; init; }
+    [Description("Id толщины материала")]
+    public required int ThicknessId { get; init; }
 
     [Description("Количество кв.м. в плите материала")]
     public double KvM { get; init; }

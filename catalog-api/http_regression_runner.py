@@ -30,6 +30,8 @@ created_manufacturers = []
 primary_sheet_size_id = None
 primary_manufacturer_id = None
 guids = []
+thickness_ids = {}
+created_thicknesses = []
 
 
 def load_test_credentials():
@@ -85,7 +87,7 @@ def json_body(response):
 
 def expect(status, expected, label):
     if status != expected:
-        raise AssertionError(f"{label}: expected HTTP {expected}, got {status}")
+        raise AssertionError(f"{label}: ожидался HTTP {expected}, получен {status}")
 
 
 def mark(case, detail):
@@ -272,7 +274,7 @@ def material_model(name, category_id, flag, image=None):
         "article": "ART-" + name[-8:],
         "image": image,
         "count": 2,
-        "depth": 18,
+        "thicknessId": thickness_ids[18],
         "kvM": 5.796,
         "perimetrM": 9.74,
         "applicableToRaskroys": flag == "raskroy",
@@ -328,6 +330,10 @@ def cleanup():
                 created_manufacturers.remove(manufacturer_id)
         except Exception:
             pass
+    for thickness_id in list(reversed(created_thicknesses)):
+        response = request("DELETE", f"/api/materials/thicknesses/{thickness_id}", auth=True)
+        if response[0] == 200:
+            created_thicknesses.remove(thickness_id)
     if history_run_id:
         try:
             request("DELETE", f"/api/catalog/history/test-runs/{history_run_id}", auth=True)
@@ -546,15 +552,15 @@ def run_search_facet_scenarios(prefix, dimension_base):
     for i, letter in enumerate("ABCDE"):
         model = material_model(marker + "-" + letter, cats[i % 2], "raskroy" if i % 2 == 0 else "pvhFacades")
         model.update(manufacturerId=makers[(i // 2) % 2], sheetSizeId=sizes[i % 2],
-                     depth=16 + 2 * (i % 2), count=i % 2, article=marker + f"-article-{i}")
-        rows.append(dict(model, id=create_material(model)))
+                     thicknessId=thickness_ids[16 + 2 * (i % 2)], count=i % 2, article=marker + f"-article-{i}")
+        rows.append(dict(model, depth=16 + 2 * (i % 2), id=create_material(model)))
 
     def matches(row, params, excluded=None):
         search = params.get("search", "").strip().lower()
         if search not in row["name"].lower() and search not in row["article"].lower():
             return False
-        for key in ("categoryId", "manufacturerId", "sheetSizeId", "depth"):
-            if key != excluded and params.get(key) and row[key] not in params[key]:
+        for key in ("categoryId", "manufacturerId", "sheetSizeId", "depth", "thicknessId"):
+            if key != excluded and not (excluded == "depth" and key == "thicknessId") and params.get(key) and row[key] not in params[key]:
                 return False
         if excluded != "inStock" and "inStock" in params:
             if (row["count"] > 0) != (params["inStock"] == "true"):
@@ -585,7 +591,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
         expect(delete_material(control_id)[0], 200, "literal control cleanup")
     mark("SEARCH-02", "Спецсимволы шаблонов LIKE обрабатываются буквально")
     choices = {"categoryId": cats[:2], "manufacturerId": makers[:2], "sheetSizeId": sizes[:2],
-               "depth": [16, 18], "calculator": ["Raskroy", "PvhFacades"]}
+               "depth": [16, 18], "thicknessId": [thickness_ids[16], thickness_ids[18]], "calculator": ["Raskroy", "PvhFacades"]}
     for key, values in choices.items():
         search_check({"search": marker, key: values + values})
     for stock in ("true", "false"):
@@ -617,7 +623,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
         for key, values in choices.items():
             public_query(endpoint, {"search": marker, key: [values[0]] * 100})
             invalid.append({key: [values[0]] * 101})
-        for key in ("categoryId", "manufacturerId", "sheetSizeId"):
+        for key in ("categoryId", "manufacturerId", "sheetSizeId", "thicknessId"):
             invalid.extend({key: value} for value in (0, 2147483647))
         invalid.extend({"depth": value} for value in (0, -1, "NaN", "Infinity"))
         invalid.append({"calculator": "Unknown"})
@@ -669,7 +675,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
         facets_check({"search": marker, "inStock": stock})
     rows[0]["count"] = 1
     expect(request("PUT", f'/api/materials/{rows[0]["id"]}',
-                   {k: v for k, v in rows[0].items() if k != "id"}, auth=True)[0], 200, "change stock")
+                   {k: v for k, v in rows[0].items() if k not in ("id", "depth")}, auth=True)[0], 200, "change stock")
     for stock in ("true", "false"):
         facets_check({"search": marker, "inStock": stock})
     mark("FACET-05", "Проверены изменение наличия и счётчики обоих вариантов наличия")
@@ -826,6 +832,97 @@ def run_variant_scenarios(prefix, category_id, png):
             problem(request("GET", "/api/materials/images/" + guid), "final variant cleanup")
 
 
+def run_thickness_scenarios(prefix, dimension_base, user_cookie, tester_cookie, manager_cookie, admin_cookie):
+    path = "/api/materials/thicknesses"
+    value = dimension_base + 0.125
+    model = {"name": prefix + "-thickness", "value": value}
+    for auth_cookie, status in ((None, 401), (user_cookie, 403)):
+        expect(request("POST", path, model, auth_cookie=auth_cookie)[0], status, "Доступ к созданию толщины")
+    response = request("POST", path, model, auth_cookie=tester_cookie)
+    expect(response[0], 200, "Создание толщины")
+    entity_id = json_body(response)["id"]
+    created_thicknesses.append(entity_id)
+    expected = dict(model, id=entity_id)
+    equal(json_body(request("GET", f"{path}/{entity_id}")), expected, "Карточка толщины")
+    items = json_body(request("GET", path))["items"]
+    equal(next(x for x in items if x["id"] == entity_id), expected, "Список толщин")
+    equal([x["value"] for x in items], sorted(x["value"] for x in items), "Порядок толщин")
+    mark("THICK-01", "Создание, публичные список и карточка, сортировка по значению")
+    for auth_cookie, status in ((None, 401), (user_cookie, 403)):
+        for method in ("PUT", "DELETE"):
+            expect(request(method, f"{path}/{entity_id}", model if method == "PUT" else None,
+                           auth_cookie=auth_cookie)[0], status, "Права на изменение толщины")
+    for auth_cookie in (tester_cookie, manager_cookie, admin_cookie):
+        expect(request("PUT", f"{path}/{entity_id}", model, auth_cookie=auth_cookie)[0], 200, "Сохранение без изменений")
+    mark("THICK-02", "Проверены роли для создания, изменения и удаления; разрешённое сохранение без изменений")
+    for invalid in ({"name": "", "value": value + 1}, {"name": " " * 5, "value": value + 1},
+                    {"name": "x" * 101, "value": value + 1}, {"value": value + 1},
+                    {"name": model["name"]}, {"name": model["name"], "value": 0},
+                    {"name": model["name"], "value": -1}, {"name": model["name"], "value": "NaN"},
+                    {"name": model["name"], "value": "Infinity"}):
+        for method, url in (("POST", path), ("PUT", f"{path}/{entity_id}")):
+            problem(request(method, url, invalid, auth=True), "Валидация толщины")
+    problem(request("POST", path, model, auth=True), "Дубликат значения")
+    problem(request("PUT", f"{path}/{entity_id}", dict(model, value=18), auth=True), "Дубликат при изменении")
+    equal(json_body(request("GET", f"{path}/{entity_id}")), expected, "Атомарность отказа")
+    for invalid_id in (0, -1, 2147483647):
+        for method in ("GET", "PUT", "DELETE"):
+            problem(request(method, f"{path}/{invalid_id}", model if method == "PUT" else None,
+                            auth=method != "GET"), "Неизвестная толщина")
+    mark("THICK-03", "Проверены обязательность, длина, положительность, конечность, уникальность и неизвестные ID")
+    for name in ("x" * 100, "  " + model["name"] + "-renamed  "):
+        expect(request("PUT", f"{path}/{entity_id}", dict(model, name=name), auth=True)[0], 200, "Переименование толщины")
+        equal(json_body(request("GET", f"{path}/{entity_id}"))["name"], name.strip(), "Имя толщины после изменения")
+    expected["name"] = model["name"] + "-renamed"
+    expected["value"] = value + 0.25
+    expect(request("PUT", f"{path}/{entity_id}", {"name": expected["name"], "value": expected["value"]}, auth=True)[0], 200, "Изменение значения толщины")
+    equal(json_body(request("GET", f"{path}/{entity_id}")), expected, "Изменённая толщина")
+    mark("THICK-04", "Имя длиной 100, Trim, изменение имени и числового значения")
+    category = create_category(prefix + "-thickness-cat")
+    maker = create_manufacturer(prefix + "-thickness-maker")
+    size = create_sheet_size(prefix + "-thickness-size", dimension_base + 200, dimension_base + 201)
+    material = material_model(prefix + "-thickness-material", category, "raskroy")
+    material.update(manufacturerId=maker, sheetSizeId=size, thicknessId=entity_id)
+    material_id = create_material(material)
+    problem(request("DELETE", f"{path}/{entity_id}", auth=True), "Удаление используемой толщины")
+    for endpoint, auth in ((f"/api/materials/{material_id}", False), (f"/api/materials/admin/{material_id}", True)):
+        body = json_body(request("GET", endpoint, auth=auth))
+        equal(body["thickness"], expected, "Вложенная толщина в карточке")
+        assert "depth" not in body and "thicknessId" not in body
+    for endpoint, auth in (("/api/materials", False), ("/api/materials/admin", True), ("/api/materials/search", False)):
+        response = request("GET", endpoint + "?thicknessId=" + str(entity_id), auth=auth)
+        expect(response[0], 200, "Фильтр толщины")
+        equal([(x["id"], x["thickness"]) for x in json_body(response)["items"]], [(material_id, expected)], "Список по толщине")
+        for bad in ("0", "-1", "2147483647", "abc", "&thicknessId=".join([str(entity_id)] * 101)):
+            problem(request("GET", endpoint + "?thicknessId=" + bad, auth=auth), "Некорректный фильтр толщины")
+    for bad in (0, -1, 2147483647):
+        for method, url in (("POST", "/api/materials"), ("PUT", f"/api/materials/{material_id}")):
+            problem(request(method, url, dict(material, thicknessId=bad), auth=True), "Толщина материала не найдена")
+    mark("THICK-05", "Связь материала, защита удаления, вложенный DTO в пяти выдачах, фильтр сайта и админки")
+    search = public_query("search", {"search": material["name"]})
+    equal((search["page"], search["pageSize"], search["totalCount"]), (1, 24, 1), "Пагинация по умолчанию")
+    equal(public_query("search", {"search": material["name"], "thicknessId": [entity_id, entity_id]})["totalCount"], 1, "Повтор толщины")
+    equal(public_query("search", {"search": material["name"], "thicknessId": [entity_id], "depth": [18]})["totalCount"], 0, "Пересечение depth и thicknessId")
+    public_query("search", {})
+    public_query("filters", {})
+    for endpoint in ("search", "filters"):
+        problem(request("GET", "/api/materials/" + endpoint + "?search=" + "x" * 251), "Валидация без массивов")
+        facets = public_query("filters", {"search": material["name"], "thicknessId": [thickness_ids[18]]})
+        actual = {x["id"]: x["count"] for x in facets["thicknesses"]}
+        equal(actual, {entity_id: 1, thickness_ids[18]: 0}, "Собственный фильтр и нулевой выбранный вариант")
+    mark("QUERY-01", "Отсутствующие массивы, запросы без параметров и пагинация по умолчанию")
+    mark("THICK-06", "Повторы, пересечение legacy depth, фасеты и нулевой выбранный вариант")
+    expect(delete_material(material_id)[0], 200, "Очистка материала толщины")
+    expect(request("DELETE", f"{path}/{entity_id}", auth=True)[0], 200, "Удаление свободной толщины")
+    created_thicknesses.remove(entity_id)
+    problem(request("GET", f"{path}/{entity_id}"), "Удалённая толщина")
+    for entity, endpoint, tracked in ((category, "categories", created_categories), (maker, "manufacturers", created_manufacturers), (size, "sheet-sizes", created_sheet_sizes)):
+        expect(request("DELETE", f"/api/materials/{endpoint}/{entity}", auth=True)[0], 200, "Очистка справочника")
+        tracked.remove(entity)
+    equal(history(search=prefix + "-thickness")["totalCount"], 0, "Тестер не создаёт историю толщин")
+    mark("THICK-07", "Свободная толщина удалена, повторное чтение отклонено, тестер не создаёт историю")
+
+
 def main():
     global cookie, history_run_id, primary_sheet_size_id, primary_manufacturer_id
     prefix = "codex-http-" + time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
@@ -838,6 +935,23 @@ def main():
     openapi_response = request("GET", "/swagger/v1/swagger.json")
     expect(openapi_response[0], 200, "OpenAPI document")
     openapi_document = json_body(openapi_response)
+    schemas = openapi_document["components"]["schemas"]
+    thickness_schema = schemas["MaterialThicknessDto"]
+    equal(set(thickness_schema["properties"]), {"id", "name", "value"}, "Поля DTO толщины")
+    equal(set(thickness_schema["required"]), {"id", "name", "value"}, "Обязательные поля DTO толщины")
+    for schema_name in ("GetAllMaterialsQueryItemResult", "GetMaterialsQueryForAdminItemResult",
+                        "GetMaterialQueryResult", "GetMaterialForAdminQueryResult", "PublicMaterialListItemDto"):
+        properties = schemas[schema_name]["properties"]
+        assert "depth" not in properties and "thicknessId" not in properties, schema_name
+        assert "MaterialThicknessDto" in json.dumps(properties["thickness"]), schema_name
+    mark("DOC-03", "В пяти ответах материала вложенный MaterialThicknessDto с обязательными id/name/value")
+    for endpoint, count in (("search", 11), ("filters", 8)):
+        parameters = openapi_document["paths"]["/api/materials/" + endpoint]["get"]["parameters"]
+        equal(len(parameters), count, "Количество query-параметров")
+        for parameter in parameters:
+            assert not parameter.get("required", False), parameter["name"]
+            assert re.search("[А-Яа-я]", parameter.get("description", "")), parameter["name"]
+    mark("QUERY-02", "Все query-параметры необязательны и имеют русские описания в OpenAPI")
     sheet_size_schema = openapi_document["components"]["schemas"]["SheetSizeDto"]
     required_sheet_size_properties = {"id", "name", "height", "width", "showInFilters", "orderByCol"}
     if not required_sheet_size_properties.issubset(sheet_size_schema.get("properties", {})):
@@ -882,7 +996,7 @@ def main():
     expect(request("GET", "/api/catalog/history")[0], 401, "anonymous history")
     expect(request("GET", "/api/catalog/history", auth_cookie=user_cookie)[0], 403, "ordinary user history")
     expect(request("GET", "/api/catalog/history?pageSize=201", auth_cookie=manager_cookie)[0], 400, "history page size validation")
-    cleanup_probe_path = "/api/catalog/history/test-runs/1"
+    cleanup_probe_path = f"/api/catalog/history/test-runs/{int(uuid.uuid4().hex[:7], 16) + 1}"
     expect(request("DELETE", cleanup_probe_path)[0], 401, "anonymous history cleanup")
     expect(request("DELETE", cleanup_probe_path, auth_cookie=user_cookie)[0], 403, "ordinary user history cleanup")
     expect(request("DELETE", cleanup_probe_path, auth_cookie=manager_cookie)[0], 403, "manager history cleanup")
@@ -895,6 +1009,18 @@ def main():
         raise AssertionError("history cleanup probe deleted unrelated events")
     mark("PREP-01—PREP-03", "Получены cookie пользователя, тестера, менеджера и администратора; подготовлен анонимный клиент")
     mark("AUTH-08—AUTH-12", "Проверены доступ к закрытым методам и разрешение очистки истории только тестеру")
+
+    existing_thicknesses = json_body(request("GET", "/api/materials/thicknesses"))["items"]
+    for value in (16, 18):
+        existing = next((x for x in existing_thicknesses if x["value"] == value), None)
+        if existing:
+            thickness_ids[value] = existing["id"]
+        else:
+            response = request("POST", "/api/materials/thicknesses", {"name": prefix + f"-{value}", "value": value}, auth=True)
+            expect(response[0], 200, "Создание толщины для тестовых материалов")
+            thickness_ids[value] = json_body(response)["id"]
+            created_thicknesses.append(thickness_ids[value])
+    run_thickness_scenarios(prefix, dimension_base, user_cookie, tester_cookie, manager_cookie, admin_cookie)
 
     tester_probe_name = prefix + "-tester-no-history"
     tester_create = request("POST", "/api/materials/manufacturers", {"name": tester_probe_name}, auth_cookie=tester_cookie)
@@ -977,6 +1103,8 @@ def main():
     ]
     for method, path, body in anonymous_mutations:
         expect(request(method, path, body)[0], 401, f"anonymous {method} {path}")
+
+    mark("MFR-10", "Анонимные изменения производителя возвращают 401")
 
     cat1, cat2, cat3 = [create_category(prefix + suffix) for suffix in ("-cat-a", "-cat-b", "-cat-c")]
     listed = categories()
@@ -1092,10 +1220,19 @@ def main():
         raise AssertionError("combined calculator filter returned incorrect test materials")
     expect(request("GET", "/api/materials?calculator=Unknown")[0], 400, "invalid calculator")
 
+    for endpoint, auth in (("/api/materials", False), ("/api/materials/admin", True)):
+        all_rows = json_body(request("GET", endpoint, auth=auth))["items"]
+        for stock in (True, False):
+            response = request("GET", endpoint + "?inStock=" + str(stock).lower(), auth=auth)
+            expect(response[0], 200, "Список с фильтром наличия")
+            rows = json_body(response)["items"]
+            equal({x["id"] for x in rows}, {x["id"] for x in all_rows if (x["count"] > 0) == stock}, "Точное множество наличия")
+    mark("MAT-03C", "Фильтр наличия сайта и админки сверён с полным списком")
+
     m3_updated = copy.deepcopy(m3_model)
     m3_updated.update({
         "categoryId": cat3, "name": prefix + "-mat-emal-updated", "article": "UPDATED",
-        "count": 7, "sheetSizeId": secondary_sheet_size_id, "depth": 16, "kvM": 2.9768,
+        "count": 7, "sheetSizeId": secondary_sheet_size_id, "thicknessId": thickness_ids[16], "kvM": 2.9768,
         "perimetrM": 7.32, "price": 456.78, "countTypeEnum": "SHT",
         "applicableToRaskroys": True, "applicableToEmalFacades": False,
         "commentOnMaterialIsRequired": True, "allowSecondItemInOrder": False
@@ -1142,6 +1279,21 @@ def main():
         expect(response[0], 200, "repeat JPEG GET")
         if response[2] != jpeg or response[1].get("Content-Type") != "image/jpeg":
             raise AssertionError("JPEG response mismatch")
+    image_path = "/api/materials/images/" + images[1][0]
+    etag = response[1].get("ETag")
+    assert etag and images[1][0].lower() in etag.lower(), "ETag не соответствует GUID"
+    cache_control = response[1].get("Cache-Control", "")
+    assert "public" in cache_control and "max-age=31536000" in cache_control, "Некорректный Cache-Control"
+    mark("IMG-09A", "ETag соответствует GUID, публичный кеш разрешён на год")
+    conditional = request("GET", image_path, headers={"If-None-Match": etag})
+    expect(conditional[0], 304, "Неизменившийся файл")
+    equal(conditional[2], b"", "Тело ответа 304")
+    mark("IMG-09B", "Совпадающий ETag возвращает 304 без тела")
+    conditional = request("GET", image_path, headers={"If-None-Match": '"' + str(uuid.uuid4()) + '"'})
+    expect(conditional[0], 200, "Несовпадающий ETag")
+    equal((conditional[2], conditional[1].get("ETag"), conditional[1].get("Content-Type")),
+          (jpeg, etag, "image/jpeg"), "Файл после несовпадающего ETag")
+    mark("IMG-09C", "Несовпадающий ETag возвращает исходные байты и заголовки")
     time.sleep(1)
     expect(request("GET", "/api/materials/images/" + images[1][0])[0], 200, "later JPEG GET")
     mark("IMG-08—IMG-10", "Замена на JPEG сделала PNG недоступным; повторное и отложенное получение прошли")
@@ -1169,7 +1321,7 @@ def main():
     for bad_category in (0, 2147483000):
         bad = copy.deepcopy(base_invalid); bad["categoryId"] = bad_category; bad["name"] += str(bad_category)
         expect(request("POST", "/api/materials", bad, auth=True)[0], 400, "bad category")
-    for field, value in (("sheetSizeId", 0), ("depth", 0), ("kvM", -1), ("perimetrM", 0)):
+    for field, value in (("sheetSizeId", 0), ("thicknessId", 0), ("kvM", -1), ("perimetrM", 0)):
         bad = copy.deepcopy(base_invalid); bad[field] = value; bad["name"] += "-" + field
         expect(request("POST", "/api/materials", bad, auth=True)[0], 400, "bad dimensions")
     bad = copy.deepcopy(base_invalid); bad["price"] = 0
@@ -1251,19 +1403,55 @@ def main():
         credentials["manager"])
     mark("HIST-01—HIST-12", "Проверены изолированный аудит операций менеджера, отсутствие событий при сохранении без изменений и сортировке, телефон, снимки данных, авторизация, фильтры, поиск и пагинация")
 
+    thickness_history_name = history_prefix + "-thickness"
+    thickness_history_model = {"name": thickness_history_name, "value": dimension_base + 0.875}
+    response = request("POST", "/api/materials/thicknesses", thickness_history_model, auth_cookie=manager_cookie)
+    expect(response[0], 200, "История создания толщины")
+    thickness_history_id = json_body(response)["id"]
+    created_thicknesses.append(thickness_history_id)
+    thickness_history_model["name"] += "-updated"
+    expect(request("PUT", f"/api/materials/thicknesses/{thickness_history_id}", thickness_history_model,
+                   auth_cookie=manager_cookie)[0], 200, "История переименования толщины")
+    thickness_events = history(search=thickness_history_name, entityType="Thickness")
+    equal(thickness_events["totalCount"], 2, "Число событий толщины")
+    update_event = next(x for x in thickness_events["items"] if x["actionType"] == "Update")
+    assert update_event["message"].count("→") == 1, "История толщины содержит неизменённые поля"
+    assert thickness_history_name in update_event["message"] and thickness_history_model["name"] in update_event["message"]
+    expect(request("PUT", f"/api/materials/thicknesses/{thickness_history_id}", thickness_history_model,
+                   auth_cookie=manager_cookie)[0], 200, "История сохранения толщины без изменений")
+    equal(history(search=thickness_history_name)["totalCount"], 2, "Повторное сохранение не создаёт событие")
+    expect(request("DELETE", f"/api/materials/thicknesses/{thickness_history_id}", auth_cookie=manager_cookie)[0],
+           200, "История удаления толщины")
+    created_thicknesses.remove(thickness_history_id)
+    thickness_events = history(search=thickness_history_name, entityType="Thickness")
+    equal(thickness_events["totalCount"], 3, "История CRUD толщины")
+    equal({x["actionType"] for x in thickness_events["items"]}, {"Create", "Update", "Delete"}, "Типы событий толщины")
+    assert all(x["userPhone"] == credentials["manager"] for x in thickness_events["items"])
+    mark("THICK-08", "История CRUD толщины, только изменённые поля, отсутствие события для no-op, инициатор")
+
     cleanup_response = request(
         "DELETE",
         f"/api/catalog/history/test-runs/{history_run_id}",
         auth_cookie=tester_cookie)
     expect(cleanup_response[0], 200, "test history cleanup")
-    if json_body(cleanup_response)["deletedCount"] != 12:
+    if json_body(cleanup_response)["deletedCount"] != 15:
         raise AssertionError("test history cleanup deleted an unexpected number of events")
     if history(search=history_prefix)["totalCount"] != 0:
         raise AssertionError("test history events remained after cleanup")
     completed_history_run_id = history_run_id
     history_run_id = None
-    mark("HIST-14", "Метод, доступный только тестеру, удалил все 12 изолированных событий истории; повторный поиск не вернул событий")
+    mark("HIST-14", "Метод, доступный только тестеру, удалил все 15 изолированных событий истории; повторный поиск не вернул событий")
 
+    for thickness_id in list(created_thicknesses):
+        expect(request("DELETE", f"/api/materials/thicknesses/{thickness_id}", auth=True)[0], 200, "Очистка толщин")
+        created_thicknesses.remove(thickness_id)
+    assert not any((created_materials, created_categories, created_sheet_sizes, created_manufacturers, created_thicknesses)), "Остались созданные тестовые сущности"
+    equal(public_query("search", {"search": prefix})["totalCount"], 0, "Материалы тестового префикса удалены")
+    equal(history(search=prefix)["totalCount"], 0, "История основного прогона отсутствует")
+    for endpoint in ("categories", "manufacturers", "sheet-sizes", "thicknesses"):
+        items = json_body(request("GET", "/api/materials/" + endpoint))["items"]
+        assert not any(prefix in x["name"] or history_prefix in x["name"] for x in items), "Остались тестовые справочники"
+    mark("FIN-04", "Все списки тестовых сущностей пусты, префиксы отсутствуют в справочниках, материалах и истории")
     observed_history_total_count = history()["totalCount"]
 
     print(json.dumps({

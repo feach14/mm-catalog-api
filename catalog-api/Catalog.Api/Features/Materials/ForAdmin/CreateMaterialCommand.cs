@@ -7,7 +7,8 @@ using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.ForAdmin;
 
-public sealed record CreateMaterialCommand(CreateMaterialModel Material) : ICommand<CreateMaterialCommandResult>;
+public sealed record CreateMaterialCommand(CreateMaterialModel Material)
+    : ICommand<CreateMaterialCommandResult>;
 
 public sealed record CreateMaterialModel : MaterialModel;
 
@@ -17,23 +18,22 @@ public sealed class CreateMaterialModelValidator : AbstractValidator<CreateMater
     {
         Include(new MaterialModelValidator(dbContext));
         RuleFor(x => x.Name)
-            .MustAsync(async (name, ct) =>
-                !await dbContext.Materials.AnyAsync(x => x.Name == name.Trim(), ct))
+            .MustAsync(async (name, ct) => !await dbContext.Materials.AnyAsync(x => x.Name == name.Trim(), ct))
             .When(x => !string.IsNullOrWhiteSpace(x.Name))
             .WithMessage("Материал с таким названием уже существует");
         RuleFor(x => x.Image)
-            .MustAsync(async (imageGuid, ct) => await dbContext.ImageCache.AnyAsync(
-                image => image.Guid == imageGuid && image.ImageType == MaterialImageTypeEnum.Original, ct))
+            .MustAsync(async (imageGuid, ct) =>
+                await dbContext.ImageCache.AnyAsync(image => image.Guid == imageGuid && image.ImageType == MaterialImageTypeEnum.Original, ct))
             .When(x => x.Image is not null)
             .WithMessage("Оригинальное изображение с указанным GUID не найдено или имеет другое назначение");
         RuleFor(x => x.Thumbnail240)
-            .MustAsync(async (imageGuid, ct) => await dbContext.ImageCache.AnyAsync(
-                image => image.Guid == imageGuid && image.ImageType == MaterialImageTypeEnum.Thumbnail240, ct))
+            .MustAsync(async (imageGuid, ct) =>
+                await dbContext.ImageCache.AnyAsync(image => image.Guid == imageGuid && image.ImageType == MaterialImageTypeEnum.Thumbnail240, ct))
             .When(x => x.Thumbnail240 is not null)
             .WithMessage("Миниатюра 240 с указанным GUID не найдена или имеет другое назначение");
         RuleFor(x => x.Thumbnail480)
-            .MustAsync(async (imageGuid, ct) => await dbContext.ImageCache.AnyAsync(
-                image => image.Guid == imageGuid && image.ImageType == MaterialImageTypeEnum.Thumbnail480, ct))
+            .MustAsync(async (imageGuid, ct) =>
+                await dbContext.ImageCache.AnyAsync(image => image.Guid == imageGuid && image.ImageType == MaterialImageTypeEnum.Thumbnail480, ct))
             .When(x => x.Thumbnail480 is not null)
             .WithMessage("Миниатюра 480 с указанным GUID не найдена или имеет другое назначение");
     }
@@ -54,7 +54,7 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
             MaterialManufacturerId = command.Material.ManufacturerId,
             Article = command.Material.Article,
             Name = command.Material.Name,
-            Depth = command.Material.Depth,
+            MaterialThicknessId = command.Material.ThicknessId,
             KvM = command.Material.KvM,
             PerimetrM = command.Material.PerimetrM,
             Count = command.Material.Count,
@@ -77,8 +77,7 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
         Guid?[] images = [command.Material.Image, command.Material.Thumbnail480, command.Material.Thumbnail240];
         foreach (var imageGuid in images.Where(x => x != null))
         {
-            var fileFromImgCache = await dbContext.ImageCache.SingleOrDefaultAsync(x => x.Guid == imageGuid, ct)
-                ?? throw new BadHttpRequestException($"Файл изображения с GUID={imageGuid} уже использован или не найден.");
+            var fileFromImgCache = await dbContext.ImageCache.SingleAsync(x => x.Guid == imageGuid, ct);
             await dbContext.MaterialImages.AddAsync(new MaterialImage
             {
                 Data = fileFromImgCache.Data,
@@ -100,6 +99,7 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
             + $"категория #{material.CategoryId}, "
             + $"производитель #{material.MaterialManufacturerId}, "
             + $"размер #{material.MaterialSheetSizeId}, "
+            + $"толщина #{material.MaterialThicknessId}, "
             + $"количество {material.Count}, "
             + $"цена {material.Price}, "
             + $"изображения {string.Join(';', images.Select(x => $"{(x?.ToString() ?? "нет")}"))}.");

@@ -1,4 +1,5 @@
 using Catalog.Api.Features.Materials.Dto;
+using Catalog.Api.Features.MaterialThicknesses.Dto;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;
@@ -13,7 +14,7 @@ public sealed record GetMaterialQueryResult(
     [property: Description("Артикул материала")] string Article,
     [property: Description("Размер материала")] MaterialSheetSizeDto SheetSize,
     [property: Description("Производитель")] MaterialManufacturerDto Manufacturer,
-    [property: Description("Толщина плиты")] double Depth,
+    [property: Description("Толщина материала")] MaterialThicknessDto Thickness,
     [property: Description("Изображения материала")] PublicMaterialImagesDto Images,
     [property: Description("Категория")] CategoryDto Category,
     [property: Description("Количество")] int Count,
@@ -23,7 +24,7 @@ public sealed record GetMaterialQueryResult(
 public class GetMaterialQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetMaterialQuery, GetMaterialQueryResult>
 {
     public async Task<GetMaterialQueryResult> Handle(GetMaterialQuery query, CancellationToken ct)
-        => await dbContext.Materials
+        => await dbContext.Materials.AsNoTracking()
                .Where(x => x.Id == query.Id)
                .Select(x => new GetMaterialQueryResult(
                    x.Id,
@@ -31,7 +32,7 @@ public class GetMaterialQueryHandler(CatalogDbContext dbContext) : IQueryHandler
                    x.Article,
                    new MaterialSheetSizeDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name, x.MaterialSheetSize.Height, x.MaterialSheetSize.Width),
                    new MaterialManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
-                   x.Depth,
+                   new MaterialThicknessDto(x.MaterialThickness.Id, x.MaterialThickness.Name, x.MaterialThickness.Value),
                    new PublicMaterialImagesDto(
                        x.Images
                            .Where(image => image.ImageType == MaterialImageTypeEnum.Original)

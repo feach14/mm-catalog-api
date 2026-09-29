@@ -18,6 +18,7 @@ public class CatalogDbContext(DbContextOptions<CatalogDbContext> _options) : DbC
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
     }
 
+    public DbSet<MaterialThickness> MaterialThicknesses { get; init; }
     public DbSet<Material> Materials { get; init; }
     public DbSet<MaterialSheetSize> MaterialSheetSizes { get; init; }
     public DbSet<MaterialManufacturer> MaterialManufacturers { get; init; }

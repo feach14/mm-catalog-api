@@ -24,6 +24,10 @@ public class MaterialConfiguration : IEntityTypeConfiguration<Material>
             .WithMany(x => x.Materials)
             .HasForeignKey(x => x.MaterialManufacturerId)
             .OnDelete(DeleteBehavior.Restrict);
+        eb.HasOne(x => x.MaterialThickness)
+            .WithMany(x => x.Materials)
+            .HasForeignKey(x => x.MaterialThicknessId)
+            .OnDelete(DeleteBehavior.Restrict);
         eb.HasMany(x => x.Images)
             .WithOne(x => x.Material)
             .HasForeignKey(x => x.MaterialId);

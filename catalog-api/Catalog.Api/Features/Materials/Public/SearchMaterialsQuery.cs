@@ -1,4 +1,5 @@
 using Catalog.Api.Features.Materials.ForAdmin.Dto;
+using Catalog.Api.Features.MaterialThicknesses.Dto;
 using Catalog.Database;
 using Catalog.Database.Entities;
 using Catalog.Database.Enums;
@@ -14,38 +15,19 @@ public enum PublicMaterialSortEnum
     NameDesc = 3
 }
 
-public sealed record SearchMaterialsQuery : IQuery<SearchMaterialsQueryResult>
-{
-    [Description("Номер страницы, начиная с 1")]
-    public int Page { get; init; } = 1;
-
-    [Description("Размер страницы от 1 до 96")]
-    public int PageSize { get; init; } = 24;
-
-    [Description("Поиск по названию или артикулу, до 250 символов")]
-    public string? Search { get; init; }
-
-    [Description("Id категорий. Для выбора нескольких значений повторите параметр")]
-    public int[] CategoryId { get; init; } = [];
-
-    [Description("Id производителей. Для выбора нескольких значений повторите параметр")]
-    public int[] ManufacturerId { get; init; } = [];
-
-    [Description("Толщина в миллиметрах. Для выбора нескольких значений повторите параметр")]
-    public double[] Depth { get; init; } = [];
-
-    [Description("Id форматов листа. Для выбора нескольких значений повторите параметр")]
-    public int[] SheetSizeId { get; init; } = [];
-
-    [Description("Наличие материала: true — количество больше нуля, false — количество меньше единицы")]
-    public bool? InStock { get; init; }
-
-    [Description("Калькулятор. Для выбора нескольких значений повторите параметр")]
-    public MaterialCalculatorEnum[] Calculator { get; init; } = [];
-
-    [Description("Порядок сортировки")]
-    public PublicMaterialSortEnum Sort { get; init; } = PublicMaterialSortEnum.CatalogOrder;
-}
+public sealed record SearchMaterialsQuery(
+    [property: Description("Id категорий. Для выбора нескольких значений повторите параметр"), FromQuery] int[]? CategoryId = null,
+    [property: Description("Id производителей. Для выбора нескольких значений повторите параметр"), FromQuery] int[]? ManufacturerId = null,
+    [property: Description("Толщина в миллиметрах. Для выбора нескольких значений повторите параметр"), FromQuery] double[]? Depth = null,
+    [property: Description("Id толщин материалов. Для выбора нескольких значений повторите параметр thicknessId. При совместном выборе с depth применяется пересечение"), FromQuery] int[]? ThicknessId = null,
+    [property: Description("Id форматов листа. Для выбора нескольких значений повторите параметр"), FromQuery] int[]? SheetSizeId = null,
+    [property: Description("Калькулятор. Для выбора нескольких значений повторите параметр"), FromQuery] MaterialCalculatorEnum[]? Calculator = null,
+    [property: Description("Номер страницы, начиная с 1"), FromQuery] int Page = 1,
+    [property: Description("Размер страницы от 1 до 96"), FromQuery] int PageSize = 24,
+    [property: Description("Поиск по названию или артикулу, до 250 символов"), FromQuery] string? Search = null,
+    [property: Description("Наличие материала: true — количество больше нуля, false — количество меньше единицы"), FromQuery] bool? InStock = null,
+    [property: Description("Порядок сортировки"), FromQuery] PublicMaterialSortEnum Sort = PublicMaterialSortEnum.CatalogOrder
+) : IQuery<SearchMaterialsQueryResult>;
 
 public sealed class SearchMaterialsQueryValidator : AbstractValidator<SearchMaterialsQuery>
 {
@@ -63,35 +45,42 @@ public sealed class SearchMaterialsQueryValidator : AbstractValidator<SearchMate
 
         RuleFor(x => x.CategoryId)
             .Cascade(CascadeMode.Stop)
-            .Must(values => values.Length <= 100).WithMessage("Нельзя передать более 100 значений категорий")
-            .Must(values => values.All(value => value > 0)).WithMessage("Id категорий должны быть положительными числами")
+            .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений категорий")
+            .Must(values => values is null || values.All(value => value > 0)).WithMessage("Id категорий должны быть положительными числами")
             .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialCategories.Select(x => x.Id), ct))
             .WithMessage("Одна или несколько категорий не найдены");
         RuleFor(x => x.ManufacturerId)
             .Cascade(CascadeMode.Stop)
-            .Must(values => values.Length <= 100).WithMessage("Нельзя передать более 100 значений производителей")
-            .Must(values => values.All(value => value > 0)).WithMessage("Id производителей должны быть положительными числами")
+            .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений производителей")
+            .Must(values => values is null || values.All(value => value > 0)).WithMessage("Id производителей должны быть положительными числами")
             .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialManufacturers.Select(x => x.Id), ct))
             .WithMessage("Один или несколько производителей не найдены");
         RuleFor(x => x.SheetSizeId)
             .Cascade(CascadeMode.Stop)
-            .Must(values => values.Length <= 100).WithMessage("Нельзя передать более 100 значений форматов листа")
-            .Must(values => values.All(value => value > 0)).WithMessage("Id форматов листа должны быть положительными числами")
+            .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений форматов листа")
+            .Must(values => values is null || values.All(value => value > 0)).WithMessage("Id форматов листа должны быть положительными числами")
             .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialSheetSizes.Select(x => x.Id), ct))
             .WithMessage("Один или несколько форматов листа не найдены");
 
+        RuleFor(x => x.ThicknessId)
+            .Cascade(CascadeMode.Stop)
+            .Must(ids => ids is null || ids.Length <= 100).WithMessage("Нельзя передать более 100 значений толщины")
+            .Must(ids => ids is null || ids.All(id => id > 0)).WithMessage("Id толщин должны быть положительными числами")
+            .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialThicknesses.AsNoTracking().Select(x => x.Id), ct))
+            .WithMessage("Одна или несколько толщин не найдены");
+
         RuleFor(x => x.Depth)
-            .Must(values => values.Length <= 100).WithMessage("Нельзя передать более 100 значений толщины")
-            .Must(values => values.All(value => double.IsFinite(value) && value > 0)).WithMessage("Толщина должна быть положительным конечным числом");
+            .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений толщины")
+            .Must(values => values is null || values.All(value => double.IsFinite(value) && value > 0)).WithMessage("Толщина должна быть положительным конечным числом");
         RuleFor(x => x.Calculator)
-            .Must(values => values.Length <= 100).WithMessage("Нельзя передать более 100 значений калькулятора");
-        RuleForEach(x => x.Calculator).IsInEnum().WithMessage("Указан неизвестный калькулятор");
+            .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений калькулятора");
+        RuleForEach(x => x.Calculator!).IsInEnum().When(x => x.Calculator is not null).WithMessage("Указан неизвестный калькулятор");
         RuleFor(x => x.Sort).IsInEnum().WithMessage("Указан неизвестный порядок сортировки");
     }
 
-    private static async Task<bool> AllIdsExist(int[] ids, IQueryable<int> existingIds, CancellationToken ct)
+    private static async Task<bool> AllIdsExist(int[]? ids, IQueryable<int> existingIds, CancellationToken ct)
     {
-        var distinctIds = ids.Distinct().ToArray();
+        var distinctIds = ids?.Distinct().ToArray() ?? [];
         return distinctIds.Length == 0
                || await existingIds.CountAsync(id => distinctIds.Contains(id), ct) == distinctIds.Length;
     }
@@ -109,7 +98,7 @@ public sealed record PublicMaterialListItemDto(
     [property: Description("Артикул материала")] string Article,
     [property: Description("Категория")] PublicMaterialCategoryDto Category,
     [property: Description("Производитель")] PublicMaterialManufacturerDto Manufacturer,
-    [property: Description("Толщина материала в миллиметрах")] double Depth,
+    [property: Description("Толщина материала")] MaterialThicknessDto Thickness,
     [property: Description("Формат листа")] PublicMaterialSheetSizeDto SheetSize,
     [property: Description("Материал есть в наличии")] bool InStock,
     [property: Description("Изображения материала")] PublicMaterialImagesDto Images);
@@ -157,7 +146,7 @@ public sealed class SearchMaterialsQueryHandler(CatalogDbContext dbContext)
                 x.Article,
                 new PublicMaterialCategoryDto(x.CategoryId, x.Category.Name),
                 new PublicMaterialManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
-                x.Depth,
+                new MaterialThicknessDto(x.MaterialThickness.Id, x.MaterialThickness.Name, x.MaterialThickness.Value),
                 new PublicMaterialSheetSizeDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name, x.MaterialSheetSize.Height, x.MaterialSheetSize.Width),
                 x.Count > 0,
                 new PublicMaterialImagesDto(
@@ -171,7 +160,7 @@ public sealed class SearchMaterialsQueryHandler(CatalogDbContext dbContext)
 
     private static IQueryable<Material> ApplyFilters(IQueryable<Material> materials, SearchMaterialsQuery query)
     {
-        materials = materials.FilterByCalculators(query.Calculator.Distinct().ToArray());
+        materials = materials.FilterByCalculators((query.Calculator ?? []).Distinct().ToArray());
         var search = query.Search?.Trim();
         if (!string.IsNullOrEmpty(search))
         {
@@ -181,22 +170,25 @@ public sealed class SearchMaterialsQueryHandler(CatalogDbContext dbContext)
                 || EF.Functions.ILike(x.Article, pattern, "\\"));
         }
 
-        if (query.CategoryId.Length > 0)
+        if (query.CategoryId is { Length: > 0 })
         {
             var ids = query.CategoryId.Distinct().ToArray();
             materials = materials.Where(x => ids.Contains(x.CategoryId));
         }
-        if (query.ManufacturerId.Length > 0)
+        if (query.ManufacturerId is { Length: > 0 })
         {
             var ids = query.ManufacturerId.Distinct().ToArray();
             materials = materials.Where(x => ids.Contains(x.MaterialManufacturerId));
         }
-        if (query.Depth.Length > 0)
+        if (query.ThicknessId is { Length: > 0 })
+            materials = materials.Where(x => query.ThicknessId.Contains(x.MaterialThicknessId));
+
+        if (query.Depth is { Length: > 0 })
         {
             var values = query.Depth.Distinct().ToArray();
-            materials = materials.Where(x => values.Contains(x.Depth));
+            materials = materials.Where(x => values.Contains(x.MaterialThickness.Value));
         }
-        if (query.SheetSizeId.Length > 0)
+        if (query.SheetSizeId is { Length: > 0 })
         {
             var ids = query.SheetSizeId.Distinct().ToArray();
             materials = materials.Where(x => ids.Contains(x.MaterialSheetSizeId));
