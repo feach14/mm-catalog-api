@@ -1,4 +1,4 @@
-using Catalog.Api.Features.History;
+using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;
@@ -6,7 +6,8 @@ using Core.CQRS;
 namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
 
 public sealed record DeleteMaterialSheetSizeCommand(int Id) : ICommand<DeleteMaterialSheetSizeCommandResult>;
-public sealed record DeleteMaterialSheetSizeCommandResult(bool Success);
+public sealed record DeleteMaterialSheetSizeCommandResult(
+    [property: Description("Успех операции")] bool Success);
 
 public sealed class DeleteMaterialSheetSizeCommandHandler(CatalogDbContext dbContext, ICatalogHistoryWriter historyWriter)
     : ICommandHandler<DeleteMaterialSheetSizeCommand, DeleteMaterialSheetSizeCommandResult>

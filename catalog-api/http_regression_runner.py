@@ -218,14 +218,14 @@ def relation_counts(path, relation_id):
 def admin_materials():
     response = request("GET", "/api/materials/admin", auth=True)
     expect(response[0], 200, "admin material list")
-    return json_body(response)["materials"]
+    return json_body(response)["items"]
 
 
 def public_materials(*calculators):
     query = "" if not calculators else "?" + urllib.parse.urlencode({"calculator": calculators}, doseq=True)
     response = request("GET", f"/api/materials{query}")
     expect(response[0], 200, f"public list {calculators or 'all'}")
-    return json_body(response)["materials"]
+    return json_body(response)["items"]
 
 
 def create_category(name):
@@ -563,7 +563,7 @@ def main():
     expect(request("DELETE", cleanup_probe_path, auth_cookie=manager_cookie)[0], 403, "manager history cleanup")
     expect(request("DELETE", cleanup_probe_path, auth_cookie=admin_cookie)[0], 403, "administrator history cleanup")
     expect(request("DELETE", "/api/catalog/history/test-runs/not-an-int",
-                   auth_cookie=tester_cookie)[0], 400, "history cleanup run id validation")
+                   auth_cookie=tester_cookie)[0], 404, "history cleanup run id route constraint")
     tester_cleanup_probe = request("DELETE", cleanup_probe_path, auth_cookie=tester_cookie)
     expect(tester_cleanup_probe[0], 200, "tester history cleanup")
     if json_body(tester_cleanup_probe)["deletedCount"] != 0:

@@ -1,4 +1,4 @@
-using Catalog.Api.Features.History;
+using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Entities;
 using Catalog.Database.Enums;
@@ -18,8 +18,7 @@ public sealed class CreateManufacturerCommandValidator : AbstractValidator<Creat
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("Не указано название производителя")
             .MaximumLength(100).WithMessage("Название производителя не должно быть длиннее 100 символов")
-            .MustAsync(async (name, ct) =>
-                !await dbContext.MaterialManufacturers.AnyAsync(x => x.Name == name.Trim(), ct))
+            .MustAsync(async (name, ct) => !await dbContext.MaterialManufacturers.AnyAsync(x => x.Name == name.Trim(), ct))
             .WithMessage("Производитель с таким названием уже существует");
     }
 }

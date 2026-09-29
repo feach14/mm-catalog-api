@@ -5,7 +5,8 @@ using Core.CQRS;
 namespace Catalog.Api.Features.Manufacturers;
 
 public sealed record GetManufacturersQuery : IQuery<GetManufacturersQueryResult>;
-public sealed record GetManufacturersQueryResult(ManufacturerDto[] Items);
+public sealed record GetManufacturersQueryResult(
+    [property: Description("Список производителей")] ManufacturerDto[] Items);
 
 public sealed class GetManufacturersQueryHandler(CatalogDbContext dbContext)
     : IQueryHandler<GetManufacturersQuery, GetManufacturersQueryResult>

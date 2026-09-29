@@ -1,4 +1,4 @@
-using Catalog.Api.Features.History;
+using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;
@@ -6,7 +6,8 @@ using Core.CQRS;
 namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
 
 public sealed record UpdateMaterialSheetSizeCommand(int Id, SheetSizeModel Model) : ICommand<UpdateMaterialSheetSizeCommandResult>;
-public sealed record UpdateMaterialSheetSizeCommandResult(bool Success);
+public sealed record UpdateMaterialSheetSizeCommandResult(
+    [property: Description("Успех операции")] bool Success);
 
 public sealed class UpdateMaterialSheetSizeCommandHandler(CatalogDbContext dbContext, ICatalogHistoryWriter historyWriter)
     : ICommandHandler<UpdateMaterialSheetSizeCommand, UpdateMaterialSheetSizeCommandResult>

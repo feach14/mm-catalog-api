@@ -5,10 +5,9 @@ using Core.CQRS;
 namespace Catalog.Api.Features.Materials.ForAdmin;
 
 public sealed record GetAllMaterialsForAdminQuery(
-    [property: Description("Калькулятор: Raskroy, PvhFacades или EmalFacades. Для выбора нескольких калькуляторов повторите параметр calculator. Без параметра возвращаются все материалы.")][property: FromQuery(Name = "calculator")]
-    MaterialCalculator[]? Calculator,
-    [property: Description("Id категории(коллекции) материала")][property: FromQuery(Name = "categoryId")] int? CategoryId,
-    [property: Description("Наличие материала: true — count > 0, false — count < 1. Без параметра возвращаются все материалы.")][property: FromQuery(Name = "inStock")] bool? InStock
+    [property: Description("Калькулятор: Raskroy, PvhFacades или EmalFacades. Для выбора нескольких калькуляторов повторите параметр calculator. Без параметра возвращаются все материалы."), FromQuery] MaterialCalculator[]? Calculator,
+    [property: Description("Id категории(коллекции) материала"), FromQuery] int? CategoryId,
+    [property: Description("Наличие материала: true — count > 0, false — count < 1. Без параметра возвращаются все материалы."), FromQuery] bool? InStock
 ) : IQuery<GetAllMaterialsForAdminQueryResult>;
 
 public sealed class GetAllMaterialsForAdminQueryValidator : AbstractValidator<GetAllMaterialsForAdminQuery>
@@ -17,19 +16,20 @@ public sealed class GetAllMaterialsForAdminQueryValidator : AbstractValidator<Ge
     {
         RuleForEach(x => x.Calculator!)
             .IsInEnum()
-            .When(x => x.Calculator is not null);
+            .When(x => x.Calculator is not null)
+            .WithMessage("Указан недопустимый калькулятор");
     }
 }
 
 public sealed record GetAllMaterialsForAdminQueryResult(
-    [property: Description("Список материалов")] GetMaterialsQueryForAdminItemResult[] Materials);
+    [property: Description("Список материалов")] GetMaterialsQueryForAdminItemResult[] Items);
 
 public sealed record GetMaterialsQueryForAdminItemResult(
     [property: Description("Id материала")] int Id,
     [property: Description("Название материала")] string Name,
     [property: Description("Артикул материала")] string Article,
     [property: Description("Размер материала")] MaterialSheetSizeDto SheetSize,
-    [property: Description("Производитель")] ManufacturerDto Manufacturer,
+    [property: Description("Производитель")] MaterialManufacturerDto Manufacturer,
     [property: Description("Толщина плиты")] double Depth,
     [property: Description("Категория")] CategoryDto Category,
     [property: Description("Ссылка на внешний источник")] string? ExternalLink,
@@ -65,7 +65,7 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
                     x.MaterialSheetSize.Name,
                     x.MaterialSheetSize.Height,
                     x.MaterialSheetSize.Width),
-                Manufacturer = new ManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
+                Manufacturer = new MaterialManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
                 x.Depth,
                 x.ExternalLink,
                 x.CategoryId,

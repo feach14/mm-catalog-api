@@ -1,4 +1,4 @@
-using Catalog.Api.Features.History;
+using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;

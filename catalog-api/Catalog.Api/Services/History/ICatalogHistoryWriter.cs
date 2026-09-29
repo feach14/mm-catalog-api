@@ -1,6 +1,6 @@
 using Catalog.Database.Enums;
 
-namespace Catalog.Api.Features.History;
+namespace Catalog.Api.Services.History;
 
 public interface ICatalogHistoryWriter
 {

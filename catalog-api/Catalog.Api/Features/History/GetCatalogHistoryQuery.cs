@@ -5,32 +5,24 @@ using Core.CQRS;
 namespace Catalog.Api.Features.History;
 
 public sealed record GetCatalogHistoryQuery(
-    [property: Description("Номер страницы")]
-    [property: FromQuery] int Page = 1,
-    [property: Description("Количество записей на странице")]
-    [property: FromQuery] int PageSize = 50,
-    [property: Description("Тип действия: создание, изменение или удаление")]
-    [property: FromQuery] CatalogHistoryActionType? ActionType = null,
-    [property: Description("Тип сущности каталога")]
-    [property: FromQuery] CatalogHistoryEntityType? EntityType = null,
-    [property: Description("Номер телефона пользователя, выполнившего изменение")]
-    [property: FromQuery] string? UserPhone = null,
-    [property: Description("Начало периода изменений")]
-    [property: FromQuery] DateTimeOffset? From = null,
-    [property: Description("Окончание периода изменений")]
-    [property: FromQuery] DateTimeOffset? To = null,
-    [property: Description("Строка поиска в описании изменения")]
-    [property: FromQuery] string? Search = null) : IQuery<GetCatalogHistoryQueryResult>;
+    [property: Description("Номер страницы"), FromQuery] int Page = 1,
+    [property: Description("Количество записей на странице"), FromQuery] int PageSize = 50,
+    [property: Description("Тип действия: создание, изменение или удаление"), FromQuery] CatalogHistoryActionType? ActionType = null,
+    [property: Description("Тип сущности каталога"), FromQuery] CatalogHistoryEntityType? EntityType = null,
+    [property: Description("Номер телефона пользователя, выполнившего изменение"), FromQuery] string? UserPhone = null,
+    [property: Description("Начало периода изменений"), FromQuery] DateTimeOffset? From = null,
+    [property: Description("Окончание периода изменений"), FromQuery] DateTimeOffset? To = null,
+    [property: Description("Строка поиска в описании изменения"), FromQuery] string? Search = null) : IQuery<GetCatalogHistoryQueryResult>;
 
 public sealed class GetCatalogHistoryQueryValidator : AbstractValidator<GetCatalogHistoryQuery>
 {
     public GetCatalogHistoryQueryValidator()
     {
-        RuleFor(x => x.Page).GreaterThan(0);
-        RuleFor(x => x.PageSize).InclusiveBetween(1, 200);
-        RuleFor(x => x.ActionType).IsInEnum().When(x => x.ActionType.HasValue);
-        RuleFor(x => x.EntityType).IsInEnum().When(x => x.EntityType.HasValue);
-        RuleFor(x => x.To).GreaterThanOrEqualTo(x => x.From).When(x => x.From.HasValue && x.To.HasValue);
+        RuleFor(x => x.Page).GreaterThan(0).WithMessage("Номер страницы должен быть больше нуля");
+        RuleFor(x => x.PageSize).InclusiveBetween(1, 200).WithMessage("Количество записей на странице должно быть от 1 до 200");
+        RuleFor(x => x.ActionType).IsInEnum().When(x => x.ActionType.HasValue).WithMessage("Указан недопустимый тип действия");
+        RuleFor(x => x.EntityType).IsInEnum().When(x => x.EntityType.HasValue).WithMessage("Указан недопустимый тип сущности каталога");
+        RuleFor(x => x.To).GreaterThanOrEqualTo(x => x.From).When(x => x.From.HasValue && x.To.HasValue).WithMessage("Окончание периода не может быть раньше его начала");
     }
 }
 

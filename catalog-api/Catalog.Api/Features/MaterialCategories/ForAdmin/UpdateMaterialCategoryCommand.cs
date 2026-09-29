@@ -1,5 +1,5 @@
-using Catalog.Api.Features.History;
 using Catalog.Api.Features.MaterialCategories.ForAdmin.Dto;
+using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;

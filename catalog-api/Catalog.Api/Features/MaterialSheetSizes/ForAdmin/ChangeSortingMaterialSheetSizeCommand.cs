@@ -6,8 +6,7 @@ namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
 
 public sealed record ChangeSortingMaterialSheetSizeCommand(
     [property: Description("Id размера материала")] int Id,
-    [property: Description("Направление: выше или ниже текущего положения"), JsonConverter(typeof(JsonStringEnumConverter))]
-    DirectionSortEnum Direction)
+    [property: Description("Направление: выше или ниже текущего положения"), JsonConverter(typeof(JsonStringEnumConverter))] DirectionSortEnum Direction)
     : ICommand<ChangeSortingMaterialSheetSizeCommandResult>;
 
 public sealed class ChangeSortingMaterialSheetSizeCommandValidator
@@ -15,8 +14,8 @@ public sealed class ChangeSortingMaterialSheetSizeCommandValidator
 {
     public ChangeSortingMaterialSheetSizeCommandValidator()
     {
-        RuleFor(x => x.Id).GreaterThan(0);
-        RuleFor(x => x.Direction).IsInEnum();
+        RuleFor(x => x.Id).GreaterThan(0).WithMessage("Id размера материала должен быть больше нуля");
+        RuleFor(x => x.Direction).IsInEnum().WithMessage("Указано недопустимое направление сортировки");
     }
 }
 

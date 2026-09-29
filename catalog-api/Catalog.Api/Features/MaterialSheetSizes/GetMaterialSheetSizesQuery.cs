@@ -5,7 +5,8 @@ using Core.CQRS;
 namespace Catalog.Api.Features.MaterialSheetSizes;
 
 public sealed record GetMaterialSheetSizesQuery : IQuery<GetMaterialSheetSizesQueryResult>;
-public sealed record GetMaterialSheetSizesQueryResult(SheetSizeDto[] Items);
+public sealed record GetMaterialSheetSizesQueryResult(
+    [property: Description("Список размеров материалов")] SheetSizeDto[] Items);
 
 public sealed class GetMaterialSheetSizesQueryHandler(CatalogDbContext dbContext)
     : IQueryHandler<GetMaterialSheetSizesQuery, GetMaterialSheetSizesQueryResult>

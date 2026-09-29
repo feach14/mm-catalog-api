@@ -6,9 +6,8 @@ using Core.CQRS;
 namespace Catalog.Api.Features.Materials.Public;
 
 public sealed record GetAllMaterialsQuery(
-    [property: Description("Калькулятор: Raskroy, PvhFacades или EmalFacades. Для выбора нескольких калькуляторов повторите параметр calculator. Без параметра возвращаются все материалы.")][property: FromQuery(Name = "calculator")]
-    MaterialCalculator[]? Calculator,
-    [property: Description("Наличие материала: true — count > 0, false — count < 1. Без параметра возвращаются все материалы.")][property: FromQuery(Name = "inStock")] bool? InStock
+    [property: Description("Калькулятор: Raskroy, PvhFacades или EmalFacades. Для выбора нескольких калькуляторов повторите параметр calculator. Без параметра возвращаются все материалы."), FromQuery] MaterialCalculator[]? Calculator,
+    [property: Description("Наличие материала: true — count > 0, false — count < 1. Без параметра возвращаются все материалы."), FromQuery] bool? InStock
 ) : IQuery<GetAllMaterialsQueryResult>;
 
 public sealed class GetAllMaterialsQueryValidator : AbstractValidator<GetAllMaterialsQuery>
@@ -17,12 +16,13 @@ public sealed class GetAllMaterialsQueryValidator : AbstractValidator<GetAllMate
     {
         RuleForEach(x => x.Calculator!)
             .IsInEnum()
-            .When(x => x.Calculator is not null);
+            .When(x => x.Calculator is not null)
+            .WithMessage("Указан недопустимый калькулятор");
     }
 }
 
 public sealed record GetAllMaterialsQueryResult(
-    [property: Description("Список материалов")] List<GetMaterialQueryResult> Materials,
+    [property: Description("Список материалов")] List<GetMaterialQueryResult> Items,
     [property: Description("Список категорий из списка материалов")] List<MaterialCategoryDto> Categories);
 
 public record MaterialCategoryDto(
@@ -50,7 +50,7 @@ public class GetAllMaterialsQueryHandler(CatalogDbContext dbContext) : IQueryHan
                 x.Name,
                 x.Article,
                 SheetSize = new MaterialSheetSizeDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name, x.MaterialSheetSize.Height, x.MaterialSheetSize.Width),
-                Manufacturer = new ManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
+                Manufacturer = new MaterialManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
                 x.Depth,
                 x.CommentOnMaterialIsRequired,
                 Image = x.Images.Count != 0 ? x.Images.Select(g => g.Guid).First() : (Guid?)null,

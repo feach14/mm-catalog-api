@@ -13,8 +13,8 @@ public class ChangeSortingMaterialCategoryCommandValidator : AbstractValidator<C
 {
     public ChangeSortingMaterialCategoryCommandValidator()
     {
-        RuleFor(x => x.CategoryId).GreaterThan(0);
-        RuleFor(x => x.Direction).IsInEnum();
+        RuleFor(x => x.CategoryId).GreaterThan(0).WithMessage("Id категории должен быть больше нуля");
+        RuleFor(x => x.Direction).IsInEnum().WithMessage("Указано недопустимое направление сортировки");
     }
 }
 

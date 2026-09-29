@@ -3,7 +3,7 @@ using Catalog.Database.Entities;
 using Catalog.Database.Enums;
 using Core.Extensions;
 
-namespace Catalog.Api.Features.History;
+namespace Catalog.Api.Services.History;
 
 public sealed class CatalogHistoryWriter(
     CatalogDbContext dbContext,

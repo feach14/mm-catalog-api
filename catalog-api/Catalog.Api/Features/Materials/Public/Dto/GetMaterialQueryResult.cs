@@ -19,7 +19,7 @@ public sealed record GetMaterialQueryResult
     public required MaterialSheetSizeDto SheetSize { get; init; }
 
     [Description("Производитель")]
-    public required ManufacturerDto Manufacturer { get; init; }
+    public required MaterialManufacturerDto Manufacturer { get; init; }
 
     [Description("Толщина плиты")]
     public required double Depth { get; init; }

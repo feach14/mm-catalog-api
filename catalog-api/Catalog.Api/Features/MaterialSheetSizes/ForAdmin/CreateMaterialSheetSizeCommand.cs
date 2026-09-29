@@ -1,4 +1,4 @@
-using Catalog.Api.Features.History;
+using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Entities;
 using Catalog.Database.Enums;
@@ -7,7 +7,8 @@ using Core.CQRS;
 namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
 
 public sealed record CreateMaterialSheetSizeCommand(SheetSizeModel Model) : ICommand<CreateMaterialSheetSizeCommandResult>;
-public sealed record CreateMaterialSheetSizeCommandResult(int Id);
+public sealed record CreateMaterialSheetSizeCommandResult(
+    [property: Description("Id размера материала")] int Id);
 
 public sealed class CreateMaterialSheetSizeCommandHandler(CatalogDbContext dbContext, ICatalogHistoryWriter historyWriter)
     : ICommandHandler<CreateMaterialSheetSizeCommand, CreateMaterialSheetSizeCommandResult>

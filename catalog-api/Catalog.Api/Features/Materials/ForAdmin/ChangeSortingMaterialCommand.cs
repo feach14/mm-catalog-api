@@ -9,6 +9,15 @@ public record ChangeSortingMaterialCommand(
     [property: Description("Направление: (выше (+1) / ниже (-1) текущего положения"), JsonConverter(typeof(JsonStringEnumConverter))] DirectionSortEnum Direction)
     : ICommand<ChangeSortingMaterialCommandResult>;
 
+public sealed class ChangeSortingMaterialCommandValidator : AbstractValidator<ChangeSortingMaterialCommand>
+{
+    public ChangeSortingMaterialCommandValidator()
+    {
+        RuleFor(x => x.Id).GreaterThan(0).WithMessage("Id материала должен быть больше нуля");
+        RuleFor(x => x.Direction).IsInEnum().WithMessage("Указано недопустимое направление сортировки");
+    }
+}
+
 public record ChangeSortingMaterialCommandResult(
     [property: Description("Успех операции")] bool Success);
 

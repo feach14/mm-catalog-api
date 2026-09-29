@@ -11,9 +11,7 @@ public class MaterialModelValidator : AbstractValidator<MaterialModel>
     {
         RuleFor(m => m.Name).NotEmpty().WithMessage("Не указано название материала");
         RuleFor(m => m.Article).NotEmpty().WithMessage("Не указан артикул материала");
-        RuleFor(m => m.Price)
-            .NotNull().WithMessage("Не указана стоимость материала")
-            .GreaterThan(0).When(m => m.Count > 0).WithMessage("Стоимость материала должна быть больше 0 при количестве больше 0");
+        RuleFor(m => m.Price).GreaterThan(0).When(m => m.Count > 0).WithMessage("Стоимость материала должна быть больше 0 при количестве больше 0");
         RuleFor(m => m.CategoryId)
             .Cascade(CascadeMode.Stop)
             .GreaterThan(0).WithMessage("Не указана категория(коллекция) материала")
@@ -99,7 +97,6 @@ public sealed record MaterialModel
     [Description("Цена материала у поставщика")]
     public decimal Price { get; init; }
 
-    [Description("Единица измерения")]
-    [JsonConverter(typeof(JsonStringEnumConverter))]
+    [Description("Единица измерения"), JsonConverter(typeof(JsonStringEnumConverter))]
     public CountTypeEnum CountTypeEnum { get; init; }
 }

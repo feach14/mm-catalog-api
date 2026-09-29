@@ -11,6 +11,7 @@ public sealed class SheetSizeModelValidator : AbstractValidator<SheetSizeModel>
     public SheetSizeModelValidator()
     {
         RuleFor(x => x.Name)
+            .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("Не указано название размера материала")
             .MaximumLength(100).WithMessage("Название размера материала не должно быть длиннее 100 символов");
         RuleFor(x => x.Height).GreaterThan(0).WithMessage("Высота материала должна быть больше нуля");
