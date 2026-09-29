@@ -1,11 +1,12 @@
 using Catalog.Api.Features.Materials.Dto;
+using Catalog.Api.Features.Materials.ForAdmin.Dto;
 using Catalog.Database;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.ForAdmin;
 
 public sealed record GetAllMaterialsForAdminQuery(
-    [property: Description("Калькулятор: Raskroy, PvhFacades или EmalFacades. Для выбора нескольких калькуляторов повторите параметр calculator. Без параметра возвращаются все материалы."), FromQuery] MaterialCalculator[]? Calculator,
+    [property: Description("Калькулятор: Raskroy, PvhFacades или EmalFacades. Для выбора нескольких калькуляторов повторите параметр calculator. Без параметра возвращаются все материалы."), FromQuery] MaterialCalculatorEnum[]? Calculator,
     [property: Description("Id категории(коллекции) материала"), FromQuery] int? CategoryId,
     [property: Description("Наличие материала: true — count > 0, false — count < 1. Без параметра возвращаются все материалы."), FromQuery] bool? InStock
 ) : IQuery<GetAllMaterialsForAdminQueryResult>;

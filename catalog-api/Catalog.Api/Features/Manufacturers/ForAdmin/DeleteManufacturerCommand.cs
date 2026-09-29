@@ -20,8 +20,8 @@ public sealed class DeleteManufacturerCommandHandler(CatalogDbContext dbContext,
 
         dbContext.MaterialManufacturers.Remove(manufacturer);
         historyWriter.Add(
-            CatalogHistoryActionType.Delete,
-            CatalogHistoryEntityType.Manufacturer,
+            CatalogHistoryActionTypeEnum.Delete,
+            CatalogHistoryEntityTypeEnum.Manufacturer,
             manufacturer.Id,
             $"Удалён производитель #{manufacturer.Id} «{manufacturer.Name}».");
         await dbContext.SaveChangesAsync(ct);

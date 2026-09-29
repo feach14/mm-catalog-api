@@ -1,4 +1,5 @@
 using Catalog.Database;
+using Catalog.Database.Entities;
 using Core.CQRS;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -12,28 +13,35 @@ public class GetMaterialImageQueryHandler(CatalogDbContext dbContext, IMemoryCac
 {
     public async Task<GetMaterialImageQueryResult> Handle(GetMaterialImageQuery query, CancellationToken ct)
     {
-        var imageFromMemory = memoryCache.Get<GetMaterialImageQueryResult>(query.FileGuid);
+        var imageFromMemory = memoryCache.Get<ImageCache>(query.FileGuid);
         if (imageFromMemory != null)
-            return imageFromMemory;
+            return new GetMaterialImageQueryResult(imageFromMemory.Data, imageFromMemory.Type);
 
         var cachedFile = await dbContext.ImageCache
             .Where(x => x.Guid == query.FileGuid)
-            .Select(x => new GetMaterialImageQueryResult(x.Data, x.Type))
             .FirstOrDefaultAsync(ct);
         if (cachedFile != null)
         {
             memoryCache.Set(query.FileGuid, cachedFile);
-            return cachedFile;
+            return new GetMaterialImageQueryResult(cachedFile.Data, cachedFile.Type);
         }
 
         var image = await dbContext.MaterialImages
-                   .Where(x => x.Guid == query.FileGuid)
-                   .Select(x => new GetMaterialImageQueryResult(x.Data, x.Type))
-                   .FirstOrDefaultAsync(ct) ??
-               throw new BadHttpRequestException($"Файл не найден. fileGuid={query.FileGuid}");
+            .Where(x => x.Guid == query.FileGuid)
+            .FirstOrDefaultAsync(ct);
 
-        memoryCache.Set(query.FileGuid, image);
+        if (image is null)
+            throw new BadHttpRequestException($"Файл не найден. fileGuid={query.FileGuid}");
 
-        return image;
+        memoryCache.Set(image.Guid, new ImageCache
+        {
+            Data = image.Data,
+            Guid = image.Guid,
+            Type = image.Type,
+            FileName = image.Guid.ToString(),
+            ImageType = image.ImageType
+        });
+
+        return new GetMaterialImageQueryResult(image.Data, image.Type);
     }
 }

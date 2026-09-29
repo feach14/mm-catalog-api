@@ -26,8 +26,8 @@ public class DeleteMaterialCategoryCommandHandler(CatalogDbContext dbContext, IC
 
         dbContext.MaterialCategories.Remove(materialCategory);
         historyWriter.Add(
-            CatalogHistoryActionType.Delete,
-            CatalogHistoryEntityType.Category,
+            CatalogHistoryActionTypeEnum.Delete,
+            CatalogHistoryEntityTypeEnum.Category,
             materialCategory.Id,
             $"Удалена категория материалов #{materialCategory.Id} «{materialCategory.Name}». Перед удалением: источник {materialCategory.ExternalLink}.");
         await dbContext.SaveChangesAsync(ct);

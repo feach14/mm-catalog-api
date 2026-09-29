@@ -47,8 +47,8 @@ public sealed class UpdateManufacturerCommandHandler(CatalogDbContext dbContext,
         var oldName = manufacturer.Name;
         manufacturer.Name = newName;
         historyWriter.Add(
-            CatalogHistoryActionType.Update,
-            CatalogHistoryEntityType.Manufacturer,
+            CatalogHistoryActionTypeEnum.Update,
+            CatalogHistoryEntityTypeEnum.Manufacturer,
             manufacturer.Id,
             $"Производитель #{manufacturer.Id} изменён: название «{oldName}» → «{newName}».");
         await dbContext.SaveChangesAsync(ct);

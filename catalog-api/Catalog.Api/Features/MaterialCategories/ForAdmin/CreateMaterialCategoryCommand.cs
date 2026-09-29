@@ -29,8 +29,8 @@ public class CreateMaterialCategoryCommandHandler(CatalogDbContext dbContext, IC
         dbContext.MaterialCategories.Add(materialCategory);
         await dbContext.SaveChangesAsync(ct);
         historyWriter.Add(
-            CatalogHistoryActionType.Create,
-            CatalogHistoryEntityType.Category,
+            CatalogHistoryActionTypeEnum.Create,
+            CatalogHistoryEntityTypeEnum.Category,
             materialCategory.Id,
             $"Создана категория материалов #{materialCategory.Id} «{materialCategory.Name}»: источник {materialCategory.ExternalLink}.");
         await dbContext.SaveChangesAsync(ct);

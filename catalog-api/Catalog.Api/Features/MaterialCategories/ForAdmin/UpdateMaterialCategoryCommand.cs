@@ -31,8 +31,8 @@ public class UpdateMaterialCategoryCommandHandler(CatalogDbContext dbContext, IC
         materialCategory.ExternalLink = command.Category.ExternalLink;
         dbContext.MaterialCategories.Update(materialCategory);
         historyWriter.Add(
-            CatalogHistoryActionType.Update,
-            CatalogHistoryEntityType.Category,
+            CatalogHistoryActionTypeEnum.Update,
+            CatalogHistoryEntityTypeEnum.Category,
             materialCategory.Id,
             $"Категория материалов #{materialCategory.Id} изменена: {string.Join(", ", changes)}.");
         await dbContext.SaveChangesAsync(ct);

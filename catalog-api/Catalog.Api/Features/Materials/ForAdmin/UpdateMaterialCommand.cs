@@ -4,31 +4,56 @@ using Catalog.Database;
 using Catalog.Database.Entities;
 using Catalog.Database.Enums;
 using Core.CQRS;
-using Microsoft.Extensions.Caching.Memory;
 
 namespace Catalog.Api.Features.Materials.ForAdmin;
 
-public sealed record UpdateMaterialCommand(int Id, MaterialModel Material) : ICommand<UpdateMaterialCommandResult>;
+public sealed record UpdateMaterialCommand(int Id, UpdateMaterialModel Material) : ICommand<UpdateMaterialCommandResult>;
+
+public sealed record UpdateMaterialModel : MaterialModel;
+
+public sealed class UpdateMaterialModelValidator : AbstractValidator<UpdateMaterialModel>
+{
+    public UpdateMaterialModelValidator(CatalogDbContext dbContext, IHttpContextAccessor httpContextAccessor)
+    {
+        Include(new MaterialModelValidator(dbContext));
+        RuleFor(x => x)
+            .MustAsync(async (_, ct) =>
+            {
+                var routeId = httpContextAccessor.HttpContext?.Request.RouteValues["id"]?.ToString();
+                return int.TryParse(routeId, out var id)
+                       && await dbContext.Materials.AnyAsync(x => x.Id == id, ct);
+            })
+            .WithMessage("Указанный материал не существует")
+            .OverridePropertyName("Id");
+        RuleFor(x => x.Name)
+            .MustAsync(async (name, ct) =>
+            {
+                var routeId = httpContextAccessor.HttpContext?.Request.RouteValues["id"]?.ToString();
+                return int.TryParse(routeId, out var id)
+                       && !await dbContext.Materials.AnyAsync(
+                           x => x.Id != id && x.Name == name.Trim(), ct);
+            })
+            .When(x => !string.IsNullOrWhiteSpace(x.Name))
+            .WithMessage("Материал с таким названием уже существует");
+    }
+}
 
 public sealed record UpdateMaterialCommandResult(
     [property: Description("Успех операции")] bool Success);
 
-public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCache memoryCache, ICatalogHistoryWriter historyWriter) : ICommandHandler<UpdateMaterialCommand, UpdateMaterialCommandResult>
+public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHistoryWriter historyWriter) : ICommandHandler<UpdateMaterialCommand, UpdateMaterialCommandResult>
 {
     public async Task<UpdateMaterialCommandResult> Handle(UpdateMaterialCommand command, CancellationToken ct)
     {
-        var material =
-            await dbContext.Materials
-                .Include(x => x.Category)
-                .Include(x => x.Images)
-                .FirstOrDefaultAsync(x => x.Id == command.Id, ct)
-            ?? throw new BadHttpRequestException($"Материал с id={command.Id} не существует.");
+        var material = await dbContext.Materials
+            .Include(x => x.Category)
+            .Include(x => x.Images)
+            .SingleAsync(x => x.Id == command.Id, ct);
 
-        var materialName = command.Material.Name.Trim();
-        if (await dbContext.Materials.AnyAsync(x => x.Name == materialName && x.Id != command.Id, ct))
-            throw new BadHttpRequestException("Материал с таким названием уже существует.");
-
-        var oldImage = material.Images.Select(x => (Guid?)x.Guid).SingleOrDefault();
+        var original = material.Images.SingleOrDefault(x => x.ImageType == MaterialImageTypeEnum.Original);
+        var thumbnail240 = material.Images.SingleOrDefault(x => x.ImageType == MaterialImageTypeEnum.Thumbnail240);
+        var thumbnail480 = material.Images.SingleOrDefault(x => x.ImageType == MaterialImageTypeEnum.Thumbnail480);
+        
         var changes = new List<string>();
         AddChange(changes, "категория", material.CategoryId, command.Material.CategoryId);
         AddChange(changes, "размер", material.MaterialSheetSizeId, command.Material.SheetSizeId);
@@ -47,7 +72,9 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
         AddChange(changes, "второй элемент в заказе", material.AllowSecondItemInOrder, command.Material.AllowSecondItemInOrder);
         AddChange(changes, "цена", material.Price, command.Material.Price);
         AddChange(changes, "единица", material.CountTypeEnum, command.Material.CountTypeEnum);
-        AddChange(changes, "изображение", oldImage, command.Material.Image);
+        AddChange(changes, "оригинальное изображение", original?.Guid, command.Material.Image);
+        AddChange(changes, "миниатюра 240", thumbnail240?.Guid, command.Material.Thumbnail240);
+        AddChange(changes, "миниатюра 480", thumbnail480?.Guid, command.Material.Thumbnail480);
 
         if (changes.Count == 0)
             return new UpdateMaterialCommandResult(true);
@@ -69,49 +96,45 @@ public class UpdateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
         material.ExternalLink = command.Material.ExternalLink;
         material.Price = command.Material.Price;
         material.CountTypeEnum = command.Material.CountTypeEnum;
-
-        // Удаляем старые изображения
-        var removedImages = material.Images
-            .Where(img => command.Material.Image != img.Guid)
-            .ToList();
-        removedImages.ForEach(removeImg => material.Images.Remove(removeImg));
-
-        GetMaterialImageQueryResult? imageToCache = null;
-
-        // Сохраняем новые изображения
-        if (command.Material.Image != null && material.Images.All(x => x.Guid != command.Material.Image))
-        {
-            var cachedFile = await dbContext.ImageCache
-                .FirstOrDefaultAsync(x => x.Guid == command.Material.Image, ct);
-            if (cachedFile is null)
-                throw new BadHttpRequestException($"Файл {command.Material.Image} отсутствует в кэше");
-
-            material.Images.Add(new MaterialImage
-            {
-                Data = cachedFile.Data,
-                Type = cachedFile.Type,
-                Guid = command.Material.Image.Value,
-                MaterialId = material.Id
-            });
-
-            dbContext.ImageCache.Remove(cachedFile);
-            imageToCache = new GetMaterialImageQueryResult(cachedFile.Data, cachedFile.Type);
-        }
+        
+        await UpdateImage(material, original, command.Material.Image, MaterialImageTypeEnum.Original, ct);
+        await UpdateImage(material, thumbnail240, command.Material.Thumbnail240, MaterialImageTypeEnum.Thumbnail240, ct);
+        await UpdateImage(material, thumbnail480, command.Material.Thumbnail480, MaterialImageTypeEnum.Thumbnail480, ct);
 
         dbContext.Materials.Update(material);
         historyWriter.Add(
-            CatalogHistoryActionType.Update,
-            CatalogHistoryEntityType.Material,
+            CatalogHistoryActionTypeEnum.Update,
+            CatalogHistoryEntityTypeEnum.Material,
             material.Id,
             $"Материал #{material.Id} «{material.Name}» изменён: {string.Join(", ", changes)}.");
 
         await dbContext.SaveChangesAsync(ct);
-
-        removedImages.ForEach(image => memoryCache.Remove(image.Guid));
-        if (command.Material.Image != null && imageToCache != null)
-            memoryCache.Set(command.Material.Image.Value, imageToCache);
-
+        
         return new UpdateMaterialCommandResult(true);
+    }
+
+    private async Task UpdateImage(Material material, MaterialImage? currentImage, Guid? requestedGuid, MaterialImageTypeEnum imageType, CancellationToken ct)
+    {
+        if (currentImage?.Guid == requestedGuid)
+            return;
+        
+        if (currentImage is not null)
+            material.Images.Remove(currentImage);
+
+        if (requestedGuid is null)
+            return;
+
+        var cachedFile = await dbContext.ImageCache.SingleAsync(x => x.Guid == requestedGuid.Value && x.ImageType == imageType, ct);
+
+        material.Images.Add(new MaterialImage
+        {
+            Data = cachedFile.Data,
+            Type = cachedFile.Type,
+            Guid = cachedFile.Guid,
+            MaterialId = material.Id,
+            ImageType = imageType
+        });
+        dbContext.ImageCache.Remove(cachedFile);
     }
 
     private static void AddChange<T>(List<string> changes, string name, T oldValue, T newValue, bool quote = false)

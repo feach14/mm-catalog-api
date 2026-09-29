@@ -35,8 +35,8 @@ public sealed class CreateMaterialSheetSizeCommandHandler(CatalogDbContext dbCon
         dbContext.MaterialSheetSizes.Add(size);
         await dbContext.SaveChangesAsync(ct);
         historyWriter.Add(
-            CatalogHistoryActionType.Create,
-            CatalogHistoryEntityType.SheetSize,
+            CatalogHistoryActionTypeEnum.Create,
+            CatalogHistoryEntityTypeEnum.SheetSize,
             size.Id,
             $"Создан размер плиты #{size.Id} «{size.Name}»: {size.Height}×{size.Width}, показывать в фильтрах — {(size.ShowInFilters ? "Да" : "Нет")}.");
         await dbContext.SaveChangesAsync(ct);

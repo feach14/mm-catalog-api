@@ -1,5 +1,4 @@
 using Catalog.Api.Features.MaterialCategories;
-using Catalog.Api.Features.MaterialCategories.Dto;
 using Catalog.Api.Features.MaterialCategories.ForAdmin;
 using Catalog.Api.Features.MaterialCategories.ForAdmin.Dto;
 using Core.Attributes;

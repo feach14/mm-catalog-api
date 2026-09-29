@@ -10,7 +10,7 @@ public sealed class CatalogHistoryWriter(
     IHttpContextAccessor httpContextAccessor,
     TimeProvider timeProvider) : ICatalogHistoryWriter
 {
-    public void Add(CatalogHistoryActionType actionType, CatalogHistoryEntityType entityType, int entityId, string message)
+    public void Add(CatalogHistoryActionTypeEnum actionType, CatalogHistoryEntityTypeEnum entityType, int entityId, string message)
     {
         if (httpContextAccessor.HttpContext?.User.IsInRole(AppConstants.TesterRoleName) == true)
             return;

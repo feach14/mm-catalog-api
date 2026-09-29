@@ -1,6 +1,6 @@
 namespace Catalog.Database.Enums;
 
-public enum CatalogHistoryActionType
+public enum CatalogHistoryActionTypeEnum
 {
     Create,
     Update,

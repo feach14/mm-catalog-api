@@ -24,8 +24,8 @@ public class DeleteMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
         historyWriter.Add(
-            CatalogHistoryActionType.Delete,
-            CatalogHistoryEntityType.Material,
+            CatalogHistoryActionTypeEnum.Delete,
+            CatalogHistoryEntityTypeEnum.Material,
             material.Id,
             $"Удалён материал #{material.Id} «{material.Name}». Перед удалением: артикул {material.Article}, категория #{material.CategoryId}, производитель #{material.MaterialManufacturerId}, размер #{material.MaterialSheetSizeId}, количество {material.Count}, цена {material.Price}, изображения {(imageGuids.Length == 0 ? "нет" : string.Join(", ", imageGuids))}.");
         dbContext.Materials.Remove(material);

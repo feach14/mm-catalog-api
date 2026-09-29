@@ -21,8 +21,8 @@ public sealed class DeleteMaterialSheetSizeCommandHandler(CatalogDbContext dbCon
 
         dbContext.MaterialSheetSizes.Remove(size);
         historyWriter.Add(
-            CatalogHistoryActionType.Delete,
-            CatalogHistoryEntityType.SheetSize,
+            CatalogHistoryActionTypeEnum.Delete,
+            CatalogHistoryEntityTypeEnum.SheetSize,
             size.Id,
             $"Удалён размер плиты #{size.Id} «{size.Name}». Перед удалением: {size.Height}×{size.Width}, показывать в фильтрах — {(size.ShowInFilters ? "Да" : "Нет")}.");
         await dbContext.SaveChangesAsync(ct);

@@ -4,5 +4,5 @@ namespace Catalog.Api.Services.History;
 
 public interface ICatalogHistoryWriter
 {
-    void Add(CatalogHistoryActionType actionType, CatalogHistoryEntityType entityType, int entityId, string message);
+    void Add(CatalogHistoryActionTypeEnum actionType, CatalogHistoryEntityTypeEnum entityType, int entityId, string message);
 }

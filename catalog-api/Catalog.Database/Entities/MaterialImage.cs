@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Catalog.Database.Enums;
 
 #pragma warning disable CS8618 // Параметры заполняются на уровне EF 
 
@@ -15,4 +16,5 @@ public sealed record MaterialImage
     public required Guid Guid { get; init; }
     public required string Type { get; init; }
     public required byte[] Data { get; init; }
+    public required MaterialImageTypeEnum ImageType { get; init; }
 }

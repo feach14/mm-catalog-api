@@ -42,8 +42,8 @@ public sealed class UpdateMaterialSheetSizeCommandHandler(CatalogDbContext dbCon
         size.Width = command.Model.Width;
         size.ShowInFilters = command.Model.ShowInFilters;
         historyWriter.Add(
-            CatalogHistoryActionType.Update,
-            CatalogHistoryEntityType.SheetSize,
+            CatalogHistoryActionTypeEnum.Update,
+            CatalogHistoryEntityTypeEnum.SheetSize,
             size.Id,
             $"Размер плиты #{size.Id} изменён: {string.Join(", ", changes)}.");
         await dbContext.SaveChangesAsync(ct);

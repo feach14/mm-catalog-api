@@ -7,8 +7,8 @@ namespace Catalog.Api.Features.History;
 public sealed record GetCatalogHistoryQuery(
     [property: Description("Номер страницы"), FromQuery] int Page = 1,
     [property: Description("Количество записей на странице"), FromQuery] int PageSize = 50,
-    [property: Description("Тип действия: создание, изменение или удаление"), FromQuery] CatalogHistoryActionType? ActionType = null,
-    [property: Description("Тип сущности каталога"), FromQuery] CatalogHistoryEntityType? EntityType = null,
+    [property: Description("Тип действия: создание, изменение или удаление"), FromQuery] CatalogHistoryActionTypeEnum? ActionType = null,
+    [property: Description("Тип сущности каталога"), FromQuery] CatalogHistoryEntityTypeEnum? EntityType = null,
     [property: Description("Номер телефона пользователя, выполнившего изменение"), FromQuery] string? UserPhone = null,
     [property: Description("Начало периода изменений"), FromQuery] DateTimeOffset? From = null,
     [property: Description("Окончание периода изменений"), FromQuery] DateTimeOffset? To = null,
@@ -29,8 +29,8 @@ public sealed class GetCatalogHistoryQueryValidator : AbstractValidator<GetCatal
 public sealed record CatalogHistoryItemDto(
     [property: Description("Id записи истории")] long Id,
     [property: Description("Дата и время изменения")] DateTimeOffset OccurredAt,
-    [property: Description("Тип действия: создание, изменение или удаление")] CatalogHistoryActionType ActionType,
-    [property: Description("Тип изменённой сущности каталога")] CatalogHistoryEntityType EntityType,
+    [property: Description("Тип действия: создание, изменение или удаление")] CatalogHistoryActionTypeEnum ActionType,
+    [property: Description("Тип изменённой сущности каталога")] CatalogHistoryEntityTypeEnum EntityType,
     [property: Description("Id изменённой сущности")] int EntityId,
     [property: Description("Номер телефона пользователя, выполнившего изменение")] string UserPhone,
     [property: Description("Описание изменения")] string Message);

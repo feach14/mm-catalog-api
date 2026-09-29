@@ -1,3 +1,5 @@
+using Catalog.Database.Enums;
+
 namespace Catalog.Api.Features.Materials.ForAdmin.Dto;
 
 public class CachedFileDto
@@ -10,4 +12,7 @@ public class CachedFileDto
 
     [Description("Тип файла")]
     public required string ContentType { get; init; }
+
+    [Description("Назначение изображения")]
+    public required MaterialImageTypeEnum ImageType { get; init; }
 }

@@ -1,6 +1,7 @@
 using Catalog.Api.Features.Materials.ForAdmin.Dto;
 using Catalog.Database;
 using Catalog.Database.Entities;
+using Catalog.Database.Enums;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.ForAdmin;
@@ -9,6 +10,9 @@ public sealed record UploadMaterialImageCommand : ICommand<UploadMaterialImageCo
 {
     [FromForm, Description("Файл изображения")]
     public required IFormFile File { get; init; }
+
+    [FromForm, Description("Назначение изображения")]
+    public required MaterialImageTypeEnum ImageType { get; init; }
 }
 
 public sealed class UploadMaterialImageCommandResult : CachedFileDto;
@@ -32,6 +36,10 @@ public sealed class UploadMaterialImageCommandValidator : AbstractValidator<Uplo
                 return GetImageContentType(header.AsSpan(0, bytesRead)) is not null;
             })
             .WithMessage("Допустимы только изображения PNG, JPEG и WebP");
+
+        RuleFor(x => x.ImageType)
+            .IsInEnum()
+            .WithMessage("Указано неизвестное назначение изображения");
     }
 
     internal static string? GetImageContentType(ReadOnlySpan<byte> data)
@@ -65,7 +73,8 @@ public class UploadMaterialImageCommandHandler(CatalogDbContext dbContext)
         {
             FileName = command.File.FileName,
             FileGuid = Guid.NewGuid(),
-            ContentType = contentType
+            ContentType = contentType,
+            ImageType = command.ImageType
         };
 
         await dbContext.ImageCache.AddAsync(new ImageCache
@@ -73,7 +82,8 @@ public class UploadMaterialImageCommandHandler(CatalogDbContext dbContext)
             Guid = cachedFile.FileGuid,
             FileName = cachedFile.FileName,
             Type = cachedFile.ContentType,
-            Data = data
+            Data = data,
+            ImageType = cachedFile.ImageType
         }, ct);
         await dbContext.SaveChangesAsync(ct);
 

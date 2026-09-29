@@ -1,4 +1,5 @@
 using Catalog.Api.Features.Materials.Dto;
+using Catalog.Api.Features.Materials.ForAdmin.Dto;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;
@@ -19,7 +20,7 @@ public sealed record GetMaterialForAdminQueryResult(
     [property: Description("Использование материала в калькуляторе раскроя")] bool ApplicableToRaskroys,
     [property: Description("Использование материала в калькуляторе фасадов ПВХ")] bool ApplicableToPvhFacades,
     [property: Description("Использование материала в калькуляторе фасадов эмаль")] bool ApplicableToEmalFacades,
-    [property: Description("Id изображения материала")] Guid? Image,
+    [property: Description("Оригинал и миниатюры материала")] MaterialImagesDto Images,
     [property: Description("Категория")] CategoryDto Category,
     [property: Description("Количество")] int Count,
     [property: Description("Порядковый номер записи (для сортировки)")] int OrderByCol,
@@ -35,6 +36,7 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
     public async Task<GetMaterialForAdminQueryResult> Handle(GetMaterialForAdminQuery query, CancellationToken ct)
     {
         var queryResult = await dbContext.Materials
+                   .Include(x => x.Images)
                    .Where(x => x.Id == query.Id)
                    .Select(x => new
                    {
@@ -56,7 +58,7 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
                        x.CommentOnMaterialIsRequired,
                        x.AllowSecondItemInOrder,
                        x.ExternalLink,
-                       Image = x.Images.Count != 0 ? x.Images.Select(g => g.Guid).First() : (Guid?)null,
+                       x.Images,
                        x.CategoryId,
                        CategoryName = x.Category.Name,
                        x.Count,
@@ -79,7 +81,12 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
             ApplicableToRaskroys: queryResult.ApplicableToRaskroys,
             ApplicableToPvhFacades: queryResult.ApplicableToPvhFacades,
             ApplicableToEmalFacades: queryResult.ApplicableToEmalFacades,
-            Image: queryResult.Image,
+            Images: new MaterialImagesDto
+            {
+                Original = queryResult.Images.SingleOrDefault(x=>x.ImageType == MaterialImageTypeEnum.Original)?.Guid,
+                Thumbnail240 = queryResult.Images.SingleOrDefault(x=>x.ImageType == MaterialImageTypeEnum.Thumbnail240)?.Guid,
+                Thumbnail480 = queryResult.Images.SingleOrDefault(x=>x.ImageType == MaterialImageTypeEnum.Thumbnail480)?.Guid,
+            },
             Category: new CategoryDto(queryResult.CategoryId, queryResult.CategoryName),
             Count: queryResult.Count,
             OrderByCol: queryResult.OrderByCol,

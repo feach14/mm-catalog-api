@@ -34,8 +34,8 @@ public sealed class CreateManufacturerCommandHandler(CatalogDbContext dbContext,
         dbContext.MaterialManufacturers.Add(manufacturer);
         await dbContext.SaveChangesAsync(ct);
         historyWriter.Add(
-            CatalogHistoryActionType.Create,
-            CatalogHistoryEntityType.Manufacturer,
+            CatalogHistoryActionTypeEnum.Create,
+            CatalogHistoryEntityTypeEnum.Manufacturer,
             manufacturer.Id,
             $"Создан производитель #{manufacturer.Id} «{manufacturer.Name}».");
         await dbContext.SaveChangesAsync(ct);

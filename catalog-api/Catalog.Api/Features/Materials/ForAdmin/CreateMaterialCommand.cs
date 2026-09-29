@@ -4,22 +4,32 @@ using Catalog.Database;
 using Catalog.Database.Entities;
 using Catalog.Database.Enums;
 using Core.CQRS;
-using Microsoft.Extensions.Caching.Memory;
 
 namespace Catalog.Api.Features.Materials.ForAdmin;
 
-public sealed record CreateMaterialCommand(MaterialModel Material) : ICommand<CreateMaterialCommandResult>;
+public sealed record CreateMaterialCommand(CreateMaterialModel Material) : ICommand<CreateMaterialCommandResult>;
+
+public sealed record CreateMaterialModel : MaterialModel;
+
+public sealed class CreateMaterialModelValidator : AbstractValidator<CreateMaterialModel>
+{
+    public CreateMaterialModelValidator(CatalogDbContext dbContext)
+    {
+        Include(new MaterialModelValidator(dbContext));
+        RuleFor(x => x.Name)
+            .MustAsync(async (name, ct) =>
+                !await dbContext.Materials.AnyAsync(x => x.Name == name.Trim(), ct))
+            .When(x => !string.IsNullOrWhiteSpace(x.Name))
+            .WithMessage("Материал с таким названием уже существует");
+    }
+}
 
 public sealed record CreateMaterialCommandResult([property: Description("Id материала")] int Id);
 
-public class CreateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCache memoryCache, ICatalogHistoryWriter historyWriter) : ICommandHandler<CreateMaterialCommand, CreateMaterialCommandResult>
+public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHistoryWriter historyWriter) : ICommandHandler<CreateMaterialCommand, CreateMaterialCommandResult>
 {
     public async Task<CreateMaterialCommandResult> Handle(CreateMaterialCommand command, CancellationToken ct)
     {
-        var materialName = command.Material.Name.Trim();
-        if (await dbContext.Materials.AnyAsync(x => x.Name == materialName, ct))
-            throw new BadHttpRequestException("Материал с таким названием уже существует.");
-
         var maxOrderByCol = await dbContext.Materials.MaxAsync(x => (int?)x.OrderByCol, ct) ?? 0;
 
         var material = new Material
@@ -49,38 +59,38 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCac
         await dbContext.Materials.AddAsync(material, ct);
         await dbContext.SaveChangesAsync(ct);
 
-        GetMaterialImageQueryResult? imageToCache = null;
-        if (command.Material.Image != null)
+        Guid?[] images = [command.Material.Image, command.Material.Thumbnail480, command.Material.Thumbnail240];
+        foreach (var imageGuid in images.Where(x => x != null))
         {
-            var fileFromCache = await dbContext.ImageCache
-                .FirstOrDefaultAsync(x => x.Guid == command.Material.Image, ct);
-            if (fileFromCache is null)
-                throw new BadHttpRequestException("Файл с изображением материала отсутствует в кэше");
+            var fileFromImgCache = await dbContext.ImageCache.SingleAsync(x => x.Guid == imageGuid, ct);
+            await dbContext.MaterialImages.AddAsync(new MaterialImage
+            {
+                Data = fileFromImgCache.Data,
+                Guid = fileFromImgCache.Guid,
+                MaterialId = material.Id,
+                Type = fileFromImgCache.Type,
+                ImageType = fileFromImgCache.ImageType
+            }, ct);
 
-            await dbContext.MaterialImages.AddAsync(
-                new MaterialImage
-                {
-                    Data = fileFromCache.Data,
-                    Guid = fileFromCache.Guid,
-                    MaterialId = material.Id,
-                    Type = fileFromCache.Type
-                }, ct);
-
-            dbContext.ImageCache.Remove(fileFromCache);
-            imageToCache = new GetMaterialImageQueryResult(fileFromCache.Data, fileFromCache.Type);
+            dbContext.ImageCache.RemoveRange(fileFromImgCache);
         }
 
         historyWriter.Add(
-            CatalogHistoryActionType.Create,
-            CatalogHistoryEntityType.Material,
+            CatalogHistoryActionTypeEnum.Create,
+            CatalogHistoryEntityTypeEnum.Material,
             material.Id,
-            $"Создан материал #{material.Id} «{material.Name}»: артикул {material.Article}, категория #{material.CategoryId}, производитель #{material.MaterialManufacturerId}, размер #{material.MaterialSheetSizeId}, количество {material.Count}, цена {material.Price}, изображение {(command.Material.Image.HasValue ? command.Material.Image.Value : "нет")}.");
+            $"Создан материал #{material.Id} «{material.Name}»: "
+            + $"артикул {material.Article}, "
+            + $"категория #{material.CategoryId}, "
+            + $"производитель #{material.MaterialManufacturerId}, "
+            + $"размер #{material.MaterialSheetSizeId}, "
+            + $"количество {material.Count}, "
+            + $"цена {material.Price}, "
+            + $"изображения {string.Join(';', images.Select(x => $"{(x?.ToString() ?? "нет")}"))}.");
+        
         await dbContext.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-
-        if (command.Material.Image != null && imageToCache != null)
-            memoryCache.Set(command.Material.Image.Value, imageToCache);
-
+            
         return new CreateMaterialCommandResult(material.Id);
     }
 }

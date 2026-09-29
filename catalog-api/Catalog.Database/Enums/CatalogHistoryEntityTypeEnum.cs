@@ -1,6 +1,6 @@
 namespace Catalog.Database.Enums;
 
-public enum CatalogHistoryEntityType
+public enum CatalogHistoryEntityTypeEnum
 {
     Material,
     Category,

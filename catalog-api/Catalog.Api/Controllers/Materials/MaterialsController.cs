@@ -1,12 +1,11 @@
 using Catalog.Api.Features.Materials;
 using Catalog.Api.Features.Materials.ForAdmin;
-using Catalog.Api.Features.Materials.ForAdmin.Dto;
 using Catalog.Api.Features.Materials.Public;
-using Catalog.Api.Features.Materials.Public.Dto;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.Net.Http.Headers;
 
 namespace Catalog.Api.Controllers.Materials;
 
@@ -19,6 +18,26 @@ namespace Catalog.Api.Controllers.Materials;
  ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав менеджера или администратора")]
 public class MaterialsController : BaseApiController
 {
+    [HttpGet("search"),
+     AllowAnonymous,
+     EndpointSummary(nameof(SearchMaterials)),
+     EndpointDescription("Публичный постраничный поиск материалов"),
+     ProducesResponseType(typeof(SearchMaterialsQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Страница материалов")]
+    public Task<SearchMaterialsQueryResult> SearchMaterials(
+        [FromQuery] SearchMaterialsQuery query,
+        [FromServices] IQueryHandler<SearchMaterialsQuery, SearchMaterialsQueryResult> handler) =>
+        handler.Handle(query, HttpContext.RequestAborted);
+
+    [HttpGet("filters"),
+     AllowAnonymous,
+     EndpointSummary(nameof(MaterialFilters)),
+     EndpointDescription("Связанные фильтры публичного каталога материалов"),
+     ProducesResponseType(typeof(GetMaterialFiltersQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Значения фильтров и количества материалов")]
+    public Task<GetMaterialFiltersQueryResult> MaterialFilters(
+        [FromQuery] GetMaterialFiltersQuery query,
+        [FromServices] IQueryHandler<GetMaterialFiltersQuery, GetMaterialFiltersQueryResult> handler) =>
+        handler.Handle(query, HttpContext.RequestAborted);
+
     [HttpGet,
      AllowAnonymous,
      EndpointSummary(nameof(Materials)),
@@ -62,7 +81,7 @@ public class MaterialsController : BaseApiController
      EndpointDescription("Создание нового материала"),
      ProducesResponseType(typeof(CreateMaterialCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
     public Task<CreateMaterialCommandResult> CreateMaterial(
-        [FromBody, Description("Параметры материала")] MaterialModel model,
+        [FromBody, Description("Параметры материала")] CreateMaterialModel model,
         [FromServices] ICommandHandler<CreateMaterialCommand, CreateMaterialCommandResult> handler) =>
         handler.Handle(new CreateMaterialCommand(model), HttpContext.RequestAborted);
 
@@ -72,7 +91,7 @@ public class MaterialsController : BaseApiController
      ProducesResponseType(typeof(UpdateMaterialCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
     public Task<UpdateMaterialCommandResult> UpdateMaterial(
         [FromRoute, Description("Id материала")] int id,
-        [FromBody, Description("Параметры материала")] MaterialModel model,
+        [FromBody, Description("Параметры материала")] UpdateMaterialModel model,
         [FromServices] ICommandHandler<UpdateMaterialCommand, UpdateMaterialCommandResult> handler) =>
         handler.Handle(new UpdateMaterialCommand(id, model), HttpContext.RequestAborted);
 
@@ -98,7 +117,7 @@ public class MaterialsController : BaseApiController
      Consumes("multipart/form-data"),
      RequestSizeLimit(MaxImageRequestSize),
      EndpointSummary(nameof(UploadMaterialImage)),
-     EndpointDescription("Загрузка изображения материала в формате PNG, JPEG или WebP размером до 5 МБ"),
+     EndpointDescription("Загрузка оригинала или готовой миниатюры материала в формате PNG, JPEG или WebP размером до 5 МБ"),
      ProducesResponseType(typeof(UploadMaterialImageCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Данные загруженного изображения")]
     public async Task<UploadMaterialImageCommandResult> UploadMaterialImage(
         [FromForm, Description("Параметры загрузки изображения")] UploadMaterialImageCommand command,
@@ -107,17 +126,23 @@ public class MaterialsController : BaseApiController
 
     [HttpGet("images/{fileGuid:guid}"),
      AllowAnonymous,
+     ResponseCache(Duration = ImageCacheDurationSeconds, Location = ResponseCacheLocation.Any),
      EndpointSummary(nameof(MaterialImage)),
      EndpointDescription("Изображение материала"),
-     ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK, Description = "Изображение материала")]
-    public async Task<FileContentResult> MaterialImage(
+     ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK, Description = "Изображение материала"),
+     ProducesResponseType(typeof(void), StatusCodes.Status304NotModified, Description = "Изображение не изменилось")]
+    public async Task<IActionResult> MaterialImage(
         [FromRoute, Description("Id изображения")] Guid fileGuid,
         [FromServices] IQueryHandler<GetMaterialImageQuery, GetMaterialImageQueryResult> handler)
     {
         var image = await handler.Handle(new GetMaterialImageQuery(fileGuid), HttpContext.RequestAborted);
-        return File(image.Data, image.ContentType);
+        return new FileContentResult(image.Data, image.ContentType)
+        {
+            EntityTag = new EntityTagHeaderValue($"\"{fileGuid:D}\"")
+        };
     }
 
     private const long MaxImageRequestSize = 6 * 1024 * 1024;
+    private const int ImageCacheDurationSeconds = 365 * 24 * 60 * 60;
 
 }

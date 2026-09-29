@@ -1,12 +1,12 @@
 using Catalog.Api.Features.Materials.Dto;
-using Catalog.Api.Features.Materials.Public.Dto;
+using Catalog.Api.Features.Materials.ForAdmin.Dto;
 using Catalog.Database;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.Public;
 
 public sealed record GetAllMaterialsQuery(
-    [property: Description("Калькулятор: Raskroy, PvhFacades или EmalFacades. Для выбора нескольких калькуляторов повторите параметр calculator. Без параметра возвращаются все материалы."), FromQuery] MaterialCalculator[]? Calculator,
+    [property: Description("Калькулятор: Raskroy, PvhFacades или EmalFacades. Для выбора нескольких калькуляторов повторите параметр calculator. Без параметра возвращаются все материалы."), FromQuery] MaterialCalculatorEnum[]? Calculator,
     [property: Description("Наличие материала: true — count > 0, false — count < 1. Без параметра возвращаются все материалы."), FromQuery] bool? InStock
 ) : IQuery<GetAllMaterialsQueryResult>;
 
@@ -21,9 +21,19 @@ public sealed class GetAllMaterialsQueryValidator : AbstractValidator<GetAllMate
     }
 }
 
-public sealed record GetAllMaterialsQueryResult(
-    [property: Description("Список материалов")] List<GetMaterialQueryResult> Items,
-    [property: Description("Список категорий из списка материалов")] List<MaterialCategoryDto> Categories);
+public sealed record GetAllMaterialsQueryResult([property: Description("Список материалов")] GetAllMaterialsQueryItemResult[] Items);
+
+public sealed record GetAllMaterialsQueryItemResult(
+    [property: Description("Id материала")] int Id,
+    [property: Description("Название материала")] string Name,
+    [property: Description("Артикул материала")] string Article,
+    [property: Description("Размер материала")] MaterialSheetSizeDto SheetSize,
+    [property: Description("Производитель")] MaterialManufacturerDto Manufacturer,
+    [property: Description("Толщина плиты")] double Depth,
+    [property: Description("Категория")] CategoryDto Category,
+    [property: Description("Количество")] int Count,
+    [property: Description("Признак: Комментарий к материалу обязателен при оформлении заявки(расчета)")] bool CommentOnMaterialIsRequired,
+    [property: Description("Порядковый номер записи (для сортировки)")] int OrderByCol);
 
 public record MaterialCategoryDto(
     [property: Description("Id категории")] int Id,
@@ -49,47 +59,35 @@ public class GetAllMaterialsQueryHandler(CatalogDbContext dbContext) : IQueryHan
                 x.Id,
                 x.Name,
                 x.Article,
-                SheetSize = new MaterialSheetSizeDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name, x.MaterialSheetSize.Height, x.MaterialSheetSize.Width),
-                Manufacturer = new MaterialManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
+                SheetSizeId = x.MaterialSheetSize.Id,
+                SheetSizeName = x.MaterialSheetSize.Name,
+                SheetSizeHeight = x.MaterialSheetSize.Height,
+                SheetSizeWidth = x.MaterialSheetSize.Width,
+                ManufacturerId = x.MaterialManufacturer.Id,
+                ManufacturerName = x.MaterialManufacturer.Name,
                 x.Depth,
-                x.CommentOnMaterialIsRequired,
-                Image = x.Images.Count != 0 ? x.Images.Select(g => g.Guid).First() : (Guid?)null,
                 x.CategoryId,
                 CategoryName = x.Category.Name,
-                x.OrderByCol,
-                CategoryOrderBy = x.Category.OrderByCol,
-                x.Count
+                x.Count,
+                x.CommentOnMaterialIsRequired,
+                x.OrderByCol
             })
-            .ToListAsync(ct);
+            .ToArrayAsync(ct);
 
         var materials = materialRows
-            .Select(x => new GetMaterialQueryResult
-            {
-                Id = x.Id,
-                Name = x.Name,
-                Article = x.Article,
-                SheetSize = x.SheetSize,
-                Manufacturer = x.Manufacturer,
-                Depth = x.Depth,
-                CommentOnMaterialIsRequired = x.CommentOnMaterialIsRequired,
-                Image = x.Image,
-                Category = new CategoryDto(x.CategoryId, x.CategoryName),
-                OrderByCol = x.OrderByCol,
-                Count = x.Count
-            })
-            .ToList();
+            .Select(x => new GetAllMaterialsQueryItemResult(
+                Id: x.Id,
+                Name: x.Name,
+                Article: x.Article,
+                SheetSize: new MaterialSheetSizeDto(x.SheetSizeId, x.SheetSizeName, x.SheetSizeHeight, x.SheetSizeWidth),
+                Manufacturer: new MaterialManufacturerDto(x.ManufacturerId, x.ManufacturerName),
+                Depth: x.Depth,
+                Category: new CategoryDto(x.CategoryId, x.CategoryName),
+                Count: x.Count,
+                CommentOnMaterialIsRequired: x.CommentOnMaterialIsRequired,
+                OrderByCol: x.OrderByCol))
+            .ToArray();
 
-        var categories = materialRows
-            .GroupBy(x => new { x.CategoryId, x.CategoryName, x.CategoryOrderBy })
-            .Select(x => new MaterialCategoryDto
-            (
-                Id: x.Key.CategoryId,
-                Name: x.Key.CategoryName,
-                OrderByCol: x.Key.CategoryOrderBy
-            ))
-            .OrderBy(x => x.OrderByCol)
-            .ToList();
-
-        return new GetAllMaterialsQueryResult(materials, categories);
+        return new GetAllMaterialsQueryResult(materials);
     }
 }
