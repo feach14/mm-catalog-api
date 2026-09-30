@@ -1,6 +1,5 @@
-using Catalog.Api.Features.MaterialSheetSizes;
-using Catalog.Api.Features.MaterialSheetSizes.Dto;
 using Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
+using Catalog.Api.Features.MaterialSheetSizes.ForAdmin.Dto;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
@@ -28,10 +27,10 @@ public sealed class AdminMaterialSheetSizesController : BaseApiController
     [HttpGet("{id:int}"),
      EndpointSummary(nameof(MaterialSheetSize)),
      EndpointDescription("Информация о размере материала"),
-     ProducesResponseType(typeof(SheetSizeDto), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Размер материала")]
-    public Task<SheetSizeDto> MaterialSheetSize(
+     ProducesResponseType(typeof(GetMaterialSheetSizeQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Размер материала")]
+    public Task<GetMaterialSheetSizeQueryResult> MaterialSheetSize(
         [FromRoute, Description("Id размера материала")] int id,
-        [FromServices] IQueryHandler<GetMaterialSheetSizeQuery, SheetSizeDto> handler) =>
+        [FromServices] IQueryHandler<GetMaterialSheetSizeQuery, GetMaterialSheetSizeQueryResult> handler) =>
         handler.Handle(new GetMaterialSheetSizeQuery(id), HttpContext.RequestAborted);
 
     [HttpPost,
@@ -39,7 +38,7 @@ public sealed class AdminMaterialSheetSizesController : BaseApiController
      EndpointDescription("Создание нового размера материала"),
      ProducesResponseType(typeof(CreateMaterialSheetSizeCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
     public Task<CreateMaterialSheetSizeCommandResult> CreateMaterialSheetSize(
-        [FromBody, Description("Параметры размера материала")] SheetSizeModel model,
+        [FromBody, Description("Параметры размера материала")] MaterialSheetSizeModel model,
         [FromServices] ICommandHandler<CreateMaterialSheetSizeCommand, CreateMaterialSheetSizeCommandResult> handler) =>
         handler.Handle(new CreateMaterialSheetSizeCommand(model), HttpContext.RequestAborted);
 
@@ -49,7 +48,7 @@ public sealed class AdminMaterialSheetSizesController : BaseApiController
      ProducesResponseType(typeof(UpdateMaterialSheetSizeCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
     public Task<UpdateMaterialSheetSizeCommandResult> UpdateMaterialSheetSize(
         [FromRoute, Description("Id размера материала")] int id,
-        [FromBody, Description("Параметры размера материала")] SheetSizeModel model,
+        [FromBody, Description("Параметры размера материала")] MaterialSheetSizeModel model,
         [FromServices] ICommandHandler<UpdateMaterialSheetSizeCommand, UpdateMaterialSheetSizeCommandResult> handler) =>
         handler.Handle(new UpdateMaterialSheetSizeCommand(id, model), HttpContext.RequestAborted);
 

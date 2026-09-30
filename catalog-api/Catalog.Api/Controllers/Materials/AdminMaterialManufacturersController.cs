@@ -1,4 +1,3 @@
-using Catalog.Api.Features.Manufacturers;
 using Catalog.Api.Features.Manufacturers.Dto;
 using Catalog.Api.Features.Manufacturers.ForAdmin;
 using Core.Attributes;
@@ -28,10 +27,10 @@ public sealed class AdminMaterialManufacturersController : BaseApiController
     [HttpGet("{id:int}"),
      EndpointSummary(nameof(Manufacturer)),
      EndpointDescription("Информация о производителе"),
-     ProducesResponseType(typeof(ManufacturerDto), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Производитель")]
-    public Task<ManufacturerDto> Manufacturer(
+     ProducesResponseType(typeof(GetManufacturerQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Производитель")]
+    public Task<GetManufacturerQueryResult> Manufacturer(
         [FromRoute, Description("Id производителя")] int id,
-        [FromServices] IQueryHandler<GetManufacturerQuery, ManufacturerDto> handler) =>
+        [FromServices] IQueryHandler<GetManufacturerQuery, GetManufacturerQueryResult> handler) =>
         handler.Handle(new GetManufacturerQuery(id), HttpContext.RequestAborted);
 
     [HttpPost,
@@ -39,9 +38,9 @@ public sealed class AdminMaterialManufacturersController : BaseApiController
      EndpointDescription("Создание нового производителя"),
      ProducesResponseType(typeof(CreateManufacturerCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
     public Task<CreateManufacturerCommandResult> CreateManufacturer(
-        [FromBody, Description("Параметры производителя")] CreateManufacturerCommand command,
+        [FromBody, Description("Параметры производителя")] MaterialManufacturerModel model,
         [FromServices] ICommandHandler<CreateManufacturerCommand, CreateManufacturerCommandResult> handler) =>
-        handler.Handle(command, HttpContext.RequestAborted);
+        handler.Handle(new CreateManufacturerCommand(model), HttpContext.RequestAborted);
 
     [HttpPut("{id:int}"),
      EndpointSummary(nameof(UpdateManufacturer)),
@@ -49,9 +48,9 @@ public sealed class AdminMaterialManufacturersController : BaseApiController
      ProducesResponseType(typeof(UpdateManufacturerCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
     public Task<UpdateManufacturerCommandResult> UpdateManufacturer(
         [FromRoute, Description("Id производителя")] int id,
-        [FromBody, Description("Параметры производителя")] UpdateManufacturerCommand command,
+        [FromBody, Description("Параметры производителя")] MaterialManufacturerModel model,
         [FromServices] ICommandHandler<UpdateManufacturerCommand, UpdateManufacturerCommandResult> handler) =>
-        handler.Handle(command with { Id = id }, HttpContext.RequestAborted);
+        handler.Handle(new UpdateManufacturerCommand(id, model), HttpContext.RequestAborted);
 
     [HttpDelete("{id:int}"),
      EndpointSummary(nameof(DeleteManufacturer)),

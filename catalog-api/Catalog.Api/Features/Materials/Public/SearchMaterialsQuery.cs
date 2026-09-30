@@ -1,7 +1,7 @@
 // ReSharper disable NotAccessedPositionalProperty.Global
 
+using Catalog.Api.Features.Materials.Dto;
 using Catalog.Api.Features.Materials.ForAdmin.Dto;
-using Catalog.Api.Features.MaterialThicknesses.Dto;
 using Catalog.Database;
 using Catalog.Database.Entities;
 using Catalog.Database.Enums;
@@ -20,7 +20,8 @@ public enum PublicMaterialSortEnum
 public sealed record SearchMaterialsQuery(
     [property: Description("ID категорий"), FromQuery] int[]? CategoryIds = null,
     [property: Description("ID производителей"), FromQuery] int[]? ManufacturerIds = null,
-    [property: Description("Толщины в миллиметрах"), FromQuery] double[]? Depths = null,
+    [property: Description("ID типов материалов"), FromQuery] int[]? MaterialTypeIds = null,
+    [property: Description("Толщины в миллиметрах"), FromQuery] decimal[]? Depths = null,
     [property: Description("ID толщин материалов"), FromQuery] int[]? ThicknessIds = null,
     [property: Description("ID форматов листа"), FromQuery] int[]? SheetSizeIds = null,
     [property: Description("Калькуляторы"), FromQuery] MaterialCalculatorEnum[]? Calculators = null,
@@ -57,6 +58,12 @@ public sealed class SearchMaterialsQueryValidator : AbstractValidator<SearchMate
             .Must(values => values is null || values.All(value => value > 0)).WithMessage("Id производителей должны быть положительными числами")
             .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialManufacturers.Select(x => x.Id), ct))
             .WithMessage("Один или несколько производителей не найдены");
+        RuleFor(x => x.MaterialTypeIds)
+            .Cascade(CascadeMode.Stop)
+            .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений типов материалов")
+            .Must(values => values is null || values.All(value => value > 0)).WithMessage("Id типов материалов должны быть положительными числами")
+            .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialTypes.Select(x => x.Id), ct))
+            .WithMessage("Один или несколько типов материалов не найдены");
         RuleFor(x => x.SheetSizeIds)
             .Cascade(CascadeMode.Stop)
             .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений форматов листа")
@@ -73,7 +80,7 @@ public sealed class SearchMaterialsQueryValidator : AbstractValidator<SearchMate
 
         RuleFor(x => x.Depths)
             .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений толщины")
-            .Must(values => values is null || values.All(value => double.IsFinite(value) && value > 0)).WithMessage("Толщина должна быть положительным конечным числом");
+            .Must(values => values is null || values.All(value => value > 0)).WithMessage("Толщина должна быть положительным конечным числом");
         RuleFor(x => x.Calculators)
             .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений калькулятора");
         RuleForEach(x => x.Calculators!).IsInEnum().When(x => x.Calculators is not null).WithMessage("Указан неизвестный калькулятор");
@@ -98,31 +105,19 @@ public sealed record PublicMaterialListItemDto(
     [property: Description("Id материала")] int Id,
     [property: Description("Название материала")] string Name,
     [property: Description("Артикул материала")] string Article,
-    [property: Description("Категория")] PublicMaterialCategoryDto Category,
-    [property: Description("Производитель")] PublicMaterialManufacturerDto Manufacturer,
-    [property: Description("Толщина материала")] MaterialThicknessDto Thickness,
-    [property: Description("Формат листа")] PublicMaterialSheetSizeDto SheetSize,
-    [property: Description("Материал есть в наличии")] bool InStock,
-    [property: Description("Изображения материала")] PublicMaterialImagesDto Images);
+    [property: Description("Категория")] PropertyDto Category,
+    [property: Description("Производитель")] PropertyDto Manufacturer,
+    [property: Description("Тип материала")] PropertyDto MaterialType,
+    [property: Description("Толщина материала")] PropertyDto Thickness,
+    [property: Description("Формат листа")] PropertyDto SheetSize,
+    [property: Description("Изображения материала")] PublicMaterialImagesDto Images,
+    [property: Description("Материал есть в наличии")] bool InStock
+);
 
 public sealed record PublicMaterialImagesDto(
     [property: Description("Id оригинального изображения")] Guid? Original,
     [property: Description("Id квадратной миниатюры 240 на 240 пикселей")] Guid? Thumbnail240,
     [property: Description("Id квадратной миниатюры 480 на 480 пикселей")] Guid? Thumbnail480);
-
-public sealed record PublicMaterialCategoryDto(
-    [property: Description("Id категории")] int Id,
-    [property: Description("Название категории")] string Name);
-
-public sealed record PublicMaterialManufacturerDto(
-    [property: Description("Id производителя")] int Id,
-    [property: Description("Название производителя")] string Name);
-
-public sealed record PublicMaterialSheetSizeDto(
-    [property: Description("Id формата листа")] int Id,
-    [property: Description("Название формата листа")] string Name,
-    [property: Description("Высота листа в миллиметрах")] int Height,
-    [property: Description("Ширина листа в миллиметрах")] int Width);
 
 public sealed class SearchMaterialsQueryHandler(CatalogDbContext dbContext)
     : IQueryHandler<SearchMaterialsQuery, SearchMaterialsQueryResult>
@@ -146,15 +141,16 @@ public sealed class SearchMaterialsQueryHandler(CatalogDbContext dbContext)
                 x.Id,
                 x.Name,
                 x.Article,
-                new PublicMaterialCategoryDto(x.CategoryId, x.Category.Name),
-                new PublicMaterialManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
-                new MaterialThicknessDto(x.MaterialThickness.Id, x.MaterialThickness.Name, x.MaterialThickness.Value),
-                new PublicMaterialSheetSizeDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name, x.MaterialSheetSize.Height, x.MaterialSheetSize.Width),
-                x.Count > 0,
-                new PublicMaterialImagesDto(
-                    x.Images.Where(image => image.ImageType == MaterialImageTypeEnum.Original).OrderBy(image => image.Id).Select(image => (Guid?)image.Guid).FirstOrDefault(),
-                    x.Images.Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail240).OrderBy(image => image.Id).Select(image => (Guid?)image.Guid).FirstOrDefault(),
-                    x.Images.Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail480).OrderBy(image => image.Id).Select(image => (Guid?)image.Guid).FirstOrDefault())))
+                Category: new PropertyDto(x.CategoryId, x.Category.Name),
+                Manufacturer: new PropertyDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
+                MaterialType: new PropertyDto(x.MaterialType.Id, x.MaterialType.Name),
+                Thickness: new PropertyDto(x.MaterialThickness.Id, x.MaterialThickness.Name),
+                SheetSize: new PropertyDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name),
+                Images: new PublicMaterialImagesDto(
+                    Original: x.Images.Where(image => image.ImageType == MaterialImageTypeEnum.Original).OrderBy(image => image.Id).Select(image => (Guid?)image.Guid).FirstOrDefault(),
+                    Thumbnail240: x.Images.Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail240).OrderBy(image => image.Id).Select(image => (Guid?)image.Guid).FirstOrDefault(),
+                    Thumbnail480: x.Images.Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail480).OrderBy(image => image.Id).Select(image => (Guid?)image.Guid).FirstOrDefault()),
+                x.Count > 0))
             .ToArrayAsync(ct);
 
         return new SearchMaterialsQueryResult(items, totalCount, query.Page, query.PageSize);
@@ -181,6 +177,11 @@ public sealed class SearchMaterialsQueryHandler(CatalogDbContext dbContext)
         {
             var ids = query.ManufacturerIds.Distinct().ToArray();
             materials = materials.Where(x => ids.Contains(x.MaterialManufacturerId));
+        }
+        if (query.MaterialTypeIds is { Length: > 0 })
+        {
+            var ids = query.MaterialTypeIds.Distinct().ToArray();
+            materials = materials.Where(x => ids.Contains(x.MaterialTypeId));
         }
         if (query.ThicknessIds is { Length: > 0 })
             materials = materials.Where(x => query.ThicknessIds.Contains(x.MaterialThicknessId));

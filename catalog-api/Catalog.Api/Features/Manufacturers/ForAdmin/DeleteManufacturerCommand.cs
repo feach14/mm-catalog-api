@@ -6,7 +6,9 @@ using Core.CQRS;
 namespace Catalog.Api.Features.Manufacturers.ForAdmin;
 
 public sealed record DeleteManufacturerCommand(int Id) : ICommand<DeleteManufacturerCommandResult>;
-public sealed record DeleteManufacturerCommandResult([property: Description("Успех операции")] bool Success);
+
+public sealed record DeleteManufacturerCommandResult(
+    [property: Description("Успех операции")] bool Success);
 
 public sealed class DeleteManufacturerCommandHandler(CatalogDbContext dbContext, ICatalogHistoryWriter historyWriter)
     : ICommandHandler<DeleteManufacturerCommand, DeleteManufacturerCommandResult>

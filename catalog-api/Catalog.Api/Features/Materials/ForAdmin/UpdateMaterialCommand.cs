@@ -38,16 +38,19 @@ public sealed class UpdateMaterialModelValidator : AbstractValidator<UpdateMater
             })
             .When(x => !string.IsNullOrWhiteSpace(x.Name))
             .WithMessage("Материал с таким названием уже существует");
+
         RuleFor(x => x.Image)
             .MustAsync(async (imageGuid, ct) => await ImageCanBeUsed(
                 dbContext, httpContextAccessor, imageGuid, MaterialImageTypeEnum.Original, ct))
             .When(x => x.Image is not null)
             .WithMessage("Оригинальное изображение с указанным GUID не найдено, имеет другое назначение или принадлежит другому материалу");
+
         RuleFor(x => x.Thumbnail240)
             .MustAsync(async (imageGuid, ct) => await ImageCanBeUsed(
                 dbContext, httpContextAccessor, imageGuid, MaterialImageTypeEnum.Thumbnail240, ct))
             .When(x => x.Thumbnail240 is not null)
             .WithMessage("Миниатюра 240 с указанным GUID не найдена, имеет другое назначение или принадлежит другому материалу");
+
         RuleFor(x => x.Thumbnail480)
             .MustAsync(async (imageGuid, ct) => await ImageCanBeUsed(
                 dbContext, httpContextAccessor, imageGuid, MaterialImageTypeEnum.Thumbnail480, ct))
@@ -97,6 +100,7 @@ public class UpdateMaterialCommandHandler(
         AddChange(changes, "категория", material.CategoryId, command.Material.CategoryId);
         AddChange(changes, "размер", material.MaterialSheetSizeId, command.Material.SheetSizeId);
         AddChange(changes, "производитель", material.MaterialManufacturerId, command.Material.ManufacturerId);
+        AddChange(changes, "тип материала", material.MaterialTypeId, command.Material.MaterialTypeId);
         AddChange(changes, "название", material.Name, command.Material.Name, true);
         AddChange(changes, "артикул", material.Article, command.Material.Article, true);
         AddChange(changes, "толщина", material.MaterialThicknessId, command.Material.ThicknessId);
@@ -121,6 +125,7 @@ public class UpdateMaterialCommandHandler(
         material.CategoryId = command.Material.CategoryId;
         material.MaterialSheetSizeId = command.Material.SheetSizeId;
         material.MaterialManufacturerId = command.Material.ManufacturerId;
+        material.MaterialTypeId = command.Material.MaterialTypeId;
         material.Article = command.Material.Article;
         material.Name = command.Material.Name;
         material.MaterialThicknessId = command.Material.ThicknessId;

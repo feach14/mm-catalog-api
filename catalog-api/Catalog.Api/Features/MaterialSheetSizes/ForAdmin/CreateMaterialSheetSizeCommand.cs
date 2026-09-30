@@ -1,3 +1,4 @@
+using Catalog.Api.Features.MaterialSheetSizes.ForAdmin.Dto;
 using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Entities;
@@ -6,7 +7,8 @@ using Core.CQRS;
 
 namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
 
-public sealed record CreateMaterialSheetSizeCommand(SheetSizeModel Model) : ICommand<CreateMaterialSheetSizeCommandResult>;
+public sealed record CreateMaterialSheetSizeCommand(MaterialSheetSizeModel Model) : ICommand<CreateMaterialSheetSizeCommandResult>;
+
 public sealed record CreateMaterialSheetSizeCommandResult(
     [property: Description("Id размера материала")] int Id);
 

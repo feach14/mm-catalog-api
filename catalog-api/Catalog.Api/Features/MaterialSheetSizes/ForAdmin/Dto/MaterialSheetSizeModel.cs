@@ -1,12 +1,12 @@
-namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
+namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin.Dto;
 
-public sealed record SheetSizeModel(
+public sealed record MaterialSheetSizeModel(
     [property: Description("Название размера материала")] string Name,
     [property: Description("Высота материала")] int Height,
     [property: Description("Ширина материала")] int Width,
     [property: Description("Показывать размер материала в фильтрах")] bool ShowInFilters);
 
-public sealed class SheetSizeModelValidator : AbstractValidator<SheetSizeModel>
+public sealed class SheetSizeModelValidator : AbstractValidator<MaterialSheetSizeModel>
 {
     public SheetSizeModelValidator()
     {

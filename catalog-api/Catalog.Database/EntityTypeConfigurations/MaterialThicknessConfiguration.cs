@@ -10,6 +10,7 @@ public sealed class MaterialThicknessConfiguration : IEntityTypeConfiguration<Ma
     {
         eb.HasKey(x => x.Id);
         eb.Property(x => x.Name).IsRequired().HasMaxLength(100);
+        eb.Property(x => x.Value).HasPrecision(18, 3);
         eb.HasIndex(x => x.Value).IsUnique();
     }
 }

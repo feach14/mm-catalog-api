@@ -10,7 +10,8 @@ namespace Catalog.Api.Features.Materials.Public;
 public sealed record GetMaterialFiltersQuery(
     [property: Description("ID категорий"), FromQuery] int[]? CategoryIds = null,
     [property: Description("ID производителей"), FromQuery] int[]? ManufacturerIds = null,
-    [property: Description("Толщины в миллиметрах"), FromQuery] double[]? Depths = null,
+    [property: Description("ID типов материалов"), FromQuery] int[]? MaterialTypeIds = null,
+    [property: Description("Толщины в миллиметрах"), FromQuery] decimal[]? Depths = null,
     [property: Description("ID толщин материалов"), FromQuery] int[]? ThicknessIds = null,
     [property: Description("ID форматов листа"), FromQuery] int[]? SheetSizeIds = null,
     [property: Description("Калькуляторы"), FromQuery] MaterialCalculatorEnum[]? Calculators = null,
@@ -38,6 +39,12 @@ public sealed class GetMaterialFiltersQueryValidator : AbstractValidator<GetMate
             .Must(values => values is null || values.All(value => value > 0)).WithMessage("Id производителей должны быть положительными числами")
             .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialManufacturers.Select(x => x.Id), ct))
             .WithMessage("Один или несколько производителей не найдены");
+        RuleFor(x => x.MaterialTypeIds)
+            .Cascade(CascadeMode.Stop)
+            .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений типов материалов")
+            .Must(values => values is null || values.All(value => value > 0)).WithMessage("Id типов материалов должны быть положительными числами")
+            .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialTypes.Select(x => x.Id), ct))
+            .WithMessage("Один или несколько типов материалов не найдены");
         RuleFor(x => x.SheetSizeIds)
             .Cascade(CascadeMode.Stop)
             .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений форматов листа")
@@ -54,7 +61,7 @@ public sealed class GetMaterialFiltersQueryValidator : AbstractValidator<GetMate
 
         RuleFor(x => x.Depths)
             .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений толщины")
-            .Must(values => values is null || values.All(value => double.IsFinite(value) && value > 0)).WithMessage("Толщина должна быть положительным конечным числом");
+            .Must(values => values is null || values.All(value => value > 0)).WithMessage("Толщина должна быть положительным конечным числом");
         RuleFor(x => x.Calculators)
             .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений калькулятора");
         RuleForEach(x => x.Calculators!).IsInEnum().When(x => x.Calculators is not null).WithMessage("Указан неизвестный калькулятор");
@@ -72,6 +79,7 @@ public sealed class GetMaterialFiltersQueryValidator : AbstractValidator<GetMate
 public sealed record GetMaterialFiltersQueryResult(
     [property: Description("Категории материалов")] MaterialCategoryFilterDto[] Categories,
     [property: Description("Производители материалов")] MaterialManufacturerFilterDto[] Manufacturers,
+    [property: Description("Типы материалов")] MaterialTypeFilterDto[] MaterialTypes,
     [property: Description("Толщины материалов")] MaterialDepthFilterDto[] Depths,
     [property: Description("Толщины материалов из справочника")] MaterialThicknessFilterDto[] Thicknesses,
     [property: Description("Форматы листов")] MaterialSheetSizeFilterDto[] SheetSizes,
@@ -87,14 +95,19 @@ public sealed record MaterialManufacturerFilterDto(
     [property: Description("Название производителя")] string Name,
     [property: Description("Количество материалов")] int Count);
 
+public sealed record MaterialTypeFilterDto(
+    [property: Description("Id типа материала")] int Id,
+    [property: Description("Название типа материала")] string Name,
+    [property: Description("Количество материалов")] int Count);
+
 public sealed record MaterialThicknessFilterDto(
     [property: Description("Id толщины материала")] int Id,
     [property: Description("Название толщины материала")] string Name,
-    [property: Description("Толщина в миллиметрах")] double Value,
+    [property: Description("Толщина в миллиметрах")] decimal Value,
     [property: Description("Количество материалов")] int Count);
 
 public sealed record MaterialDepthFilterDto(
-    [property: Description("Толщина в миллиметрах")] double Value,
+    [property: Description("Толщина в миллиметрах")] decimal Value,
     [property: Description("Количество материалов")] int Count);
 
 public sealed record MaterialSheetSizeFilterDto(
@@ -146,6 +159,21 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
                 manufacturersBase.Count(material => material.MaterialManufacturerId == manufacturer.Id)))
             .ToArrayAsync(ct);
 
+        var materialTypesBase = BaseQuery(query, ExcludedFilterEnum.MaterialType);
+        var selectedMaterialTypeIds = (query.MaterialTypeIds ?? []).Distinct().ToArray();
+        var materialTypes = await dbContext.MaterialTypes
+            .AsNoTracking()
+            .Where(materialType =>
+                materialTypesBase.Any(material => material.MaterialTypeId == materialType.Id)
+                || selectedMaterialTypeIds.Contains(materialType.Id))
+            .OrderBy(materialType => materialType.OrderByCol)
+            .ThenBy(materialType => materialType.Id)
+            .Select(materialType => new MaterialTypeFilterDto(
+                materialType.Id,
+                materialType.Name,
+                materialTypesBase.Count(material => material.MaterialTypeId == materialType.Id)))
+            .ToArrayAsync(ct);
+
         var depthsBase = BaseQuery(query, ExcludedFilterEnum.Depth);
         var thicknesses = await dbContext.MaterialThicknesses.AsNoTracking()
             .Where(thickness => (query.ThicknessIds != null && query.ThicknessIds.Contains(thickness.Id))
@@ -159,7 +187,7 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
             .ToArrayAsync(ct);
         var depths = await depthsBase
             .Select(material => material.MaterialThickness.Value)
-            .Union(query.Depths ?? Array.Empty<double>())
+            .Union(query.Depths ?? Array.Empty<decimal>())
             .OrderBy(value => value)
             .Select(value => new MaterialDepthFilterDto(
                 value,
@@ -191,6 +219,7 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
         return new GetMaterialFiltersQueryResult(
             categories,
             manufacturers,
+            materialTypes,
             depths,
             thicknesses,
             sheetSizes,
@@ -228,6 +257,11 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
             var ids = query.ManufacturerIds.Distinct().ToArray();
             materials = materials.Where(x => ids.Contains(x.MaterialManufacturerId));
         }
+        if (excluded != ExcludedFilterEnum.MaterialType && query.MaterialTypeIds is { Length: > 0 })
+        {
+            var ids = query.MaterialTypeIds.Distinct().ToArray();
+            materials = materials.Where(x => ids.Contains(x.MaterialTypeId));
+        }
         if (excluded != ExcludedFilterEnum.Depth && query.ThicknessIds is { Length: > 0 })
             materials = materials.Where(x => query.ThicknessIds.Contains(x.MaterialThicknessId));
 
@@ -256,6 +290,7 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
     {
         Category,
         Manufacturer,
+        MaterialType,
         Depth,
         SheetSize,
         Availability

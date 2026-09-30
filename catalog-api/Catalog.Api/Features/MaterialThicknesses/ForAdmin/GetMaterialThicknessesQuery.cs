@@ -1,7 +1,9 @@
+// ReSharper disable NotAccessedPositionalProperty.Global
+
 using Catalog.Database;
 using Core.CQRS;
 
-namespace Catalog.Api.Features.MaterialThicknesses;
+namespace Catalog.Api.Features.MaterialThicknesses.ForAdmin;
 
 public sealed record GetMaterialThicknessesQuery : IQuery<GetMaterialThicknessesQueryResult>;
 
@@ -11,7 +13,7 @@ public sealed record GetMaterialThicknessesQueryResult(
 public sealed record GetMaterialThicknessesQueryItem(
     [property: Description("Id толщины материала")] int Id,
     [property: Description("Название толщины материала")] string Name,
-    [property: Description("Толщина в миллиметрах")] double Value,
+    [property: Description("Толщина в миллиметрах")] decimal Value,
     [property: Description("Количество материалов в наличии")] int MaterialsAnyCount,
     [property: Description("Количество материалов не в наличии")] int MaterialsNotAnyCount);
 

@@ -174,8 +174,9 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("character varying(250)")
                         .HasColumnName("external_link");
 
-                    b.Property<double>("KvM")
-                        .HasColumnType("double precision")
+                    b.Property<decimal>("KvM")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("numeric(18,3)")
                         .HasColumnName("kv_m");
 
                     b.Property<int>("MaterialManufacturerId")
@@ -190,6 +191,10 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("material_thickness_id");
 
+                    b.Property<int>("MaterialTypeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("material_type_id");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(250)
@@ -202,8 +207,9 @@ namespace Catalog.Database.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("order_by_col");
 
-                    b.Property<double>("PerimetrM")
-                        .HasColumnType("double precision")
+                    b.Property<decimal>("PerimetrM")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("numeric(18,3)")
                         .HasColumnName("perimetr_m");
 
                     b.Property<decimal>("Price")
@@ -224,6 +230,9 @@ namespace Catalog.Database.Migrations
 
                     b.HasIndex("MaterialThicknessId")
                         .HasDatabaseName("ix_materials_material_thickness_id");
+
+                    b.HasIndex("MaterialTypeId")
+                        .HasDatabaseName("ix_materials_material_type_id");
 
                     b.HasIndex("OrderByCol")
                         .IsUnique()
@@ -411,8 +420,9 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
-                    b.Property<double>("Value")
-                        .HasColumnType("double precision")
+                    b.Property<decimal>("Value")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("numeric(18,3)")
                         .HasColumnName("value");
 
                     b.HasKey("Id")
@@ -423,6 +433,37 @@ namespace Catalog.Database.Migrations
                         .HasDatabaseName("ix_material_thicknesses_value");
 
                     b.ToTable("material_thicknesses", "catalog");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.MaterialType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("OrderByCol")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("order_by_col");
+
+                    b.HasKey("Id")
+                        .HasName("pk_material_types");
+
+                    b.HasIndex("OrderByCol")
+                        .IsUnique()
+                        .HasDatabaseName("ix_material_types_order_by_col");
+
+                    b.ToTable("material_types", "catalog");
                 });
 
             modelBuilder.Entity("Catalog.Database.Entities.Material", b =>
@@ -455,6 +496,13 @@ namespace Catalog.Database.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_materials_material_thicknesses_material_thickness_id");
 
+                    b.HasOne("Catalog.Database.Entities.MaterialType", "MaterialType")
+                        .WithMany("Materials")
+                        .HasForeignKey("MaterialTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_materials_material_types_material_type_id");
+
                     b.Navigation("Category");
 
                     b.Navigation("MaterialManufacturer");
@@ -462,6 +510,8 @@ namespace Catalog.Database.Migrations
                     b.Navigation("MaterialSheetSize");
 
                     b.Navigation("MaterialThickness");
+
+                    b.Navigation("MaterialType");
                 });
 
             modelBuilder.Entity("Catalog.Database.Entities.MaterialImage", b =>
@@ -497,6 +547,11 @@ namespace Catalog.Database.Migrations
                 });
 
             modelBuilder.Entity("Catalog.Database.Entities.MaterialThickness", b =>
+                {
+                    b.Navigation("Materials");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.MaterialType", b =>
                 {
                     b.Navigation("Materials");
                 });

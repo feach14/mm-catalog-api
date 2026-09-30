@@ -1,0 +1,84 @@
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace Catalog.Database.Migrations
+{
+    /// <inheritdoc />
+    public partial class UseDecimalMaterialMeasurements : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AlterColumn<decimal>(
+                name: "perimetr_m",
+                schema: "catalog",
+                table: "materials",
+                type: "numeric(18,3)",
+                precision: 18,
+                scale: 3,
+                nullable: false,
+                oldClrType: typeof(double),
+                oldType: "double precision");
+
+            migrationBuilder.AlterColumn<decimal>(
+                name: "kv_m",
+                schema: "catalog",
+                table: "materials",
+                type: "numeric(18,3)",
+                precision: 18,
+                scale: 3,
+                nullable: false,
+                oldClrType: typeof(double),
+                oldType: "double precision");
+
+            migrationBuilder.AlterColumn<decimal>(
+                name: "value",
+                schema: "catalog",
+                table: "material_thicknesses",
+                type: "numeric(18,3)",
+                precision: 18,
+                scale: 3,
+                nullable: false,
+                oldClrType: typeof(double),
+                oldType: "double precision");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AlterColumn<double>(
+                name: "perimetr_m",
+                schema: "catalog",
+                table: "materials",
+                type: "double precision",
+                nullable: false,
+                oldClrType: typeof(decimal),
+                oldType: "numeric(18,3)",
+                oldPrecision: 18,
+                oldScale: 3);
+
+            migrationBuilder.AlterColumn<double>(
+                name: "kv_m",
+                schema: "catalog",
+                table: "materials",
+                type: "double precision",
+                nullable: false,
+                oldClrType: typeof(decimal),
+                oldType: "numeric(18,3)",
+                oldPrecision: 18,
+                oldScale: 3);
+
+            migrationBuilder.AlterColumn<double>(
+                name: "value",
+                schema: "catalog",
+                table: "material_thicknesses",
+                type: "double precision",
+                nullable: false,
+                oldClrType: typeof(decimal),
+                oldType: "numeric(18,3)",
+                oldPrecision: 18,
+                oldScale: 3);
+        }
+    }
+}

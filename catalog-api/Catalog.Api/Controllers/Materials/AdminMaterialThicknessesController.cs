@@ -1,4 +1,3 @@
-using Catalog.Api.Features.MaterialThicknesses;
 using Catalog.Api.Features.MaterialThicknesses.ForAdmin;
 using Catalog.Api.Features.MaterialThicknesses.ForAdmin.Dto;
 using Core.Attributes;
@@ -49,7 +48,7 @@ public sealed class AdminMaterialThicknessesController : BaseApiController
      ProducesResponseType(typeof(UpdateMaterialThicknessCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
     public Task<UpdateMaterialThicknessCommandResult> UpdateMaterialThickness(
         [FromRoute, Description("Id толщины материала")] int id,
-        [FromBody, Description("Параметры толщины материала")] UpdateMaterialThicknessModel model,
+        [FromBody, Description("Параметры толщины материала")] MaterialThicknessModel model,
         [FromServices] ICommandHandler<UpdateMaterialThicknessCommand, UpdateMaterialThicknessCommandResult> handler) =>
         handler.Handle(new UpdateMaterialThicknessCommand(id, model), HttpContext.RequestAborted);
 

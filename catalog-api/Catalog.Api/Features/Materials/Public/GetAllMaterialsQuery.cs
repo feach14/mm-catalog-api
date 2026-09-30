@@ -1,7 +1,6 @@
 // ReSharper disable NotAccessedPositionalProperty.Global
 
 using Catalog.Api.Features.Materials.Dto;
-using Catalog.Api.Features.MaterialThicknesses.Dto;
 using Catalog.Database;
 using Core.CQRS;
 
@@ -16,18 +15,14 @@ public sealed record GetAllMaterialsQueryItemResult(
     [property: Description("Id материала")] int Id,
     [property: Description("Название материала")] string Name,
     [property: Description("Артикул материала")] string Article,
-    [property: Description("Размер материала")] MaterialSheetSizeDto SheetSize,
-    [property: Description("Производитель")] MaterialManufacturerDto Manufacturer,
-    [property: Description("Толщина материала")] MaterialThicknessDto Thickness,
-    [property: Description("Категория")] CategoryDto Category,
+    [property: Description("Размер материала")] PropertyDto SheetSize,
+    [property: Description("Производитель")] PropertyDto Manufacturer,
+    [property: Description("Тип материала")] PropertyDto MaterialType,
+    [property: Description("Толщина материала")] PropertyDto Thickness,
+    [property: Description("Категория")] PropertyDto Category,
     [property: Description("Количество")] int Count,
     [property: Description("Признак: Комментарий к материалу обязателен при оформлении заявки(расчета)")] bool CommentOnMaterialIsRequired,
     [property: Description("Порядковый номер записи (для сортировки)")] int OrderByCol);
-
-public record MaterialCategoryDto(
-    [property: Description("Id категории")] int Id,
-    [property: Description("Название категории")] string Name,
-    [property: Description("Порядковый номер для сортировки")] int OrderByCol);
 
 public class GetAllMaterialsQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetAllMaterialsQuery, GetAllMaterialsQueryResult>
 {
@@ -40,10 +35,11 @@ public class GetAllMaterialsQueryHandler(CatalogDbContext dbContext) : IQueryHan
                 x.Id,
                 x.Name,
                 x.Article,
-                new MaterialSheetSizeDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name, x.MaterialSheetSize.Height, x.MaterialSheetSize.Width),
-                new MaterialManufacturerDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
-                new MaterialThicknessDto(x.MaterialThickness.Id, x.MaterialThickness.Name, x.MaterialThickness.Value),
-                new CategoryDto(x.CategoryId, x.Category.Name),
+                new PropertyDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name),
+                new PropertyDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
+                new PropertyDto(x.MaterialType.Id, x.MaterialType.Name),
+                new PropertyDto(x.MaterialThickness.Id, x.MaterialThickness.Name),
+                new PropertyDto(x.CategoryId, x.Category.Name),
                 x.Count,
                 x.CommentOnMaterialIsRequired,
                 x.OrderByCol))

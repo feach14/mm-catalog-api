@@ -16,6 +16,9 @@ public sealed record Material
     public required int MaterialSheetSizeId { get; set; }
     public MaterialSheetSize MaterialSheetSize { get; private set; }
 
+    public required int MaterialTypeId { get; set; }
+    public MaterialType MaterialType { get; private set; }
+
     public required int MaterialManufacturerId { get; set; }
     public MaterialManufacturer MaterialManufacturer { get; private set; }
 
@@ -24,8 +27,8 @@ public sealed record Material
     public required int MaterialThicknessId { get; set; }
     public MaterialThickness MaterialThickness { get; private set; }
 
-    public required double KvM { get; set; }
-    public required double PerimetrM { get; set; }
+    public required decimal KvM { get; set; }
+    public required decimal PerimetrM { get; set; }
     public int Count { get; set; }
     public string? ExternalLink { get; set; }
     public bool CommentOnMaterialIsRequired { get; set; }

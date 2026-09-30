@@ -6,25 +6,7 @@ using Core.CQRS;
 
 namespace Catalog.Api.Features.MaterialThicknesses.ForAdmin;
 
-public sealed record UpdateMaterialThicknessCommand(int Id, UpdateMaterialThicknessModel Model) : ICommand<UpdateMaterialThicknessCommandResult>;
-public sealed record UpdateMaterialThicknessModel : MaterialThicknessModel;
-
-public sealed class UpdateMaterialThicknessModelValidator : AbstractValidator<UpdateMaterialThicknessModel>
-{
-    public UpdateMaterialThicknessModelValidator(CatalogDbContext dbContext, IHttpContextAccessor httpContextAccessor)
-    {
-        ClassLevelCascadeMode = CascadeMode.Stop;
-        RuleFor(x => x)
-            .MustAsync(async (_, ct) =>
-            {
-                var routeId = httpContextAccessor.HttpContext?.Request.RouteValues["id"]?.ToString();
-                return int.TryParse(routeId, out var id) && id > 0
-                    && await dbContext.MaterialThicknesses.AsNoTracking().AnyAsync(x => x.Id == id, ct);
-            }).WithMessage("Указанная толщина материала не найдена")
-            .OverridePropertyName("id");
-        Include(new MaterialThicknessModelValidator(dbContext, httpContextAccessor));
-    }
-}
+public sealed record UpdateMaterialThicknessCommand(int Id, MaterialThicknessModel Model) : ICommand<UpdateMaterialThicknessCommandResult>;
 
 public sealed record UpdateMaterialThicknessCommandResult(
     [property: Description("Успех операции")] bool Success);
@@ -34,7 +16,13 @@ public sealed class UpdateMaterialThicknessCommandHandler(CatalogDbContext dbCon
 {
     public async Task<UpdateMaterialThicknessCommandResult> Handle(UpdateMaterialThicknessCommand command, CancellationToken ct)
     {
-        var thickness = await dbContext.MaterialThicknesses.SingleAsync(x => x.Id == command.Id, ct);
+        var thickness = await dbContext.MaterialThicknesses.SingleOrDefaultAsync(x => x.Id == command.Id, ct)
+            ?? throw new BadHttpRequestException("Указанная толщина материала не найдена");
+
+        if (await dbContext.MaterialThicknesses.AnyAsync(
+                x => x.Id != command.Id && x.Value == command.Model.Value, ct))
+            throw new BadHttpRequestException("Такая толщина материала уже существует.");
+
         var name = command.Model.Name.Trim();
         var changes = new List<string>();
         if (thickness.Name != name)

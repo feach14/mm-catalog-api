@@ -17,6 +17,7 @@ public sealed class CreateMaterialModelValidator : AbstractValidator<CreateMater
     public CreateMaterialModelValidator(CatalogDbContext dbContext)
     {
         Include(new MaterialModelValidator(dbContext));
+
         RuleFor(x => x.Name)
             .MustAsync(async (name, ct) => !await dbContext.Materials.AnyAsync(x => x.Name == name.Trim(), ct))
             .When(x => !string.IsNullOrWhiteSpace(x.Name))
@@ -52,6 +53,7 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
             CategoryId = command.Material.CategoryId,
             MaterialSheetSizeId = command.Material.SheetSizeId,
             MaterialManufacturerId = command.Material.ManufacturerId,
+            MaterialTypeId = command.Material.MaterialTypeId,
             Article = command.Material.Article,
             Name = command.Material.Name,
             MaterialThicknessId = command.Material.ThicknessId,
@@ -97,7 +99,7 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
             $"Создан материал #{material.Id} «{material.Name}»: "
             + $"артикул {material.Article}, "
             + $"категория #{material.CategoryId}, "
-            + $"производитель #{material.MaterialManufacturerId}, "
+            + $"производитель #{material.MaterialManufacturerId}, тип материала #{material.MaterialTypeId}, "
             + $"размер #{material.MaterialSheetSizeId}, "
             + $"толщина #{material.MaterialThicknessId}, "
             + $"количество {material.Count}, "

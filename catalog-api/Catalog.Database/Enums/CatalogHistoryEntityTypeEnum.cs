@@ -6,5 +6,6 @@ public enum CatalogHistoryEntityTypeEnum
     Category,
     Manufacturer,
     SheetSize,
-    Thickness
+    Thickness,
+    MaterialType
 }
