@@ -8,17 +8,16 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Catalog.Api.Controllers.Materials;
 
-[Route("api/materials/manufacturers"),
- OpenApiTagOrder(4),
+[Route("api/admin/materials/manufacturers"),
+ OpenApiTagOrder(5),
  Authorize(
     AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
     Roles = AppConstants.AdministrationRoles),
  ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
  ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав менеджера или администратора")]
-public sealed class ManufacturersController : BaseApiController
+public sealed class AdminMaterialManufacturersController : BaseApiController
 {
     [HttpGet,
-     AllowAnonymous,
      EndpointSummary(nameof(Manufacturers)),
      EndpointDescription("Список производителей"),
      ProducesResponseType(typeof(GetManufacturersQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Список производителей")]
@@ -27,7 +26,6 @@ public sealed class ManufacturersController : BaseApiController
         handler.Handle(new GetManufacturersQuery(), HttpContext.RequestAborted);
 
     [HttpGet("{id:int}"),
-     AllowAnonymous,
      EndpointSummary(nameof(Manufacturer)),
      EndpointDescription("Информация о производителе"),
      ProducesResponseType(typeof(ManufacturerDto), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Производитель")]

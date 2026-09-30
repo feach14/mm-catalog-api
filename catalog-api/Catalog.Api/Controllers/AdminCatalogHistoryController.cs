@@ -6,14 +6,14 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Catalog.Api.Controllers;
 
-[Route("api/catalog/history"),
- OpenApiTagOrder(5),
+[Route("api/admin/catalog/history"),
+ OpenApiTagOrder(8),
  Authorize(
     AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
     Roles = AppConstants.AdministrationRoles),
  ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
  ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав тестера, менеджера или администратора")]
-public sealed class CatalogHistoryController : BaseApiController
+public sealed class AdminCatalogHistoryController : BaseApiController
 {
     [HttpGet,
      EndpointSummary(nameof(History)),
@@ -25,6 +25,7 @@ public sealed class CatalogHistoryController : BaseApiController
         handler.Handle(query, HttpContext.RequestAborted);
 
     [HttpDelete("test-runs/{runId:int}"),
+     ApiExplorerSettings(IgnoreApi = true),
      Authorize(Roles = AppConstants.TesterRoleName),
      EndpointSummary(nameof(DeleteTestRunHistory)),
      EndpointDescription("Удаление записей истории, созданных изолированным тестовым прогоном"),

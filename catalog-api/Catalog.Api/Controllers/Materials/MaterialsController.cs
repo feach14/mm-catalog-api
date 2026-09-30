@@ -1,25 +1,18 @@
 using Catalog.Api.Features.Materials;
-using Catalog.Api.Features.Materials.ForAdmin;
 using Catalog.Api.Features.Materials.Public;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Net.Http.Headers;
 
 namespace Catalog.Api.Controllers.Materials;
 
 [Route("api/materials"),
  OpenApiTagOrder(1),
- Authorize(
-    AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
-    Roles = AppConstants.AdministrationRoles),
- ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
- ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав менеджера или администратора")]
+ AllowAnonymous]
 public class MaterialsController : BaseApiController
 {
     [HttpGet("search"),
-     AllowAnonymous,
      EndpointSummary(nameof(SearchMaterials)),
      EndpointDescription("Публичный постраничный поиск материалов"),
      ProducesResponseType(typeof(SearchMaterialsQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Страница материалов")]
@@ -29,7 +22,6 @@ public class MaterialsController : BaseApiController
         handler.Handle(query, HttpContext.RequestAborted);
 
     [HttpGet("filters"),
-     AllowAnonymous,
      EndpointSummary(nameof(MaterialFilters)),
      EndpointDescription("Связанные фильтры публичного каталога материалов"),
      ProducesResponseType(typeof(GetMaterialFiltersQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Значения фильтров и количества материалов")]
@@ -39,17 +31,14 @@ public class MaterialsController : BaseApiController
         handler.Handle(query, HttpContext.RequestAborted);
 
     [HttpGet,
-     AllowAnonymous,
      EndpointSummary(nameof(Materials)),
-     EndpointDescription("Публичный список материалов. Пример фильтра: ?calculator=Raskroy&calculator=PvhFacades"),
-     ProducesResponseType(typeof(GetAllMaterialsQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Материалы и их категории")]
+     EndpointDescription("Полный публичный список материалов без фильтрации и пагинации. Для поиска, фильтрации, пагинации используйте /api/materials/search"),
+     ProducesResponseType(typeof(GetAllMaterialsQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Список материалов")]
     public Task<GetAllMaterialsQueryResult> Materials(
-        [FromQuery] GetAllMaterialsQuery query,
         [FromServices] IQueryHandler<GetAllMaterialsQuery, GetAllMaterialsQueryResult> handler) =>
-        handler.Handle(query, HttpContext.RequestAborted);
+        handler.Handle(new GetAllMaterialsQuery(), HttpContext.RequestAborted);
 
     [HttpGet("{id:int}"),
-     AllowAnonymous,
      EndpointSummary(nameof(Material)),
      EndpointDescription("Публичная информация о материале"),
      ProducesResponseType(typeof(GetMaterialQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Материал")]
@@ -58,74 +47,7 @@ public class MaterialsController : BaseApiController
         [FromServices] IQueryHandler<GetMaterialQuery, GetMaterialQueryResult> handler) =>
         handler.Handle(new GetMaterialQuery(id), HttpContext.RequestAborted);
 
-    [HttpGet("admin"),
-     EndpointSummary(nameof(MaterialsForAdminPanel)),
-     EndpointDescription("Список материалов для административной панели. Пример фильтра: ?calculator=Raskroy&calculator=PvhFacades"),
-     ProducesResponseType(typeof(GetAllMaterialsForAdminQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Список материалов")]
-    public Task<GetAllMaterialsForAdminQueryResult> MaterialsForAdminPanel(
-        [FromQuery] GetAllMaterialsForAdminQuery query,
-        [FromServices] IQueryHandler<GetAllMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult> handler) =>
-        handler.Handle(query, HttpContext.RequestAborted);
-
-    [HttpGet("admin/{id:int}"),
-     EndpointSummary(nameof(MaterialForAdminPanel)),
-     EndpointDescription("Информация о материале для административной панели"),
-     ProducesResponseType(typeof(GetMaterialForAdminQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Материал")]
-    public Task<GetMaterialForAdminQueryResult> MaterialForAdminPanel(
-        [FromRoute, Description("Id материала")] int id,
-        [FromServices] IQueryHandler<GetMaterialForAdminQuery, GetMaterialForAdminQueryResult> handler) =>
-        handler.Handle(new GetMaterialForAdminQuery(id), HttpContext.RequestAborted);
-
-    [HttpPost,
-     EndpointSummary(nameof(CreateMaterial)),
-     EndpointDescription("Создание нового материала"),
-     ProducesResponseType(typeof(CreateMaterialCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
-    public Task<CreateMaterialCommandResult> CreateMaterial(
-        [FromBody, Description("Параметры материала")] CreateMaterialModel model,
-        [FromServices] ICommandHandler<CreateMaterialCommand, CreateMaterialCommandResult> handler) =>
-        handler.Handle(new CreateMaterialCommand(model), HttpContext.RequestAborted);
-
-    [HttpPut("{id:int}"),
-     EndpointSummary(nameof(UpdateMaterial)),
-     EndpointDescription("Обновление материала"),
-     ProducesResponseType(typeof(UpdateMaterialCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
-    public Task<UpdateMaterialCommandResult> UpdateMaterial(
-        [FromRoute, Description("Id материала")] int id,
-        [FromBody, Description("Параметры материала")] UpdateMaterialModel model,
-        [FromServices] ICommandHandler<UpdateMaterialCommand, UpdateMaterialCommandResult> handler) =>
-        handler.Handle(new UpdateMaterialCommand(id, model), HttpContext.RequestAborted);
-
-    [HttpDelete("{id:int}"),
-     EndpointSummary(nameof(DeleteMaterial)),
-     EndpointDescription("Удаление материала"),
-     ProducesResponseType(typeof(DeleteMaterialCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
-    public Task<DeleteMaterialCommandResult> DeleteMaterial(
-        [FromRoute, Description("Id материала")] int id,
-        [FromServices] ICommandHandler<DeleteMaterialCommand, DeleteMaterialCommandResult> handler) =>
-        handler.Handle(new DeleteMaterialCommand(id), HttpContext.RequestAborted);
-
-    [HttpPost("change-order-col"),
-     EndpointSummary(nameof(ChangeOrderCol)),
-     EndpointDescription("Изменение порядка сортировки материалов в категории"),
-     ProducesResponseType(typeof(ChangeSortingMaterialCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
-    public Task<ChangeSortingMaterialCommandResult> ChangeOrderCol(
-        [FromBody, Description("Параметры сортировки")] ChangeSortingMaterialCommand model,
-        [FromServices] ICommandHandler<ChangeSortingMaterialCommand, ChangeSortingMaterialCommandResult> handler) =>
-        handler.Handle(model, HttpContext.RequestAborted);
-
-    [HttpPost("images"),
-     Consumes("multipart/form-data"),
-     RequestSizeLimit(MaxImageRequestSize),
-     EndpointSummary(nameof(UploadMaterialImage)),
-     EndpointDescription("Загрузка оригинала или готовой миниатюры материала в формате PNG, JPEG или WebP размером до 5 МБ"),
-     ProducesResponseType(typeof(UploadMaterialImageCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Данные загруженного изображения")]
-    public async Task<UploadMaterialImageCommandResult> UploadMaterialImage(
-        [FromForm, Description("Параметры загрузки изображения")] UploadMaterialImageCommand command,
-        [FromServices] ICommandHandler<UploadMaterialImageCommand, UploadMaterialImageCommandResult> handler)
-        => await handler.Handle(command, HttpContext.RequestAborted);
-
     [HttpGet("images/{fileGuid:guid}"),
-     AllowAnonymous,
      ResponseCache(Duration = ImageCacheDurationSeconds, Location = ResponseCacheLocation.Any),
      EndpointSummary(nameof(MaterialImage)),
      EndpointDescription("Изображение материала"),
@@ -142,7 +64,5 @@ public class MaterialsController : BaseApiController
         };
     }
 
-    private const long MaxImageRequestSize = 6 * 1024 * 1024;
     private const int ImageCacheDurationSeconds = 365 * 24 * 60 * 60;
-
 }

@@ -6,14 +6,10 @@ using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.ForAdmin;
 
-public sealed record UploadMaterialImageCommand : ICommand<UploadMaterialImageCommandResult>
-{
-    [FromForm, Description("Файл изображения")]
-    public required IFormFile File { get; init; }
-
-    [FromForm, Description("Назначение изображения")]
-    public required MaterialImageTypeEnum ImageType { get; init; }
-}
+public sealed record UploadMaterialImageCommand(
+    [property: FromForm, Description("Файл изображения")] IFormFile File,
+    [property: FromForm, Description("Назначение изображения")] MaterialImageTypeEnum ImageType)
+    : ICommand<UploadMaterialImageCommandResult>;
 
 public sealed class UploadMaterialImageCommandResult : CachedFileDto;
 

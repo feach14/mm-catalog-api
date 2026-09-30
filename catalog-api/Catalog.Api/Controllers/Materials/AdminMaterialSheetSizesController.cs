@@ -8,17 +8,16 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Catalog.Api.Controllers.Materials;
 
-[Route("api/materials/sheet-sizes"),
- OpenApiTagOrder(3),
+[Route("api/admin/materials/sheet-sizes"),
+ OpenApiTagOrder(6),
  Authorize(
     AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
     Roles = AppConstants.AdministrationRoles),
  ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
  ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав менеджера или администратора")]
-public sealed class MaterialSheetSizesController : BaseApiController
+public sealed class AdminMaterialSheetSizesController : BaseApiController
 {
     [HttpGet,
-     AllowAnonymous,
      EndpointSummary(nameof(MaterialSheetSizes)),
      EndpointDescription("Список размеров материалов"),
      ProducesResponseType(typeof(GetMaterialSheetSizesQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Список размеров материалов")]
@@ -27,7 +26,6 @@ public sealed class MaterialSheetSizesController : BaseApiController
         handler.Handle(new GetMaterialSheetSizesQuery(), HttpContext.RequestAborted);
 
     [HttpGet("{id:int}"),
-     AllowAnonymous,
      EndpointSummary(nameof(MaterialSheetSize)),
      EndpointDescription("Информация о размере материала"),
      ProducesResponseType(typeof(SheetSizeDto), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Размер материала")]

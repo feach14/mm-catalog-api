@@ -1,3 +1,5 @@
+// ReSharper disable NotAccessedPositionalProperty.Global
+
 using Catalog.Api.Features.Materials.ForAdmin.Dto;
 using Catalog.Api.Features.MaterialThicknesses.Dto;
 using Catalog.Database;
@@ -16,12 +18,12 @@ public enum PublicMaterialSortEnum
 }
 
 public sealed record SearchMaterialsQuery(
-    [property: Description("Id категорий. Для выбора нескольких значений повторите параметр"), FromQuery] int[]? CategoryId = null,
-    [property: Description("Id производителей. Для выбора нескольких значений повторите параметр"), FromQuery] int[]? ManufacturerId = null,
-    [property: Description("Толщина в миллиметрах. Для выбора нескольких значений повторите параметр"), FromQuery] double[]? Depth = null,
-    [property: Description("Id толщин материалов. Для выбора нескольких значений повторите параметр thicknessId. При совместном выборе с depth применяется пересечение"), FromQuery] int[]? ThicknessId = null,
-    [property: Description("Id форматов листа. Для выбора нескольких значений повторите параметр"), FromQuery] int[]? SheetSizeId = null,
-    [property: Description("Калькулятор. Для выбора нескольких значений повторите параметр"), FromQuery] MaterialCalculatorEnum[]? Calculator = null,
+    [property: Description("ID категорий"), FromQuery] int[]? CategoryIds = null,
+    [property: Description("ID производителей"), FromQuery] int[]? ManufacturerIds = null,
+    [property: Description("Толщины в миллиметрах"), FromQuery] double[]? Depths = null,
+    [property: Description("ID толщин материалов"), FromQuery] int[]? ThicknessIds = null,
+    [property: Description("ID форматов листа"), FromQuery] int[]? SheetSizeIds = null,
+    [property: Description("Калькуляторы"), FromQuery] MaterialCalculatorEnum[]? Calculators = null,
     [property: Description("Номер страницы, начиная с 1"), FromQuery] int Page = 1,
     [property: Description("Размер страницы от 1 до 96"), FromQuery] int PageSize = 24,
     [property: Description("Поиск по названию или артикулу, до 250 символов"), FromQuery] string? Search = null,
@@ -43,38 +45,38 @@ public sealed class SearchMaterialsQueryValidator : AbstractValidator<SearchMate
             .Must(search => search is null || search.Trim().Length <= 250)
             .WithMessage("Поисковая строка не должна превышать 250 символов");
 
-        RuleFor(x => x.CategoryId)
+        RuleFor(x => x.CategoryIds)
             .Cascade(CascadeMode.Stop)
             .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений категорий")
             .Must(values => values is null || values.All(value => value > 0)).WithMessage("Id категорий должны быть положительными числами")
             .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialCategories.Select(x => x.Id), ct))
             .WithMessage("Одна или несколько категорий не найдены");
-        RuleFor(x => x.ManufacturerId)
+        RuleFor(x => x.ManufacturerIds)
             .Cascade(CascadeMode.Stop)
             .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений производителей")
             .Must(values => values is null || values.All(value => value > 0)).WithMessage("Id производителей должны быть положительными числами")
             .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialManufacturers.Select(x => x.Id), ct))
             .WithMessage("Один или несколько производителей не найдены");
-        RuleFor(x => x.SheetSizeId)
+        RuleFor(x => x.SheetSizeIds)
             .Cascade(CascadeMode.Stop)
             .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений форматов листа")
             .Must(values => values is null || values.All(value => value > 0)).WithMessage("Id форматов листа должны быть положительными числами")
             .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialSheetSizes.Select(x => x.Id), ct))
             .WithMessage("Один или несколько форматов листа не найдены");
 
-        RuleFor(x => x.ThicknessId)
+        RuleFor(x => x.ThicknessIds)
             .Cascade(CascadeMode.Stop)
             .Must(ids => ids is null || ids.Length <= 100).WithMessage("Нельзя передать более 100 значений толщины")
             .Must(ids => ids is null || ids.All(id => id > 0)).WithMessage("Id толщин должны быть положительными числами")
             .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialThicknesses.AsNoTracking().Select(x => x.Id), ct))
             .WithMessage("Одна или несколько толщин не найдены");
 
-        RuleFor(x => x.Depth)
+        RuleFor(x => x.Depths)
             .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений толщины")
             .Must(values => values is null || values.All(value => double.IsFinite(value) && value > 0)).WithMessage("Толщина должна быть положительным конечным числом");
-        RuleFor(x => x.Calculator)
+        RuleFor(x => x.Calculators)
             .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений калькулятора");
-        RuleForEach(x => x.Calculator!).IsInEnum().When(x => x.Calculator is not null).WithMessage("Указан неизвестный калькулятор");
+        RuleForEach(x => x.Calculators!).IsInEnum().When(x => x.Calculators is not null).WithMessage("Указан неизвестный калькулятор");
         RuleFor(x => x.Sort).IsInEnum().WithMessage("Указан неизвестный порядок сортировки");
     }
 
@@ -160,7 +162,7 @@ public sealed class SearchMaterialsQueryHandler(CatalogDbContext dbContext)
 
     private static IQueryable<Material> ApplyFilters(IQueryable<Material> materials, SearchMaterialsQuery query)
     {
-        materials = materials.FilterByCalculators((query.Calculator ?? []).Distinct().ToArray());
+        materials = materials.FilterByCalculators((query.Calculators ?? []).Distinct().ToArray());
         var search = query.Search?.Trim();
         if (!string.IsNullOrEmpty(search))
         {
@@ -170,27 +172,27 @@ public sealed class SearchMaterialsQueryHandler(CatalogDbContext dbContext)
                 || EF.Functions.ILike(x.Article, pattern, "\\"));
         }
 
-        if (query.CategoryId is { Length: > 0 })
+        if (query.CategoryIds is { Length: > 0 })
         {
-            var ids = query.CategoryId.Distinct().ToArray();
+            var ids = query.CategoryIds.Distinct().ToArray();
             materials = materials.Where(x => ids.Contains(x.CategoryId));
         }
-        if (query.ManufacturerId is { Length: > 0 })
+        if (query.ManufacturerIds is { Length: > 0 })
         {
-            var ids = query.ManufacturerId.Distinct().ToArray();
+            var ids = query.ManufacturerIds.Distinct().ToArray();
             materials = materials.Where(x => ids.Contains(x.MaterialManufacturerId));
         }
-        if (query.ThicknessId is { Length: > 0 })
-            materials = materials.Where(x => query.ThicknessId.Contains(x.MaterialThicknessId));
+        if (query.ThicknessIds is { Length: > 0 })
+            materials = materials.Where(x => query.ThicknessIds.Contains(x.MaterialThicknessId));
 
-        if (query.Depth is { Length: > 0 })
+        if (query.Depths is { Length: > 0 })
         {
-            var values = query.Depth.Distinct().ToArray();
+            var values = query.Depths.Distinct().ToArray();
             materials = materials.Where(x => values.Contains(x.MaterialThickness.Value));
         }
-        if (query.SheetSizeId is { Length: > 0 })
+        if (query.SheetSizeIds is { Length: > 0 })
         {
-            var ids = query.SheetSizeId.Distinct().ToArray();
+            var ids = query.SheetSizeIds.Distinct().ToArray();
             materials = materials.Where(x => ids.Contains(x.MaterialSheetSizeId));
         }
         if (query.InStock.HasValue)

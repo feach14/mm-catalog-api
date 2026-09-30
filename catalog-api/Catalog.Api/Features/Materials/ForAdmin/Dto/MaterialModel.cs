@@ -44,7 +44,7 @@ public class MaterialModelValidator : AbstractValidator<MaterialModel>
 public record MaterialModel
 {
     [Description("Id категории")]
-    public int CategoryId { get; init; }
+    public required int CategoryId { get; init; }
 
     [Description("Название материала")]
     public required string Name { get; init; }
@@ -62,31 +62,31 @@ public record MaterialModel
     public Guid? Thumbnail480 { get; init; }
 
     [Description("Количество")]
-    public int Count { get; init; }
+    public required int Count { get; init; }
 
     [Description("Id размера материала")]
-    public int SheetSizeId { get; init; }
+    public required int SheetSizeId { get; init; }
 
     [Description("Id производителя")]
-    public int ManufacturerId { get; init; }
+    public required int ManufacturerId { get; init; }
 
     [Description("Id толщины материала")]
     public required int ThicknessId { get; init; }
 
     [Description("Количество кв.м. в плите материала")]
-    public double KvM { get; init; }
+    public required double KvM { get; init; }
 
     [Description("Количество метров по периметру плиты")]
-    public double PerimetrM { get; init; }
+    public required double PerimetrM { get; init; }
 
     [Description("Признак: Материал применим в калькуляторе раскроя")]
-    public bool ApplicableToRaskroys { get; init; }
+    public required bool ApplicableToRaskroys { get; init; }
 
     [Description("Признак: Материал применим в калькуляторе фасадов ПВХ")]
-    public bool ApplicableToPvhFacades { get; init; }
+    public required bool ApplicableToPvhFacades { get; init; }
 
     [Description("Признак: Материал применим в калькуляторе фасадов эмаль")]
-    public bool ApplicableToEmalFacades { get; init; }
+    public required bool ApplicableToEmalFacades { get; init; }
 
     [Description("Признак: Комментарий к материалу обязателен при оформлении заявки(расчета)")]
     public bool CommentOnMaterialIsRequired { get; init; }
@@ -98,8 +98,8 @@ public record MaterialModel
     public string? ExternalLink { get; init; }
 
     [Description("Цена материала у поставщика")]
-    public decimal Price { get; init; }
+    public required decimal Price { get; init; }
 
     [Description("Единица измерения"), JsonConverter(typeof(JsonStringEnumConverter))]
-    public CountTypeEnum CountTypeEnum { get; init; }
+    public required CountTypeEnum CountTypeEnum { get; init; }
 }

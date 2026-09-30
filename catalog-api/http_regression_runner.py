@@ -115,7 +115,7 @@ def multipart(name, filename, content, content_type, fields=None):
 def upload(filename, content, content_type, image_type="Original", auth=True):
     payload, headers = multipart(
         "file", filename, content, content_type, {"imageType": image_type})
-    return request("POST", "/api/materials/images", payload, auth=auth, headers=headers, raw=True)
+    return request("POST", "/api/admin/materials/images", payload, auth=auth, headers=headers, raw=True)
 
 
 def start_server():
@@ -193,13 +193,13 @@ def categories():
 
 
 def sheet_sizes():
-    response = request("GET", "/api/materials/sheet-sizes")
+    response = request("GET", "/api/admin/materials/sheet-sizes", auth=True)
     expect(response[0], 200, "material sheet sizes list")
     return json_body(response)["items"]
 
 
 def manufacturers():
-    response = request("GET", "/api/materials/manufacturers")
+    response = request("GET", "/api/admin/materials/manufacturers", auth=True)
     expect(response[0], 200, "manufacturers list")
     return json_body(response)["items"]
 
@@ -207,16 +207,16 @@ def manufacturers():
 def history(**filters):
     parameters = {"page": filters.pop("page", 1), "pageSize": filters.pop("page_size", 200)}
     parameters.update({key: value for key, value in filters.items() if value is not None})
-    response = request("GET", "/api/catalog/history?" + urllib.parse.urlencode(parameters), auth=True)
+    response = request("GET", "/api/admin/catalog/history?" + urllib.parse.urlencode(parameters), auth=True)
     expect(response[0], 200, "catalog history")
     return json_body(response)
 
 
 def relation_counts(path, relation_id):
-    list_response = request("GET", path)
+    list_response = request("GET", path, auth=path.startswith("/api/admin/"))
     expect(list_response[0], 200, f"{path} list for counters")
     list_item = next(item for item in json_body(list_response)["items"] if item["id"] == relation_id)
-    card_response = request("GET", f"{path}/{relation_id}")
+    card_response = request("GET", f"{path}/{relation_id}", auth=path.startswith("/api/admin/"))
     expect(card_response[0], 200, f"{path} card for counters")
     card = json_body(card_response)
     list_counts = (list_item["materialsAnyCount"], list_item["materialsNotAnyCount"])
@@ -227,20 +227,19 @@ def relation_counts(path, relation_id):
 
 
 def admin_materials():
-    response = request("GET", "/api/materials/admin", auth=True)
+    response = request("GET", "/api/admin/materials", auth=True)
     expect(response[0], 200, "admin material list")
     return json_body(response)["items"]
 
 
-def public_materials(*calculators):
-    query = "" if not calculators else "?" + urllib.parse.urlencode({"calculator": calculators}, doseq=True)
-    response = request("GET", f"/api/materials{query}")
-    expect(response[0], 200, f"public list {calculators or 'all'}")
+def public_materials():
+    response = request("GET", "/api/materials")
+    expect(response[0], 200, "Полный публичный список материалов")
     return json_body(response)["items"]
 
 
 def create_category(name):
-    response = request("POST", "/api/materials/categories", {"name": name, "externalLink": "https://example.test/" + name}, auth=True)
+    response = request("POST", "/api/admin/materials/categories", {"name": name, "externalLink": "https://example.test/" + name}, auth=True)
     expect(response[0], 200, "create category")
     category_id = json_body(response)["id"]
     created_categories.append(category_id)
@@ -248,7 +247,7 @@ def create_category(name):
 
 
 def create_sheet_size(name, height, width):
-    response = request("POST", "/api/materials/sheet-sizes", {
+    response = request("POST", "/api/admin/materials/sheet-sizes", {
         "name": name, "height": height, "width": width
     }, auth=True)
     expect(response[0], 200, "create material sheet size")
@@ -258,7 +257,7 @@ def create_sheet_size(name, height, width):
 
 
 def create_manufacturer(name):
-    response = request("POST", "/api/materials/manufacturers", {"name": name}, auth=True)
+    response = request("POST", "/api/admin/materials/manufacturers", {"name": name}, auth=True)
     expect(response[0], 200, "create manufacturer")
     manufacturer_id = json_body(response)["id"]
     created_manufacturers.append(manufacturer_id)
@@ -289,7 +288,7 @@ def material_model(name, category_id, flag, image=None):
 
 
 def create_material(model):
-    response = request("POST", "/api/materials", model, auth=True)
+    response = request("POST", "/api/admin/materials", model, auth=True)
     expect(response[0], 200, "create material")
     material_id = json_body(response)["id"]
     created_materials.append(material_id)
@@ -297,7 +296,7 @@ def create_material(model):
 
 
 def delete_material(material_id):
-    response = request("DELETE", f"/api/materials/{material_id}", auth=True)
+    response = request("DELETE", f"/api/admin/materials/{material_id}", auth=True)
     if response[0] == 200 and material_id in created_materials:
         created_materials.remove(material_id)
     return response
@@ -311,32 +310,32 @@ def cleanup():
             pass
     for category_id in list(reversed(created_categories)):
         try:
-            response = request("DELETE", f"/api/materials/categories/{category_id}", auth=True)
+            response = request("DELETE", f"/api/admin/materials/categories/{category_id}", auth=True)
             if response[0] == 200:
                 created_categories.remove(category_id)
         except Exception:
             pass
     for size_id in list(reversed(created_sheet_sizes)):
         try:
-            response = request("DELETE", f"/api/materials/sheet-sizes/{size_id}", auth=True)
+            response = request("DELETE", f"/api/admin/materials/sheet-sizes/{size_id}", auth=True)
             if response[0] == 200:
                 created_sheet_sizes.remove(size_id)
         except Exception:
             pass
     for manufacturer_id in list(reversed(created_manufacturers)):
         try:
-            response = request("DELETE", f"/api/materials/manufacturers/{manufacturer_id}", auth=True)
+            response = request("DELETE", f"/api/admin/materials/manufacturers/{manufacturer_id}", auth=True)
             if response[0] == 200:
                 created_manufacturers.remove(manufacturer_id)
         except Exception:
             pass
     for thickness_id in list(reversed(created_thicknesses)):
-        response = request("DELETE", f"/api/materials/thicknesses/{thickness_id}", auth=True)
+        response = request("DELETE", f"/api/admin/materials/thicknesses/{thickness_id}", auth=True)
         if response[0] == 200:
             created_thicknesses.remove(thickness_id)
     if history_run_id:
         try:
-            request("DELETE", f"/api/catalog/history/test-runs/{history_run_id}", auth=True)
+            request("DELETE", f"/api/admin/catalog/history/test-runs/{history_run_id}", auth=True)
         except Exception:
             pass
 
@@ -344,20 +343,20 @@ def cleanup():
 def run_history_scenarios(history_prefix, dimension_base, manager_cookie, tester_cookie, manager_phone):
     category_name = history_prefix + "-category"
     category_model = {"name": category_name, "externalLink": "https://example.test/history-category"}
-    response = request("POST", "/api/materials/categories", category_model, auth_cookie=manager_cookie)
+    response = request("POST", "/api/admin/materials/categories", category_model, auth_cookie=manager_cookie)
     expect(response[0], 200, "history category create")
     category_id = json_body(response)["id"]
     created_categories.append(category_id)
 
     size_name = history_prefix + "-size"
     size_model = {"name": size_name, "height": dimension_base + 100, "width": dimension_base + 101}
-    response = request("POST", "/api/materials/sheet-sizes", size_model, auth_cookie=manager_cookie)
+    response = request("POST", "/api/admin/materials/sheet-sizes", size_model, auth_cookie=manager_cookie)
     expect(response[0], 200, "history sheet size create")
     size_id = json_body(response)["id"]
     created_sheet_sizes.append(size_id)
 
     manufacturer_name = history_prefix + "-manufacturer"
-    response = request("POST", "/api/materials/manufacturers", {
+    response = request("POST", "/api/admin/materials/manufacturers", {
         "name": manufacturer_name
     }, auth_cookie=manager_cookie)
     expect(response[0], 200, "history manufacturer create")
@@ -367,7 +366,7 @@ def run_history_scenarios(history_prefix, dimension_base, manager_cookie, tester
     material_name = history_prefix + "-material"
     material = material_model(material_name, category_id, "raskroy")
     material.update({"sheetSizeId": size_id, "manufacturerId": manufacturer_id})
-    response = request("POST", "/api/materials", material, auth_cookie=manager_cookie)
+    response = request("POST", "/api/admin/materials", material, auth_cookie=manager_cookie)
     expect(response[0], 200, "history material create")
     material_id = json_body(response)["id"]
     created_materials.append(material_id)
@@ -378,23 +377,23 @@ def run_history_scenarios(history_prefix, dimension_base, manager_cookie, tester
 
     updated_category_name = category_name + "-updated"
     updated_category_model = dict(category_model, name=updated_category_name)
-    expect(request("PUT", f"/api/materials/categories/{category_id}", updated_category_model,
+    expect(request("PUT", f"/api/admin/materials/categories/{category_id}", updated_category_model,
                    auth_cookie=manager_cookie)[0], 200, "history category update")
 
     updated_size_name = size_name + "-updated"
     updated_size_model = dict(size_model, name=updated_size_name)
-    expect(request("PUT", f"/api/materials/sheet-sizes/{size_id}", updated_size_model,
+    expect(request("PUT", f"/api/admin/materials/sheet-sizes/{size_id}", updated_size_model,
                    auth_cookie=manager_cookie)[0], 200, "history sheet size update")
 
     updated_manufacturer_name = manufacturer_name + "-updated"
     updated_manufacturer_model = {"name": updated_manufacturer_name}
-    expect(request("PUT", f"/api/materials/manufacturers/{manufacturer_id}", updated_manufacturer_model,
+    expect(request("PUT", f"/api/admin/materials/manufacturers/{manufacturer_id}", updated_manufacturer_model,
                    auth_cookie=manager_cookie)[0], 200, "history manufacturer update")
 
     updated_material_name = material_name + "-updated"
     updated_material = copy.deepcopy(material)
     updated_material["name"] = updated_material_name
-    expect(request("PUT", f"/api/materials/{material_id}", updated_material,
+    expect(request("PUT", f"/api/admin/materials/{material_id}", updated_material,
                    auth_cookie=manager_cookie)[0], 200, "history material update")
 
     updated_history = history(search=history_prefix)
@@ -416,37 +415,37 @@ def run_history_scenarios(history_prefix, dimension_base, manager_cookie, tester
         if item["message"].count("→") != 1:
             raise AssertionError("history update contains fields that were not changed")
 
-    expect(request("PUT", f"/api/materials/categories/{category_id}", updated_category_model,
+    expect(request("PUT", f"/api/admin/materials/categories/{category_id}", updated_category_model,
                    auth_cookie=manager_cookie)[0], 200, "history category no-op")
-    expect(request("PUT", f"/api/materials/sheet-sizes/{size_id}", updated_size_model,
+    expect(request("PUT", f"/api/admin/materials/sheet-sizes/{size_id}", updated_size_model,
                    auth_cookie=manager_cookie)[0], 200, "history sheet size no-op")
-    expect(request("PUT", f"/api/materials/manufacturers/{manufacturer_id}", updated_manufacturer_model,
+    expect(request("PUT", f"/api/admin/materials/manufacturers/{manufacturer_id}", updated_manufacturer_model,
                    auth_cookie=manager_cookie)[0], 200, "history manufacturer no-op")
-    expect(request("PUT", f"/api/materials/{material_id}", updated_material,
+    expect(request("PUT", f"/api/admin/materials/{material_id}", updated_material,
                    auth_cookie=manager_cookie)[0], 200, "history material no-op")
     if history(search=history_prefix)["totalCount"] != 8:
         raise AssertionError("no-op update created a history event")
 
     helper_name = history_prefix + "-sort-helper"
-    response = request("POST", "/api/materials/categories", {
+    response = request("POST", "/api/admin/materials/categories", {
         "name": helper_name, "externalLink": "https://example.test/history-sort-helper"
     }, auth_cookie=tester_cookie)
     expect(response[0], 200, "history sorting helper create")
     helper_id = json_body(response)["id"]
     created_categories.append(helper_id)
-    expect(request("POST", "/api/materials/categories/change-order-col", {
+    expect(request("POST", "/api/admin/materials/categories/change-order-col", {
         "categoryId": helper_id, "direction": "UP"
     }, auth_cookie=manager_cookie)[0], 200, "history sorting up")
-    expect(request("POST", "/api/materials/categories/change-order-col", {
+    expect(request("POST", "/api/admin/materials/categories/change-order-col", {
         "categoryId": helper_id, "direction": "DOWN"
     }, auth_cookie=manager_cookie)[0], 200, "history sorting down")
-    expect(request("DELETE", f"/api/materials/categories/{helper_id}",
+    expect(request("DELETE", f"/api/admin/materials/categories/{helper_id}",
                    auth_cookie=tester_cookie)[0], 200, "history sorting helper cleanup")
     created_categories.remove(helper_id)
     if history(search=history_prefix)["totalCount"] != 8:
         raise AssertionError("sorting or tester cleanup created a history event")
 
-    expect(request("POST", "/api/materials/categories", {
+    expect(request("POST", "/api/admin/materials/categories", {
         "name": updated_category_name, "externalLink": "https://example.test/duplicate"
     }, auth_cookie=manager_cookie)[0], 400, "history unsuccessful command")
     if history(search=history_prefix)["totalCount"] != 8:
@@ -454,16 +453,16 @@ def run_history_scenarios(history_prefix, dimension_base, manager_cookie, tester
     if len([item for item in categories() if item["name"] == updated_category_name]) != 1:
         raise AssertionError("unsuccessful command partially changed catalog data")
 
-    expect(request("DELETE", f"/api/materials/{material_id}", auth_cookie=manager_cookie)[0],
+    expect(request("DELETE", f"/api/admin/materials/{material_id}", auth_cookie=manager_cookie)[0],
            200, "history material delete")
     created_materials.remove(material_id)
-    expect(request("DELETE", f"/api/materials/categories/{category_id}", auth_cookie=manager_cookie)[0],
+    expect(request("DELETE", f"/api/admin/materials/categories/{category_id}", auth_cookie=manager_cookie)[0],
            200, "history category delete")
     created_categories.remove(category_id)
-    expect(request("DELETE", f"/api/materials/sheet-sizes/{size_id}", auth_cookie=manager_cookie)[0],
+    expect(request("DELETE", f"/api/admin/materials/sheet-sizes/{size_id}", auth_cookie=manager_cookie)[0],
            200, "history sheet size delete")
     created_sheet_sizes.remove(size_id)
-    expect(request("DELETE", f"/api/materials/manufacturers/{manufacturer_id}", auth_cookie=manager_cookie)[0],
+    expect(request("DELETE", f"/api/admin/materials/manufacturers/{manufacturer_id}", auth_cookie=manager_cookie)[0],
            200, "history manufacturer delete")
     created_manufacturers.remove(manufacturer_id)
 
@@ -509,7 +508,7 @@ def run_history_scenarios(history_prefix, dimension_base, manager_cookie, tester
         raise AssertionError("history pagination failed")
     if first_page["items"][0]["id"] == second_page["items"][0]["id"]:
         raise AssertionError("history pages contain the same item")
-    expect(request("GET", "/api/catalog/history?pageSize=0", auth_cookie=manager_cookie)[0],
+    expect(request("GET", "/api/admin/catalog/history?pageSize=0", auth_cookie=manager_cookie)[0],
            400, "history zero page size validation")
     ordered_keys = [(item["occurredAt"], item["id"]) for item in items]
     if ordered_keys != sorted(ordered_keys, reverse=True):
@@ -544,7 +543,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
     sizes = [create_sheet_size(marker + f"-size-{i}", dimension_base + 20 + i * 2,
                                dimension_base + 21 + i * 2) for i in range(3)]
     for i, size_id in enumerate(sizes):
-        expect(request("PUT", f"/api/materials/sheet-sizes/{size_id}", {
+        expect(request("PUT", f"/api/admin/materials/sheet-sizes/{size_id}", {
             "name": marker + f"-size-{i}", "height": dimension_base + 20 + i * 2,
             "width": dimension_base + 21 + i * 2, "showInFilters": i != 1
         }, auth=True)[0], 200, "configure facet size")
@@ -559,14 +558,14 @@ def run_search_facet_scenarios(prefix, dimension_base):
         search = params.get("search", "").strip().lower()
         if search not in row["name"].lower() and search not in row["article"].lower():
             return False
-        for key in ("categoryId", "manufacturerId", "sheetSizeId", "depth", "thicknessId"):
-            if key != excluded and not (excluded == "depth" and key == "thicknessId") and params.get(key) and row[key] not in params[key]:
+        for key in ("categoryIds", "manufacturerIds", "sheetSizeIds", "depths", "thicknessIds"):
+            if key != excluded and not (excluded == "depths" and key == "thicknessIds") and params.get(key) and row[key[:-1] if (key.endswith("Ids") or key == "depths") else key] not in params[key]:
                 return False
         if excluded != "inStock" and "inStock" in params:
             if (row["count"] > 0) != (params["inStock"] == "true"):
                 return False
         flags = {"Raskroy": "applicableToRaskroys", "PvhFacades": "applicableToPvhFacades"}
-        return not params.get("calculator") or any(row[flags[c]] for c in params["calculator"])
+        return not params.get("calculators") or any(row[flags[c]] for c in params["calculators"])
 
     def search_check(params):
         body = public_query("search", params)
@@ -590,12 +589,12 @@ def run_search_facet_scenarios(prefix, dimension_base):
         expect(delete_material(material_id)[0], 200, "literal cleanup")
         expect(delete_material(control_id)[0], 200, "literal control cleanup")
     mark("SEARCH-02", "Спецсимволы шаблонов LIKE обрабатываются буквально")
-    choices = {"categoryId": cats[:2], "manufacturerId": makers[:2], "sheetSizeId": sizes[:2],
-               "depth": [16, 18], "thicknessId": [thickness_ids[16], thickness_ids[18]], "calculator": ["Raskroy", "PvhFacades"]}
+    choices = {"categoryIds": cats[:2], "manufacturerIds": makers[:2], "sheetSizeIds": sizes[:2],
+               "depths": [16, 18], "thicknessIds": [thickness_ids[16], thickness_ids[18]], "calculators": ["Raskroy", "PvhFacades"]}
     for key, values in choices.items():
         search_check({"search": marker, key: values + values})
     for stock in ("true", "false"):
-        search_check({"search": marker, **choices, "categoryId": [cats[0]], "inStock": stock})
+        search_check({"search": marker, **choices, "categoryIds": [cats[0]], "inStock": stock})
     mark("SEARCH-03", "Проверены условия ИЛИ и И, повторяющиеся значения и наличие")
     for sort, expected in (("NameAsc", rows), ("NameDesc", list(reversed(rows))),
                            ("CatalogOrder", [rows[i] for i in (0, 2, 4, 1, 3)])):
@@ -623,10 +622,10 @@ def run_search_facet_scenarios(prefix, dimension_base):
         for key, values in choices.items():
             public_query(endpoint, {"search": marker, key: [values[0]] * 100})
             invalid.append({key: [values[0]] * 101})
-        for key in ("categoryId", "manufacturerId", "sheetSizeId", "thicknessId"):
+        for key in ("categoryIds", "manufacturerIds", "sheetSizeIds", "thicknessIds"):
             invalid.extend({key: value} for value in (0, 2147483647))
-        invalid.extend({"depth": value} for value in (0, -1, "NaN", "Infinity"))
-        invalid.append({"calculator": "Unknown"})
+        invalid.extend({"depths": value} for value in (0, -1, "NaN", "Infinity"))
+        invalid.append({"calculators": "Unknown"})
         if endpoint == "search":
             invalid.append({"sort": "Unknown"})
         for params in invalid:
@@ -637,16 +636,16 @@ def run_search_facet_scenarios(prefix, dimension_base):
     equal(empty, {"items": [], "totalCount": 0, "page": 2, "pageSize": 3}, "empty search")
     mark("SEARCH-08", "Проверен контракт пустой выдачи")
 
-    groups = {"categories": ("categoryId", "id", cats), "manufacturers": ("manufacturerId", "id", makers),
-              "sheetSizes": ("sheetSizeId", "id", sizes), "depths": ("depth", "value", [16, 18])}
+    groups = {"categories": ("categoryIds", "id", cats), "manufacturers": ("manufacturerIds", "id", makers),
+              "sheetSizes": ("sheetSizeIds", "id", sizes), "depths": ("depths", "value", [16, 18])}
 
     def facets_check(params):
         body = public_query("filters", params)
         for group, (field, key, values) in groups.items():
             expected = {}
             for value in sorted(set(values + params.get(field, []))):
-                count = sum(matches(r, params, field) and r[field] == value for r in rows)
-                visible = field != "sheetSizeId" or value != sizes[1]
+                count = sum(matches(r, params, field) and r[field[:-1] if (field.endswith("Ids") or field == "depths") else field] == value for r in rows)
+                visible = field != "sheetSizeIds" or value != sizes[1]
                 if (count and visible) or value in params.get(field, []):
                     expected[value] = count
             actual = body[group]
@@ -658,23 +657,23 @@ def run_search_facet_scenarios(prefix, dimension_base):
         equal(len(body["availability"]), 2, "availability unique")
         return body
 
-    for field in ("categoryId", "manufacturerId", "sheetSizeId", "depth"):
+    for field in ("categoryIds", "manufacturerIds", "sheetSizeIds", "depths"):
         facets_check({"search": marker, field: [choices[field][0]]})
     mark("FACET-01", "При расчёте каждой группы исключается её собственный фильтр")
-    facets_check({"search": marker, "categoryId": [cats[0]], "manufacturerId": [makers[0]],
-                  "sheetSizeId": [sizes[0]], "depth": [16], "calculator": ["Raskroy"], "inStock": "false"})
+    facets_check({"search": marker, "categoryIds": [cats[0]], "manufacturerIds": [makers[0]],
+                  "sheetSizeIds": [sizes[0]], "depths": [16], "calculators": ["Raskroy"], "inStock": "false"})
     mark("FACET-02", "Счётчики при совместных ограничениях сверены с исходными тестовыми данными")
-    facets_check({"search": marker, "categoryId": [cats[2]], "manufacturerId": [makers[2]],
-                  "sheetSizeId": [sizes[2]], "depth": [99]})
+    facets_check({"search": marker, "categoryIds": [cats[2]], "manufacturerIds": [makers[2]],
+                  "sheetSizeIds": [sizes[2]], "depths": [99]})
     mark("FACET-03", "Выбранные значения с нулевыми счётчиками сохранены")
     facets_check({"search": marker})
-    facets_check({"search": marker, "sheetSizeId": [sizes[1]]})
-    search_check({"search": marker, "sheetSizeId": [sizes[1]]})
+    facets_check({"search": marker, "sheetSizeIds": [sizes[1]]})
+    search_check({"search": marker, "sheetSizeIds": [sizes[1]]})
     mark("FACET-04", "Скрытый размер отсутствует среди вариантов до выбора, но доступен для поиска")
     for stock in ("true", "false"):
         facets_check({"search": marker, "inStock": stock})
     rows[0]["count"] = 1
-    expect(request("PUT", f'/api/materials/{rows[0]["id"]}',
+    expect(request("PUT", f'/api/admin/materials/{rows[0]["id"]}',
                    {k: v for k, v in rows[0].items() if k not in ("id", "depth")}, auth=True)[0], 200, "change stock")
     for stock in ("true", "false"):
         facets_check({"search": marker, "inStock": stock})
@@ -682,14 +681,14 @@ def run_search_facet_scenarios(prefix, dimension_base):
     facets_check({"search": marker, **{key: values * 2 for key, values in choices.items()}})
     mark("FACET-06", "Проверены порядок вариантов фильтров и повторяющиеся выбранные значения")
     facets_check({"search": marker + "-missing"})
-    facets_check({"search": marker + "-missing", "categoryId": [cats[0]]})
+    facets_check({"search": marker + "-missing", "categoryIds": [cats[0]]})
     mark("FACET-07", "Проверены пустые группы фильтров и выбранная категория с нулевым счётчиком")
     for row in rows:
         expect(delete_material(row["id"])[0], 200, "search fixture cleanup")
     for ids, path, tracked in ((cats, "categories", created_categories), (sizes, "sheet-sizes", created_sheet_sizes),
                                (makers, "manufacturers", created_manufacturers)):
         for entity_id in ids:
-            expect(request("DELETE", f"/api/materials/{path}/{entity_id}", auth=True)[0], 200, "facet fixture cleanup")
+            expect(request("DELETE", f"/api/admin/materials/{path}/{entity_id}", auth=True)[0], 200, "facet fixture cleanup")
             tracked.remove(entity_id)
 
 
@@ -720,7 +719,7 @@ def run_variant_scenarios(prefix, category_id, png):
 
     def snapshots(entity_id):
         cards = []
-        for path, auth in ((f"/api/materials/{entity_id}", False), (f"/api/materials/admin/{entity_id}", True)):
+        for path, auth in ((f"/api/materials/{entity_id}", False), (f"/api/admin/materials/{entity_id}", True)):
             response = request("GET", path, auth=auth)
             expect(response[0], 200, "variant card")
             cards.append(json_body(response))
@@ -739,7 +738,7 @@ def run_variant_scenarios(prefix, category_id, png):
                 file_check(guid)
 
     def update():
-        expect(request("PUT", f"/api/materials/{material_id}", model, auth=True)[0], 200, "variant update")
+        expect(request("PUT", f"/api/admin/materials/{material_id}", model, auth=True)[0], 200, "variant update")
         check_model()
 
     try:
@@ -752,10 +751,10 @@ def run_variant_scenarios(prefix, category_id, png):
             wrong_guid = new_image(wrong_field)
             bad = dict(model, **{field: wrong_guid})
             before = snapshots(material_id)
-            problem(request("PUT", f"/api/materials/{material_id}", bad, auth=True), "wrong image type update")
+            problem(request("PUT", f"/api/admin/materials/{material_id}", bad, auth=True), "wrong image type update")
             equal(snapshots(material_id), before, "failed update unchanged")
             bad.update(name=prefix + "-wrong-type", **{other: None for other in fields if other != field})
-            problem(request("POST", "/api/materials", bad, auth=True), "wrong image type create")
+            problem(request("POST", "/api/admin/materials", bad, auth=True), "wrong image type create")
             equal(public_query("search", {"search": bad["name"]})["totalCount"], 0, "rejected create absent")
             file_check(wrong_guid)
         mark("VAR-02", "POST и PUT отклоняют изображения неверного назначения без изменения данных")
@@ -776,11 +775,11 @@ def run_variant_scenarios(prefix, category_id, png):
         for field in ("thumbnail240", "thumbnail480"):
             before_a, before_b = snapshots(material_id), snapshots(other_id)
             bad = dict(other, **{field: model[field]})
-            problem(request("PUT", f"/api/materials/{other_id}", bad, auth=True), "foreign thumbnail update")
+            problem(request("PUT", f"/api/admin/materials/{other_id}", bad, auth=True), "foreign thumbnail update")
             equal(snapshots(material_id), before_a, "owner unchanged")
             equal(snapshots(other_id), before_b, "recipient unchanged")
             bad.update(name=prefix + "-foreign-variant", **{key: None for key in fields if key != field})
-            problem(request("POST", "/api/materials", bad, auth=True), "foreign thumbnail create")
+            problem(request("POST", "/api/admin/materials", bad, auth=True), "foreign thumbnail create")
             equal(public_query("search", {"search": bad["name"]})["totalCount"], 0, "foreign create absent")
             for guid in [model[field], *[other[key] for key in fields]]:
                 file_check(guid)
@@ -788,7 +787,7 @@ def run_variant_scenarios(prefix, category_id, png):
         new_original = new_image("image")
         before = snapshots(material_id)
         bad = dict(model, article="should-not-save", image=new_original, thumbnail480=str(uuid.uuid4()))
-        problem(request("PUT", f"/api/materials/{material_id}", bad, auth=True), "mixed invalid update")
+        problem(request("PUT", f"/api/admin/materials/{material_id}", bad, auth=True), "mixed invalid update")
         equal(snapshots(material_id), before, "atomic refusal")
         check_model()
         file_check(new_original)
@@ -807,7 +806,7 @@ def run_variant_scenarios(prefix, category_id, png):
         expect(delete_material(other_id)[0], 200, "delete all image variants")
         for field in fields:
             problem(request("GET", "/api/materials/images/" + other[field]), "deleted variant")
-        for path in (f"/api/materials/{other_id}", f"/api/materials/admin/{other_id}"):
+        for path in (f"/api/materials/{other_id}", f"/api/admin/materials/{other_id}"):
             problem(request("GET", path, auth=True), "deleted variant card")
         equal(public_query("search", {"search": other["name"]})["totalCount"], 0, "deleted variant search")
         mark("VAR-08", "Удаление материала делает все варианты изображений недоступными, включая кеш")
@@ -825,7 +824,7 @@ def run_variant_scenarios(prefix, category_id, png):
                     temporary_id = create_material(temporary)
                     expect(delete_material(temporary_id)[0], 200, "unused upload cleanup")
         for entity_id in list(created_materials):
-            card = json_body(request("GET", f"/api/materials/admin/{entity_id}", auth=True))
+            card = json_body(request("GET", f"/api/admin/materials/{entity_id}", auth=True))
             if card and card.get("name", "").startswith(prefix + "-variants-"):
                 expect(delete_material(entity_id)[0], 200, "variant fixture cleanup")
         for guid in uploaded:
@@ -833,7 +832,7 @@ def run_variant_scenarios(prefix, category_id, png):
 
 
 def run_thickness_scenarios(prefix, dimension_base, user_cookie, tester_cookie, manager_cookie, admin_cookie):
-    path = "/api/materials/thicknesses"
+    path = "/api/admin/materials/thicknesses"
     value = dimension_base + 0.125
     model = {"name": prefix + "-thickness", "value": value}
     for auth_cookie, status in ((None, 401), (user_cookie, 403)):
@@ -843,11 +842,12 @@ def run_thickness_scenarios(prefix, dimension_base, user_cookie, tester_cookie, 
     entity_id = json_body(response)["id"]
     created_thicknesses.append(entity_id)
     expected = dict(model, id=entity_id)
-    equal(json_body(request("GET", f"{path}/{entity_id}")), expected, "Карточка толщины")
-    items = json_body(request("GET", path))["items"]
-    equal(next(x for x in items if x["id"] == entity_id), expected, "Список толщин")
+    equal(json_body(request("GET", f"{path}/{entity_id}", auth=True)), expected, "Карточка толщины")
+    items = json_body(request("GET", path, auth=True))["items"]
+    equal(next(x for x in items if x["id"] == entity_id),
+          dict(expected, materialsAnyCount=0, materialsNotAnyCount=0), "Список толщин")
     equal([x["value"] for x in items], sorted(x["value"] for x in items), "Порядок толщин")
-    mark("THICK-01", "Создание, публичные список и карточка, сортировка по значению")
+    mark("THICK-01", "Создание, административные список и карточка, сортировка по значению")
     for auth_cookie, status in ((None, 401), (user_cookie, 403)):
         for method in ("PUT", "DELETE"):
             expect(request(method, f"{path}/{entity_id}", model if method == "PUT" else None,
@@ -864,19 +864,19 @@ def run_thickness_scenarios(prefix, dimension_base, user_cookie, tester_cookie, 
             problem(request(method, url, invalid, auth=True), "Валидация толщины")
     problem(request("POST", path, model, auth=True), "Дубликат значения")
     problem(request("PUT", f"{path}/{entity_id}", dict(model, value=18), auth=True), "Дубликат при изменении")
-    equal(json_body(request("GET", f"{path}/{entity_id}")), expected, "Атомарность отказа")
+    equal(json_body(request("GET", f"{path}/{entity_id}", auth=True)), expected, "Атомарность отказа")
     for invalid_id in (0, -1, 2147483647):
         for method in ("GET", "PUT", "DELETE"):
             problem(request(method, f"{path}/{invalid_id}", model if method == "PUT" else None,
-                            auth=method != "GET"), "Неизвестная толщина")
+                            auth=True), "Неизвестная толщина")
     mark("THICK-03", "Проверены обязательность, длина, положительность, конечность, уникальность и неизвестные ID")
     for name in ("x" * 100, "  " + model["name"] + "-renamed  "):
         expect(request("PUT", f"{path}/{entity_id}", dict(model, name=name), auth=True)[0], 200, "Переименование толщины")
-        equal(json_body(request("GET", f"{path}/{entity_id}"))["name"], name.strip(), "Имя толщины после изменения")
+        equal(json_body(request("GET", f"{path}/{entity_id}", auth=True))["name"], name.strip(), "Имя толщины после изменения")
     expected["name"] = model["name"] + "-renamed"
     expected["value"] = value + 0.25
     expect(request("PUT", f"{path}/{entity_id}", {"name": expected["name"], "value": expected["value"]}, auth=True)[0], 200, "Изменение значения толщины")
-    equal(json_body(request("GET", f"{path}/{entity_id}")), expected, "Изменённая толщина")
+    equal(json_body(request("GET", f"{path}/{entity_id}", auth=True)), expected, "Изменённая толщина")
     mark("THICK-04", "Имя длиной 100, Trim, изменение имени и числового значения")
     category = create_category(prefix + "-thickness-cat")
     maker = create_manufacturer(prefix + "-thickness-maker")
@@ -885,39 +885,43 @@ def run_thickness_scenarios(prefix, dimension_base, user_cookie, tester_cookie, 
     material.update(manufacturerId=maker, sheetSizeId=size, thicknessId=entity_id)
     material_id = create_material(material)
     problem(request("DELETE", f"{path}/{entity_id}", auth=True), "Удаление используемой толщины")
-    for endpoint, auth in ((f"/api/materials/{material_id}", False), (f"/api/materials/admin/{material_id}", True)):
+    for endpoint, auth in ((f"/api/materials/{material_id}", False), (f"/api/admin/materials/{material_id}", True)):
         body = json_body(request("GET", endpoint, auth=auth))
         equal(body["thickness"], expected, "Вложенная толщина в карточке")
         assert "depth" not in body and "thicknessId" not in body
-    for endpoint, auth in (("/api/materials", False), ("/api/materials/admin", True), ("/api/materials/search", False)):
-        response = request("GET", endpoint + "?thicknessId=" + str(entity_id), auth=auth)
+    for endpoint, auth in (("/api/materials", False), ("/api/admin/materials", True)):
+        items = json_body(request("GET", endpoint, auth=auth))["items"]
+        equal(next(x["thickness"] for x in items if x["id"] == material_id), expected,
+              "Вложенная толщина в полном списке")
+    for endpoint, auth in (("/api/materials/search", False),):
+        response = request("GET", endpoint + "?thicknessIds=" + str(entity_id), auth=auth)
         expect(response[0], 200, "Фильтр толщины")
         equal([(x["id"], x["thickness"]) for x in json_body(response)["items"]], [(material_id, expected)], "Список по толщине")
-        for bad in ("0", "-1", "2147483647", "abc", "&thicknessId=".join([str(entity_id)] * 101)):
-            problem(request("GET", endpoint + "?thicknessId=" + bad, auth=auth), "Некорректный фильтр толщины")
+        for bad in ("0", "-1", "2147483647", "abc", "&thicknessIds=".join([str(entity_id)] * 101)):
+            problem(request("GET", endpoint + "?thicknessIds=" + bad, auth=auth), "Некорректный фильтр толщины")
     for bad in (0, -1, 2147483647):
-        for method, url in (("POST", "/api/materials"), ("PUT", f"/api/materials/{material_id}")):
+        for method, url in (("POST", "/api/admin/materials"), ("PUT", f"/api/admin/materials/{material_id}")):
             problem(request(method, url, dict(material, thicknessId=bad), auth=True), "Толщина материала не найдена")
-    mark("THICK-05", "Связь материала, защита удаления, вложенный DTO в пяти выдачах, фильтр сайта и админки")
+    mark("THICK-05", "Связь материала, защита удаления, вложенный DTO в пяти выдачах, фильтр поиска")
     search = public_query("search", {"search": material["name"]})
     equal((search["page"], search["pageSize"], search["totalCount"]), (1, 24, 1), "Пагинация по умолчанию")
-    equal(public_query("search", {"search": material["name"], "thicknessId": [entity_id, entity_id]})["totalCount"], 1, "Повтор толщины")
-    equal(public_query("search", {"search": material["name"], "thicknessId": [entity_id], "depth": [18]})["totalCount"], 0, "Пересечение depth и thicknessId")
+    equal(public_query("search", {"search": material["name"], "thicknessIds": [entity_id, entity_id]})["totalCount"], 1, "Повтор толщины")
+    equal(public_query("search", {"search": material["name"], "thicknessIds": [entity_id], "depths": [18]})["totalCount"], 0, "Пересечение depths и thicknessIds")
     public_query("search", {})
     public_query("filters", {})
     for endpoint in ("search", "filters"):
         problem(request("GET", "/api/materials/" + endpoint + "?search=" + "x" * 251), "Валидация без массивов")
-        facets = public_query("filters", {"search": material["name"], "thicknessId": [thickness_ids[18]]})
+        facets = public_query("filters", {"search": material["name"], "thicknessIds": [thickness_ids[18]]})
         actual = {x["id"]: x["count"] for x in facets["thicknesses"]}
         equal(actual, {entity_id: 1, thickness_ids[18]: 0}, "Собственный фильтр и нулевой выбранный вариант")
     mark("QUERY-01", "Отсутствующие массивы, запросы без параметров и пагинация по умолчанию")
-    mark("THICK-06", "Повторы, пересечение legacy depth, фасеты и нулевой выбранный вариант")
+    mark("THICK-06", "Повторы, пересечение с числовым фильтром depths, фасеты и нулевой выбранный вариант")
     expect(delete_material(material_id)[0], 200, "Очистка материала толщины")
     expect(request("DELETE", f"{path}/{entity_id}", auth=True)[0], 200, "Удаление свободной толщины")
     created_thicknesses.remove(entity_id)
-    problem(request("GET", f"{path}/{entity_id}"), "Удалённая толщина")
+    problem(request("GET", f"{path}/{entity_id}", auth=True), "Удалённая толщина")
     for entity, endpoint, tracked in ((category, "categories", created_categories), (maker, "manufacturers", created_manufacturers), (size, "sheet-sizes", created_sheet_sizes)):
-        expect(request("DELETE", f"/api/materials/{endpoint}/{entity}", auth=True)[0], 200, "Очистка справочника")
+        expect(request("DELETE", f"/api/admin/materials/{endpoint}/{entity}", auth=True)[0], 200, "Очистка справочника")
         tracked.remove(entity)
     equal(history(search=prefix + "-thickness")["totalCount"], 0, "Тестер не создаёт историю толщин")
     mark("THICK-07", "Свободная толщина удалена, повторное чтение отклонено, тестер не создаёт историю")
@@ -935,6 +939,9 @@ def main():
     openapi_response = request("GET", "/swagger/v1/swagger.json")
     expect(openapi_response[0], 200, "OpenAPI document")
     openapi_document = json_body(openapi_response)
+    for endpoint in ("/api/materials", "/api/admin/materials"):
+        equal(openapi_document["paths"][endpoint]["get"].get("parameters", []), [],
+              "Полный список не имеет query-параметров в OpenAPI")
     schemas = openapi_document["components"]["schemas"]
     thickness_schema = schemas["MaterialThicknessDto"]
     equal(set(thickness_schema["properties"]), {"id", "name", "value"}, "Поля DTO толщины")
@@ -948,6 +955,10 @@ def main():
     for endpoint, count in (("search", 11), ("filters", 8)):
         parameters = openapi_document["paths"]["/api/materials/" + endpoint]["get"]["parameters"]
         equal(len(parameters), count, "Количество query-параметров")
+        parameter_names = {parameter["name"][0].lower() + parameter["name"][1:] for parameter in parameters}
+        equal(parameter_names & {"categoryIds", "manufacturerIds", "sheetSizeIds", "thicknessIds", "depths", "calculators"},
+              {"categoryIds", "manufacturerIds", "sheetSizeIds", "thicknessIds", "depths", "calculators"}, "Имена параметров множественного выбора")
+        assert not parameter_names & {"categoryId", "manufacturerId", "sheetSizeId", "thicknessId", "depth", "calculator"}, "Старые имена массивов ID в OpenAPI"
         for parameter in parameters:
             assert not parameter.get("required", False), parameter["name"]
             assert re.search("[А-Яа-я]", parameter.get("description", "")), parameter["name"]
@@ -959,21 +970,9 @@ def main():
     if not required_sheet_size_properties.issubset(set(sheet_size_schema.get("required", []))):
         raise AssertionError("SheetSizeDto OpenAPI required properties are incomplete")
     mark("DOC-01", "Схема SheetSizeDto в OpenAPI содержит все свойства ответа и обязательные поля")
-    cleanup_operation = openapi_document["paths"]["/api/catalog/history/test-runs/{runId}"]["delete"]
-    cleanup_parameters = cleanup_operation.get("parameters", [])
-    if len(cleanup_parameters) != 1 or cleanup_parameters[0].get("name") != "runId":
-        raise AssertionError("history cleanup OpenAPI path parameter is incorrect")
-    cleanup_parameter_schema = cleanup_parameters[0].get("schema", {})
-    cleanup_parameter_types = cleanup_parameter_schema.get("type", [])
-    if isinstance(cleanup_parameter_types, str):
-        cleanup_parameter_types = [cleanup_parameter_types]
-    if "integer" not in cleanup_parameter_types or cleanup_parameter_schema.get("format") != "int32":
-        raise AssertionError("history cleanup OpenAPI path parameter type is incorrect")
-    if cleanup_parameters[0].get("description") != "Числовой id тестового HIST-прогона":
-        raise AssertionError("history cleanup OpenAPI path parameter description is incorrect")
-    if not {"200", "400", "401", "403"}.issubset(cleanup_operation.get("responses", {})):
-        raise AssertionError("history cleanup OpenAPI responses are incomplete")
-    mark("DOC-02", "Параметр пути и ответы метода очистки истории описаны в OpenAPI")
+    if "/api/admin/catalog/history/test-runs/{runId}" in openapi_document["paths"]:
+        raise AssertionError("Метод очистки тестовой истории не должен отображаться в OpenAPI")
+    mark("DOC-02", "Метод очистки тестовой истории скрыт из OpenAPI")
 
     credentials = load_test_credentials()
     user_cookie = signin(credentials["user"], credentials["password"], "user")
@@ -982,26 +981,39 @@ def main():
     admin_cookie = signin(credentials["administrator"], credentials["password"], "administrator")
     cookie = tester_cookie
     role_probes = [
-        ("GET", "/api/materials/admin", 200),
-        ("GET", "/api/catalog/history", 200),
-        ("DELETE", "/api/materials/categories/2147483647", 400),
-        ("DELETE", "/api/materials/sheet-sizes/2147483647", 400),
-        ("DELETE", "/api/materials/manufacturers/2147483647", 400),
+        ("GET", "/api/admin/materials", 200),
+        ("GET", "/api/admin/catalog/history", 200),
+        ("DELETE", "/api/admin/materials/categories/2147483647", 400),
+        ("DELETE", "/api/admin/materials/sheet-sizes/2147483647", 400),
+        ("DELETE", "/api/admin/materials/manufacturers/2147483647", 400),
     ]
     for method, path, authorized_status in role_probes:
         expect(request(method, path, auth_cookie=user_cookie)[0], 403, f"ordinary user {method} {path}")
         expect(request(method, path, auth_cookie=tester_cookie)[0], authorized_status, f"tester {method} {path}")
         expect(request(method, path, auth_cookie=admin_cookie)[0], authorized_status, f"administrator {method} {path}")
-    expect(request("GET", "/api/materials/admin", auth_cookie=manager_cookie)[0], 200, "manager")
-    expect(request("GET", "/api/catalog/history")[0], 401, "anonymous history")
-    expect(request("GET", "/api/catalog/history", auth_cookie=user_cookie)[0], 403, "ordinary user history")
-    expect(request("GET", "/api/catalog/history?pageSize=201", auth_cookie=manager_cookie)[0], 400, "history page size validation")
-    cleanup_probe_path = f"/api/catalog/history/test-runs/{int(uuid.uuid4().hex[:7], 16) + 1}"
+    for resource in ("categories", "sheet-sizes", "manufacturers", "thicknesses"):
+        admin_path = "/api/admin/materials/" + resource
+        for endpoint in (admin_path, admin_path + "/1"):
+            expect(request("GET", endpoint)[0], 401, "Административное чтение без cookie")
+            expect(request("GET", endpoint, auth_cookie=user_cookie)[0], 403, "Административное чтение обычным пользователем")
+        for role_cookie in (tester_cookie, manager_cookie, admin_cookie):
+            response = request("GET", admin_path, auth_cookie=role_cookie)
+            expect(response[0], 200, "Административный список с разрешённой ролью")
+            items = json_body(response)["items"]
+            if items:
+                expect(request("GET", admin_path + "/" + str(items[0]["id"]), auth_cookie=role_cookie)[0],
+                       200, "Административная карточка с разрешённой ролью")
+    mark("AUTH-07A", "Административное чтение справочников требует разрешённой роли")
+    expect(request("GET", "/api/admin/materials", auth_cookie=manager_cookie)[0], 200, "manager")
+    expect(request("GET", "/api/admin/catalog/history")[0], 401, "anonymous history")
+    expect(request("GET", "/api/admin/catalog/history", auth_cookie=user_cookie)[0], 403, "ordinary user history")
+    expect(request("GET", "/api/admin/catalog/history?pageSize=201", auth_cookie=manager_cookie)[0], 400, "history page size validation")
+    cleanup_probe_path = f"/api/admin/catalog/history/test-runs/{int(uuid.uuid4().hex[:7], 16) + 1}"
     expect(request("DELETE", cleanup_probe_path)[0], 401, "anonymous history cleanup")
     expect(request("DELETE", cleanup_probe_path, auth_cookie=user_cookie)[0], 403, "ordinary user history cleanup")
     expect(request("DELETE", cleanup_probe_path, auth_cookie=manager_cookie)[0], 403, "manager history cleanup")
     expect(request("DELETE", cleanup_probe_path, auth_cookie=admin_cookie)[0], 403, "administrator history cleanup")
-    expect(request("DELETE", "/api/catalog/history/test-runs/not-an-int",
+    expect(request("DELETE", "/api/admin/catalog/history/test-runs/not-an-int",
                    auth_cookie=tester_cookie)[0], 404, "history cleanup run id route constraint")
     tester_cleanup_probe = request("DELETE", cleanup_probe_path, auth_cookie=tester_cookie)
     expect(tester_cleanup_probe[0], 200, "tester history cleanup")
@@ -1010,27 +1022,27 @@ def main():
     mark("PREP-01—PREP-03", "Получены cookie пользователя, тестера, менеджера и администратора; подготовлен анонимный клиент")
     mark("AUTH-08—AUTH-12", "Проверены доступ к закрытым методам и разрешение очистки истории только тестеру")
 
-    existing_thicknesses = json_body(request("GET", "/api/materials/thicknesses"))["items"]
+    existing_thicknesses = json_body(request("GET", "/api/admin/materials/thicknesses", auth=True))["items"]
     for value in (16, 18):
         existing = next((x for x in existing_thicknesses if x["value"] == value), None)
         if existing:
             thickness_ids[value] = existing["id"]
         else:
-            response = request("POST", "/api/materials/thicknesses", {"name": prefix + f"-{value}", "value": value}, auth=True)
+            response = request("POST", "/api/admin/materials/thicknesses", {"name": prefix + f"-{value}", "value": value}, auth=True)
             expect(response[0], 200, "Создание толщины для тестовых материалов")
             thickness_ids[value] = json_body(response)["id"]
             created_thicknesses.append(thickness_ids[value])
     run_thickness_scenarios(prefix, dimension_base, user_cookie, tester_cookie, manager_cookie, admin_cookie)
 
     tester_probe_name = prefix + "-tester-no-history"
-    tester_create = request("POST", "/api/materials/manufacturers", {"name": tester_probe_name}, auth_cookie=tester_cookie)
+    tester_create = request("POST", "/api/admin/materials/manufacturers", {"name": tester_probe_name}, auth_cookie=tester_cookie)
     expect(tester_create[0], 200, "tester create manufacturer without history")
     tester_probe_id = json_body(tester_create)["id"]
     created_manufacturers.append(tester_probe_id)
-    expect(request("PUT", f"/api/materials/manufacturers/{tester_probe_id}", {
+    expect(request("PUT", f"/api/admin/materials/manufacturers/{tester_probe_id}", {
         "name": tester_probe_name + "-updated"
     }, auth_cookie=tester_cookie)[0], 200, "tester update manufacturer without history")
-    expect(request("DELETE", f"/api/materials/manufacturers/{tester_probe_id}", auth_cookie=tester_cookie)[0], 200,
+    expect(request("DELETE", f"/api/admin/materials/manufacturers/{tester_probe_id}", auth_cookie=tester_cookie)[0], 200,
            "tester delete manufacturer without history")
     created_manufacturers.remove(tester_probe_id)
     if history(search=tester_probe_name)["totalCount"] != 0:
@@ -1039,27 +1051,27 @@ def main():
 
     primary_sheet_size_id = create_sheet_size(prefix + "-size-a", dimension_base, dimension_base + 1)
     secondary_sheet_size_id = create_sheet_size(prefix + "-size-b", dimension_base + 2, dimension_base + 3)
-    expect(request("GET", "/api/materials/sheet-sizes")[0], 200, "public material sheet sizes")
-    expect(request("GET", f"/api/materials/sheet-sizes/{primary_sheet_size_id}")[0], 200, "public material sheet size card")
-    expect(request("POST", "/api/materials/sheet-sizes", {"name": prefix + "-other", "height": dimension_base, "width": dimension_base + 1}, auth=True)[0], 400, "duplicate material sheet size")
-    expect(request("POST", "/api/materials/sheet-sizes", {"name": prefix + "-size-a", "height": dimension_base + 4, "width": dimension_base + 5}, auth=True)[0], 400, "duplicate material sheet size name")
+    expect(request("GET", "/api/admin/materials/sheet-sizes", auth=True)[0], 200, "Список размеров для тестера")
+    expect(request("GET", f"/api/admin/materials/sheet-sizes/{primary_sheet_size_id}", auth=True)[0], 200, "Карточка размера для тестера")
+    expect(request("POST", "/api/admin/materials/sheet-sizes", {"name": prefix + "-other", "height": dimension_base, "width": dimension_base + 1}, auth=True)[0], 400, "duplicate material sheet size")
+    expect(request("POST", "/api/admin/materials/sheet-sizes", {"name": prefix + "-size-a", "height": dimension_base + 4, "width": dimension_base + 5}, auth=True)[0], 400, "duplicate material sheet size name")
     temporary_sheet_size_id = create_sheet_size(prefix + "-size-temp", dimension_base + 6, dimension_base + 7)
-    expect(request("PUT", f"/api/materials/sheet-sizes/{temporary_sheet_size_id}", {"name": prefix + "-size-updated", "height": dimension_base + 8, "width": dimension_base + 9}, auth=True)[0], 200, "update material sheet size")
-    expect(request("PUT", f"/api/materials/sheet-sizes/{temporary_sheet_size_id}", {"name": prefix + "-size-updated", "height": dimension_base + 8, "width": dimension_base + 9}, auth=True)[0], 200, "no-op material sheet size update")
-    expect(request("DELETE", f"/api/materials/sheet-sizes/{temporary_sheet_size_id}", auth=True)[0], 200, "delete free material sheet size")
+    expect(request("PUT", f"/api/admin/materials/sheet-sizes/{temporary_sheet_size_id}", {"name": prefix + "-size-updated", "height": dimension_base + 8, "width": dimension_base + 9}, auth=True)[0], 200, "update material sheet size")
+    expect(request("PUT", f"/api/admin/materials/sheet-sizes/{temporary_sheet_size_id}", {"name": prefix + "-size-updated", "height": dimension_base + 8, "width": dimension_base + 9}, auth=True)[0], 200, "no-op material sheet size update")
+    expect(request("DELETE", f"/api/admin/materials/sheet-sizes/{temporary_sheet_size_id}", auth=True)[0], 200, "delete free material sheet size")
     created_sheet_sizes.remove(temporary_sheet_size_id)
     mark("SIZE-01—SIZE-04", "Проверены создание, список, карточка, защита от дублей, изменение и удаление свободного размера")
 
     own_sizes = [x for x in sheet_sizes() if x["id"] in (primary_sheet_size_id, secondary_sheet_size_id)]
     if [x["id"] for x in own_sizes] != [primary_sheet_size_id, secondary_sheet_size_id]:
         raise AssertionError("created material sheet size order is incorrect")
-    expect(request("POST", "/api/materials/sheet-sizes/change-order-col", {
+    expect(request("POST", "/api/admin/materials/sheet-sizes/change-order-col", {
         "id": secondary_sheet_size_id, "direction": "UP"
     }, auth=True)[0], 200, "move material sheet size up")
     own_sizes = [x for x in sheet_sizes() if x["id"] in (primary_sheet_size_id, secondary_sheet_size_id)]
     if [x["id"] for x in own_sizes] != [secondary_sheet_size_id, primary_sheet_size_id]:
         raise AssertionError("material sheet size was not moved up")
-    expect(request("POST", "/api/materials/sheet-sizes/change-order-col", {
+    expect(request("POST", "/api/admin/materials/sheet-sizes/change-order-col", {
         "id": secondary_sheet_size_id, "direction": "DOWN"
     }, auth=True)[0], 200, "move material sheet size down")
     own_sizes = [x for x in sheet_sizes() if x["id"] in (primary_sheet_size_id, secondary_sheet_size_id)]
@@ -1069,37 +1081,37 @@ def main():
 
     primary_manufacturer_id = create_manufacturer(prefix + "-manufacturer-a")
     secondary_manufacturer_id = create_manufacturer(prefix + "-manufacturer-b")
-    expect(request("GET", f"/api/materials/manufacturers/{primary_manufacturer_id}")[0], 200, "public manufacturer card")
-    expect(request("POST", "/api/materials/manufacturers", {"name": prefix + "-manufacturer-a"}, auth=True)[0], 400, "duplicate manufacturer")
+    expect(request("GET", f"/api/admin/materials/manufacturers/{primary_manufacturer_id}", auth=True)[0], 200, "Карточка производителя для тестера")
+    expect(request("POST", "/api/admin/materials/manufacturers", {"name": prefix + "-manufacturer-a"}, auth=True)[0], 400, "duplicate manufacturer")
     temporary_manufacturer_id = create_manufacturer(prefix + "-manufacturer-temp")
-    expect(request("PUT", f"/api/materials/manufacturers/{temporary_manufacturer_id}", {"name": prefix + "-manufacturer-updated"}, auth=True)[0], 200, "update manufacturer")
-    expect(request("PUT", f"/api/materials/manufacturers/{temporary_manufacturer_id}", {"name": prefix + "-manufacturer-updated"}, auth=True)[0], 200, "no-op manufacturer update")
-    expect(request("DELETE", f"/api/materials/manufacturers/{temporary_manufacturer_id}", auth=True)[0], 200, "delete free manufacturer")
+    expect(request("PUT", f"/api/admin/materials/manufacturers/{temporary_manufacturer_id}", {"name": prefix + "-manufacturer-updated"}, auth=True)[0], 200, "update manufacturer")
+    expect(request("PUT", f"/api/admin/materials/manufacturers/{temporary_manufacturer_id}", {"name": prefix + "-manufacturer-updated"}, auth=True)[0], 200, "no-op manufacturer update")
+    expect(request("DELETE", f"/api/admin/materials/manufacturers/{temporary_manufacturer_id}", auth=True)[0], 200, "delete free manufacturer")
     created_manufacturers.remove(temporary_manufacturer_id)
-    expect(request("POST", "/api/materials/manufacturers/change-order-col", {"id": secondary_manufacturer_id, "direction": "UP"}, auth=True)[0], 200, "manufacturer up")
-    expect(request("POST", "/api/materials/manufacturers/change-order-col", {"id": secondary_manufacturer_id, "direction": "DOWN"}, auth=True)[0], 200, "manufacturer down")
+    expect(request("POST", "/api/admin/materials/manufacturers/change-order-col", {"id": secondary_manufacturer_id, "direction": "UP"}, auth=True)[0], 200, "manufacturer up")
+    expect(request("POST", "/api/admin/materials/manufacturers/change-order-col", {"id": secondary_manufacturer_id, "direction": "DOWN"}, auth=True)[0], 200, "manufacturer down")
     own_manufacturers = [x["id"] for x in manufacturers() if x["id"] in (primary_manufacturer_id, secondary_manufacturer_id)]
     if own_manufacturers != [primary_manufacturer_id, secondary_manufacturer_id]:
         raise AssertionError("manufacturer sorting incorrect")
     all_manufacturers = manufacturers()
-    expect(request("POST", "/api/materials/manufacturers/change-order-col", {"id": all_manufacturers[0]["id"], "direction": "UP"}, auth=True)[0], 400, "manufacturer upper boundary")
-    expect(request("POST", "/api/materials/manufacturers/change-order-col", {"id": all_manufacturers[-1]["id"], "direction": "DOWN"}, auth=True)[0], 400, "manufacturer lower boundary")
+    expect(request("POST", "/api/admin/materials/manufacturers/change-order-col", {"id": all_manufacturers[0]["id"], "direction": "UP"}, auth=True)[0], 400, "manufacturer upper boundary")
+    expect(request("POST", "/api/admin/materials/manufacturers/change-order-col", {"id": all_manufacturers[-1]["id"], "direction": "DOWN"}, auth=True)[0], 400, "manufacturer lower boundary")
     mark("MFR-01—MFR-06", "Проверены операции с производителями, защита от дублей, сортировка и её границы")
 
-    expect(request("GET", "/api/materials?calculator=Raskroy")[0], 200, "public materials")
+    expect(request("GET", "/api/materials")[0], 200, "public materials")
     expect(request("GET", "/api/materials/categories")[0], 200, "public categories")
-    expect(request("GET", "/api/materials/admin")[0], 401, "anonymous admin list")
+    expect(request("GET", "/api/admin/materials")[0], 401, "anonymous admin list")
     anonymous_mutations = [
-        ("POST", "/api/materials/categories", {"name": "x", "externalLink": "x"}),
-        ("PUT", "/api/materials/categories/1", {"name": "x", "externalLink": "x"}),
-        ("DELETE", "/api/materials/categories/1", None),
-        ("POST", "/api/materials/categories/change-order-col", {"categoryId": 1, "direction": "UP"}),
-        ("POST", "/api/materials/sheet-sizes", {"name": "x", "height": 1, "width": 1}),
-        ("POST", "/api/materials/sheet-sizes/change-order-col", {"id": 1, "direction": "UP"}),
-        ("POST", "/api/materials/manufacturers", {"name": "x"}),
-        ("PUT", "/api/materials/manufacturers/1", {"name": "x"}),
-        ("DELETE", "/api/materials/manufacturers/1", None),
-        ("POST", "/api/materials/manufacturers/change-order-col", {"id": 1, "direction": "UP"}),
+        ("POST", "/api/admin/materials/categories", {"name": "x", "externalLink": "x"}),
+        ("PUT", "/api/admin/materials/categories/1", {"name": "x", "externalLink": "x"}),
+        ("DELETE", "/api/admin/materials/categories/1", None),
+        ("POST", "/api/admin/materials/categories/change-order-col", {"categoryId": 1, "direction": "UP"}),
+        ("POST", "/api/admin/materials/sheet-sizes", {"name": "x", "height": 1, "width": 1}),
+        ("POST", "/api/admin/materials/sheet-sizes/change-order-col", {"id": 1, "direction": "UP"}),
+        ("POST", "/api/admin/materials/manufacturers", {"name": "x"}),
+        ("PUT", "/api/admin/materials/manufacturers/1", {"name": "x"}),
+        ("DELETE", "/api/admin/materials/manufacturers/1", None),
+        ("POST", "/api/admin/materials/manufacturers/change-order-col", {"id": 1, "direction": "UP"}),
     ]
     for method, path, body in anonymous_mutations:
         expect(request(method, path, body)[0], 401, f"anonymous {method} {path}")
@@ -1114,35 +1126,35 @@ def main():
     for category_id in (cat1, cat2, cat3):
         response = request("GET", f"/api/materials/categories/{category_id}")
         expect(response[0], 200, "public category card")
-    expect(request("POST", "/api/materials/categories", {
+    expect(request("POST", "/api/admin/materials/categories", {
         "name": prefix + "-cat-a", "externalLink": "https://example.test/duplicate"
     }, auth=True)[0], 400, "duplicate category name")
     duplicate_categories = [x for x in categories() if x["name"] == prefix + "-cat-a"]
     if len(duplicate_categories) != 1:
         raise AssertionError("duplicate category was created")
-    response = request("PUT", f"/api/materials/categories/{cat2}", {
+    response = request("PUT", f"/api/admin/materials/categories/{cat2}", {
         "name": prefix + "-cat-b-updated", "externalLink": "https://example.test/updated"
     }, auth=True)
     expect(response[0], 200, "update category")
-    expect(request("PUT", f"/api/materials/categories/{cat2}", {
+    expect(request("PUT", f"/api/admin/materials/categories/{cat2}", {
         "name": prefix + "-cat-b-updated", "externalLink": "https://example.test/updated"
     }, auth=True)[0], 200, "no-op category update")
     updated = json_body(request("GET", f"/api/materials/categories/{cat2}"))
     if updated["name"] != prefix + "-cat-b-updated":
         raise AssertionError("category update not visible")
-    expect(request("POST", "/api/materials/categories/change-order-col", {"categoryId": cat2, "direction": "UP"}, auth=True)[0], 200, "category up")
+    expect(request("POST", "/api/admin/materials/categories/change-order-col", {"categoryId": cat2, "direction": "UP"}, auth=True)[0], 200, "category up")
     own_ids = [x["id"] for x in categories() if x["id"] in (cat1, cat2, cat3)]
     if own_ids != [cat2, cat1, cat3]:
         raise AssertionError("category UP sorting incorrect")
-    expect(request("POST", "/api/materials/categories/change-order-col", {"categoryId": cat2, "direction": "DOWN"}, auth=True)[0], 200, "category down")
+    expect(request("POST", "/api/admin/materials/categories/change-order-col", {"categoryId": cat2, "direction": "DOWN"}, auth=True)[0], 200, "category down")
     all_categories = categories()
-    expect(request("POST", "/api/materials/categories/change-order-col", {"categoryId": all_categories[0]["id"], "direction": "UP"}, auth=True)[0], 400, "category upper boundary")
-    expect(request("POST", "/api/materials/categories/change-order-col", {"categoryId": all_categories[-1]["id"], "direction": "DOWN"}, auth=True)[0], 400, "category lower boundary")
+    expect(request("POST", "/api/admin/materials/categories/change-order-col", {"categoryId": all_categories[0]["id"], "direction": "UP"}, auth=True)[0], 400, "category upper boundary")
+    expect(request("POST", "/api/admin/materials/categories/change-order-col", {"categoryId": all_categories[-1]["id"], "direction": "DOWN"}, auth=True)[0], 400, "category lower boundary")
     mark("CAT-01—CAT-08", "Проверены создание, список, карточки, защита от дублей, изменение, сортировка и обе её границы")
 
     payload, headers = multipart(
         "file", "anon.png", png, "image/png", {"imageType": "Original"})
-    expect(request("POST", "/api/materials/images", payload, headers=headers, raw=True)[0], 401, "anonymous image upload")
+    expect(request("POST", "/api/admin/materials/images", payload, headers=headers, raw=True)[0], 401, "anonymous image upload")
     images = []
     for filename, content, content_type in (("test.png", png, "image/png"), ("test.jpg", jpeg, "image/jpeg"), ("test.webp", webp, "image/webp")):
         response = upload(filename, content, content_type)
@@ -1175,12 +1187,12 @@ def main():
     m1, m2, m3 = [create_material(x) for x in (m1_model, m2_model, m3_model)]
     invalid_manufacturer_model = material_model(prefix + "-invalid-manufacturer", cat1, "raskroy")
     invalid_manufacturer_model["manufacturerId"] = 2147483647
-    expect(request("POST", "/api/materials", invalid_manufacturer_model, auth=True)[0], 400, "invalid manufacturer id")
+    expect(request("POST", "/api/admin/materials", invalid_manufacturer_model, auth=True)[0], 400, "invalid manufacturer id")
     zero_manufacturer_model = material_model(prefix + "-zero-manufacturer", cat1, "raskroy")
     zero_manufacturer_model["manufacturerId"] = 0
-    expect(request("POST", "/api/materials", zero_manufacturer_model, auth=True)[0], 400, "zero manufacturer id")
+    expect(request("POST", "/api/admin/materials", zero_manufacturer_model, auth=True)[0], 400, "zero manufacturer id")
     expect(request("GET", f"/api/materials/{m1}")[0], 200, "public material card")
-    expect(request("GET", f"/api/materials/admin/{m1}", auth=True)[0], 200, "admin material card")
+    expect(request("GET", f"/api/admin/materials/{m1}", auth=True)[0], 200, "admin material card")
     material_card = json_body(request("GET", f"/api/materials/{m1}"))
     if material_card["sheetSize"]["id"] != primary_sheet_size_id:
         raise AssertionError("material sheet size absent from material card")
@@ -1188,8 +1200,8 @@ def main():
         raise AssertionError("manufacturer absent from material card")
     if "orderByCol" in material_card["sheetSize"] or "orderByCol" in material_card["category"] or "orderByCol" in material_card["manufacturer"]:
         raise AssertionError("nested material relations contain sorting fields")
-    expect(request("DELETE", f"/api/materials/sheet-sizes/{primary_sheet_size_id}", auth=True)[0], 400, "delete used material sheet size")
-    expect(request("DELETE", f"/api/materials/manufacturers/{primary_manufacturer_id}", auth=True)[0], 400, "delete used manufacturer")
+    expect(request("DELETE", f"/api/admin/materials/sheet-sizes/{primary_sheet_size_id}", auth=True)[0], 400, "delete used material sheet size")
+    expect(request("DELETE", f"/api/admin/materials/manufacturers/{primary_manufacturer_id}", auth=True)[0], 400, "delete used manufacturer")
     mark("MFR-07—MFR-08", "Связь с материалом отображается; удаление используемого производителя отклонено")
     mark("SIZE-05—SIZE-06", "Связь с материалом отображается; удаление используемого размера отклонено")
     expect(request("GET", f"/api/materials/categories/{cat1}")[0], 200, "public category card after material")
@@ -1208,26 +1220,29 @@ def main():
         raise AssertionError("unfiltered public list omitted test materials")
 
     for calculator, expected_id in (("Raskroy", m1), ("PvhFacades", m2), ("EmalFacades", m3)):
-        ids = {x["id"] for x in public_materials(calculator)}
+        ids = {x["id"] for x in public_query("search", {"search": prefix, "calculators": [calculator], "pageSize": 96})["items"]}
         if expected_id not in ids:
             raise AssertionError(f"filter {calculator} omitted expected material")
         wrong_test_ids = ({m1, m2, m3} - {expected_id}) & ids
         if wrong_test_ids:
             raise AssertionError(f"filter {calculator} returned inapplicable test material")
 
-    combined_ids = {x["id"] for x in public_materials("Raskroy", "PvhFacades")}
+    combined_ids = {x["id"] for x in public_query("search", {"search": prefix, "calculators": ["Raskroy", "PvhFacades"], "pageSize": 96})["items"]}
     if not {m1, m2}.issubset(combined_ids) or m3 in combined_ids:
         raise AssertionError("combined calculator filter returned incorrect test materials")
-    expect(request("GET", "/api/materials?calculator=Unknown")[0], 400, "invalid calculator")
+    expect(request("GET", "/api/materials/search?calculators=Unknown")[0], 400, "invalid calculator")
 
-    for endpoint, auth in (("/api/materials", False), ("/api/materials/admin", True)):
-        all_rows = json_body(request("GET", endpoint, auth=auth))["items"]
-        for stock in (True, False):
-            response = request("GET", endpoint + "?inStock=" + str(stock).lower(), auth=auth)
-            expect(response[0], 200, "Список с фильтром наличия")
-            rows = json_body(response)["items"]
-            equal({x["id"] for x in rows}, {x["id"] for x in all_rows if (x["count"] > 0) == stock}, "Точное множество наличия")
-    mark("MAT-03C", "Фильтр наличия сайта и админки сверён с полным списком")
+    all_rows = [x for x in public_materials() if prefix in x["name"]]
+    for stock in (True, False):
+        rows = public_query("search", {"search": prefix, "inStock": str(stock).lower(), "pageSize": 96})["items"]
+        equal({x["id"] for x in rows}, {x["id"] for x in all_rows if (x["count"] > 0) == stock},
+              "Точное множество наличия в поиске")
+    for endpoint, auth in (("/api/materials", False), ("/api/admin/materials", True)):
+        baseline = json_body(request("GET", endpoint, auth=auth))
+        response = request("GET", endpoint + "?calculators=Unknown&inStock=invalid&thicknessIds=-1", auth=auth)
+        expect(response[0], 200, "Полный список не привязывает параметры фильтрации")
+        equal(json_body(response), baseline, "Query-параметры не меняют полный список")
+    mark("MAT-03C", "Наличие фильтруется в поиске; публичный и административный списки не принимают фильтры")
 
     m3_updated = copy.deepcopy(m3_model)
     m3_updated.update({
@@ -1237,40 +1252,40 @@ def main():
         "applicableToRaskroys": True, "applicableToEmalFacades": False,
         "commentOnMaterialIsRequired": True, "allowSecondItemInOrder": False
     })
-    expect(request("PUT", f"/api/materials/{m3}", m3_updated, auth=True)[0], 200, "update material")
-    expect(request("PUT", f"/api/materials/{m3}", m3_updated, auth=True)[0], 200, "no-op material update")
+    expect(request("PUT", f"/api/admin/materials/{m3}", m3_updated, auth=True)[0], 200, "update material")
+    expect(request("PUT", f"/api/admin/materials/{m3}", m3_updated, auth=True)[0], 200, "no-op material update")
     public_card = json_body(request("GET", f"/api/materials/{m3}"))
-    admin_card = json_body(request("GET", f"/api/materials/admin/{m3}", auth=True))
+    admin_card = json_body(request("GET", f"/api/admin/materials/{m3}", auth=True))
     if public_card["category"]["id"] != cat3 or admin_card["price"] != 456.78 or admin_card["countTypeEnum"] != "SHT":
         raise AssertionError("updated material fields not visible")
 
-    expect(request("POST", "/api/materials/change-order-col", {"id": m2, "direction": "UP"}, auth=True)[0], 200, "material up")
+    expect(request("POST", "/api/admin/materials/change-order-col", {"id": m2, "direction": "UP"}, auth=True)[0], 200, "material up")
     cat1_order = [x["id"] for x in admin_materials() if x["category"]["id"] == cat1]
     if cat1_order != [m2, m1]:
         raise AssertionError("material UP sorting incorrect")
     cat3_before = [x["id"] for x in admin_materials() if x["category"]["id"] == cat3]
-    expect(request("POST", "/api/materials/change-order-col", {"id": m2, "direction": "DOWN"}, auth=True)[0], 200, "material down")
+    expect(request("POST", "/api/admin/materials/change-order-col", {"id": m2, "direction": "DOWN"}, auth=True)[0], 200, "material down")
     if [x["id"] for x in admin_materials() if x["category"]["id"] == cat3] != cat3_before:
         raise AssertionError("sorting affected another category")
     cat1_rows = [x for x in admin_materials() if x["category"]["id"] == cat1]
-    expect(request("POST", "/api/materials/change-order-col", {"id": cat1_rows[0]["id"], "direction": "UP"}, auth=True)[0], 400, "material upper boundary")
-    expect(request("POST", "/api/materials/change-order-col", {"id": cat1_rows[-1]["id"], "direction": "DOWN"}, auth=True)[0], 400, "material lower boundary")
-    expect(request("DELETE", f"/api/materials/categories/{cat1}", auth=True)[0], 400, "delete used category")
+    expect(request("POST", "/api/admin/materials/change-order-col", {"id": cat1_rows[0]["id"], "direction": "UP"}, auth=True)[0], 400, "material upper boundary")
+    expect(request("POST", "/api/admin/materials/change-order-col", {"id": cat1_rows[-1]["id"], "direction": "DOWN"}, auth=True)[0], 400, "material lower boundary")
+    expect(request("DELETE", f"/api/admin/materials/categories/{cat1}", auth=True)[0], 400, "delete used category")
     mark("CAT-09", "Удаление используемой категории отклонено; связанные сущности сохранены")
     mark("MAT-01—MAT-08", "Проверены создание, списки, карточки, фильтры, изменение, сортировка, её изоляция и границы")
 
     foreign_create_model = material_model(prefix + "-foreign-image-create", cat2, "raskroy", images[0][0])
-    expect(request("POST", "/api/materials", foreign_create_model, auth=True)[0], 400, "create with another material image")
+    expect(request("POST", "/api/admin/materials", foreign_create_model, auth=True)[0], 400, "create with another material image")
     foreign_update_model = copy.deepcopy(m2_model)
     foreign_update_model["image"] = images[0][0]
-    expect(request("PUT", f"/api/materials/{m2}", foreign_update_model, auth=True)[0], 400, "update with another material image")
+    expect(request("PUT", f"/api/admin/materials/{m2}", foreign_update_model, auth=True)[0], 400, "update with another material image")
     if json_body(request("GET", f"/api/materials/{m2}"))["images"]["original"] is not None:
         raise AssertionError("foreign image was attached to another material")
     mark("VAL-11—VAL-12", "Создание и изменение отклонены при передаче изображения, привязанного к другому материалу")
 
     jpeg_model = copy.deepcopy(m1_model)
     jpeg_model["image"] = images[1][0]
-    expect(request("PUT", f"/api/materials/{m1}", jpeg_model, auth=True)[0], 200, "replace PNG with JPEG")
+    expect(request("PUT", f"/api/admin/materials/{m1}", jpeg_model, auth=True)[0], 200, "replace PNG with JPEG")
     if json_body(request("GET", f"/api/materials/{m1}"))["images"]["original"] != images[1][0]:
         raise AssertionError("JPEG GUID absent from material card")
     expect(request("GET", "/api/materials/images/" + images[0][0])[0], 400, "old PNG invalidated")
@@ -1300,7 +1315,7 @@ def main():
 
     webp_model = copy.deepcopy(m1_model)
     webp_model["image"] = images[2][0]
-    expect(request("PUT", f"/api/materials/{m1}", webp_model, auth=True)[0], 200, "replace JPEG with WebP")
+    expect(request("PUT", f"/api/admin/materials/{m1}", webp_model, auth=True)[0], 200, "replace JPEG with WebP")
     expect(request("GET", "/api/materials/images/" + images[1][0])[0], 400, "old JPEG invalidated")
     response = request("GET", "/api/materials/images/" + images[2][0])
     expect(response[0], 200, "WebP GET")
@@ -1317,39 +1332,39 @@ def main():
     mark("IMG-12", "После перезапуска WebP дважды получен с исходными байтами")
 
     base_invalid = material_model(prefix + "-validation", cat2, "raskroy")
-    expect(request("POST", "/api/materials", {}, auth=True)[0], 400, "empty required fields")
+    expect(request("POST", "/api/admin/materials", {}, auth=True)[0], 400, "empty required fields")
     for bad_category in (0, 2147483000):
         bad = copy.deepcopy(base_invalid); bad["categoryId"] = bad_category; bad["name"] += str(bad_category)
-        expect(request("POST", "/api/materials", bad, auth=True)[0], 400, "bad category")
+        expect(request("POST", "/api/admin/materials", bad, auth=True)[0], 400, "bad category")
     for field, value in (("sheetSizeId", 0), ("thicknessId", 0), ("kvM", -1), ("perimetrM", 0)):
         bad = copy.deepcopy(base_invalid); bad[field] = value; bad["name"] += "-" + field
-        expect(request("POST", "/api/materials", bad, auth=True)[0], 400, "bad dimensions")
+        expect(request("POST", "/api/admin/materials", bad, auth=True)[0], 400, "bad dimensions")
     bad = copy.deepcopy(base_invalid); bad["price"] = 0
-    expect(request("POST", "/api/materials", bad, auth=True)[0], 400, "bad price")
+    expect(request("POST", "/api/admin/materials", bad, auth=True)[0], 400, "bad price")
     bad = copy.deepcopy(base_invalid)
     bad.update({"applicableToRaskroys": False, "applicableToPvhFacades": False, "applicableToEmalFacades": False})
-    expect(request("POST", "/api/materials", bad, auth=True)[0], 400, "no calculator")
+    expect(request("POST", "/api/admin/materials", bad, auth=True)[0], 400, "no calculator")
     duplicate = copy.deepcopy(base_invalid); duplicate["name"] = m2_model["name"]
-    expect(request("POST", "/api/materials", duplicate, auth=True)[0], 400, "duplicate material name")
+    expect(request("POST", "/api/admin/materials", duplicate, auth=True)[0], 400, "duplicate material name")
     expect(request("GET", "/api/materials/2147483000")[0], 400, "missing material")
     expect(request("GET", "/api/materials/categories/2147483000")[0], 400, "missing category")
-    expect(request("POST", "/api/materials/change-order-col", {"id": m1, "direction": "SIDEWAYS"}, auth=True)[0], 400, "invalid direction")
+    expect(request("POST", "/api/admin/materials/change-order-col", {"id": m1, "direction": "SIDEWAYS"}, auth=True)[0], 400, "invalid direction")
     bad = copy.deepcopy(base_invalid); bad["name"] += "-guid"; bad["image"] = str(uuid.uuid4())
-    expect(request("POST", "/api/materials", bad, auth=True)[0], 400, "missing image GUID")
+    expect(request("POST", "/api/admin/materials", bad, auth=True)[0], 400, "missing image GUID")
     mark("VAL-01—VAL-10", "Все проверенные некорректные модели и отсутствующие id/GUID вернули 400")
 
     counter_targets = (
         ("/api/materials/categories", cat1),
-        ("/api/materials/sheet-sizes", primary_sheet_size_id),
-        ("/api/materials/manufacturers", primary_manufacturer_id)
+        ("/api/admin/materials/sheet-sizes", primary_sheet_size_id),
+        ("/api/admin/materials/manufacturers", primary_manufacturer_id)
     )
     counters_before_delete = [relation_counts(path, relation_id) for path, relation_id in counter_targets]
     expect(request("GET", "/api/materials/images/" + images[2][0])[0], 200, "WebP before delete")
     expect(delete_material(m1)[0], 200, "delete material")
     expect(request("GET", "/api/materials/images/" + images[2][0])[0], 400, "WebP after delete")
     expect(request("GET", f"/api/materials/{m1}")[0], 400, "deleted public card")
-    expect(request("GET", f"/api/materials/admin/{m1}", auth=True)[0], 400, "deleted admin card")
-    if m1 in {x["id"] for x in admin_materials()} or m1 in {x["id"] for x in public_materials("Raskroy")}:
+    expect(request("GET", f"/api/admin/materials/{m1}", auth=True)[0], 400, "deleted admin card")
+    if m1 in {x["id"] for x in admin_materials()} or m1 in {x["id"] for x in public_materials()}:
         raise AssertionError("deleted material remained in a list")
     counters_after_delete = [relation_counts(path, relation_id) for path, relation_id in counter_targets]
     for before, after in zip(counters_before_delete, counters_after_delete):
@@ -1368,13 +1383,13 @@ def main():
     expect(delete_material(m2)[0], 200, "cleanup m2")
     expect(delete_material(m3)[0], 200, "cleanup m3")
     for category_id in (cat1, cat2, cat3):
-        expect(request("DELETE", f"/api/materials/categories/{category_id}", auth=True)[0], 200, "delete free category")
+        expect(request("DELETE", f"/api/admin/materials/categories/{category_id}", auth=True)[0], 200, "delete free category")
         created_categories.remove(category_id)
     for size_id in (primary_sheet_size_id, secondary_sheet_size_id):
-        expect(request("DELETE", f"/api/materials/sheet-sizes/{size_id}", auth=True)[0], 200, "delete free material sheet size")
+        expect(request("DELETE", f"/api/admin/materials/sheet-sizes/{size_id}", auth=True)[0], 200, "delete free material sheet size")
         created_sheet_sizes.remove(size_id)
     for manufacturer_id in (primary_manufacturer_id, secondary_manufacturer_id):
-        expect(request("DELETE", f"/api/materials/manufacturers/{manufacturer_id}", auth=True)[0], 200, "delete free manufacturer")
+        expect(request("DELETE", f"/api/admin/materials/manufacturers/{manufacturer_id}", auth=True)[0], 200, "delete free manufacturer")
         created_manufacturers.remove(manufacturer_id)
     mark("MFR-08—MFR-09", "Используемый производитель защищён от удаления; свободные производители удалены")
     mark("SIZE-07", "Свободные размеры материалов удалены")
@@ -1405,22 +1420,22 @@ def main():
 
     thickness_history_name = history_prefix + "-thickness"
     thickness_history_model = {"name": thickness_history_name, "value": dimension_base + 0.875}
-    response = request("POST", "/api/materials/thicknesses", thickness_history_model, auth_cookie=manager_cookie)
+    response = request("POST", "/api/admin/materials/thicknesses", thickness_history_model, auth_cookie=manager_cookie)
     expect(response[0], 200, "История создания толщины")
     thickness_history_id = json_body(response)["id"]
     created_thicknesses.append(thickness_history_id)
     thickness_history_model["name"] += "-updated"
-    expect(request("PUT", f"/api/materials/thicknesses/{thickness_history_id}", thickness_history_model,
+    expect(request("PUT", f"/api/admin/materials/thicknesses/{thickness_history_id}", thickness_history_model,
                    auth_cookie=manager_cookie)[0], 200, "История переименования толщины")
     thickness_events = history(search=thickness_history_name, entityType="Thickness")
     equal(thickness_events["totalCount"], 2, "Число событий толщины")
     update_event = next(x for x in thickness_events["items"] if x["actionType"] == "Update")
     assert update_event["message"].count("→") == 1, "История толщины содержит неизменённые поля"
     assert thickness_history_name in update_event["message"] and thickness_history_model["name"] in update_event["message"]
-    expect(request("PUT", f"/api/materials/thicknesses/{thickness_history_id}", thickness_history_model,
+    expect(request("PUT", f"/api/admin/materials/thicknesses/{thickness_history_id}", thickness_history_model,
                    auth_cookie=manager_cookie)[0], 200, "История сохранения толщины без изменений")
     equal(history(search=thickness_history_name)["totalCount"], 2, "Повторное сохранение не создаёт событие")
-    expect(request("DELETE", f"/api/materials/thicknesses/{thickness_history_id}", auth_cookie=manager_cookie)[0],
+    expect(request("DELETE", f"/api/admin/materials/thicknesses/{thickness_history_id}", auth_cookie=manager_cookie)[0],
            200, "История удаления толщины")
     created_thicknesses.remove(thickness_history_id)
     thickness_events = history(search=thickness_history_name, entityType="Thickness")
@@ -1431,7 +1446,7 @@ def main():
 
     cleanup_response = request(
         "DELETE",
-        f"/api/catalog/history/test-runs/{history_run_id}",
+        f"/api/admin/catalog/history/test-runs/{history_run_id}",
         auth_cookie=tester_cookie)
     expect(cleanup_response[0], 200, "test history cleanup")
     if json_body(cleanup_response)["deletedCount"] != 15:
@@ -1443,13 +1458,13 @@ def main():
     mark("HIST-14", "Метод, доступный только тестеру, удалил все 15 изолированных событий истории; повторный поиск не вернул событий")
 
     for thickness_id in list(created_thicknesses):
-        expect(request("DELETE", f"/api/materials/thicknesses/{thickness_id}", auth=True)[0], 200, "Очистка толщин")
+        expect(request("DELETE", f"/api/admin/materials/thicknesses/{thickness_id}", auth=True)[0], 200, "Очистка толщин")
         created_thicknesses.remove(thickness_id)
     assert not any((created_materials, created_categories, created_sheet_sizes, created_manufacturers, created_thicknesses)), "Остались созданные тестовые сущности"
     equal(public_query("search", {"search": prefix})["totalCount"], 0, "Материалы тестового префикса удалены")
     equal(history(search=prefix)["totalCount"], 0, "История основного прогона отсутствует")
     for endpoint in ("categories", "manufacturers", "sheet-sizes", "thicknesses"):
-        items = json_body(request("GET", "/api/materials/" + endpoint))["items"]
+        items = json_body(request("GET", "/api/admin/materials/" + endpoint, auth=True))["items"]
         assert not any(prefix in x["name"] or history_prefix in x["name"] for x in items), "Остались тестовые справочники"
     mark("FIN-04", "Все списки тестовых сущностей пусты, префиксы отсутствуют в справочниках, материалах и истории")
     observed_history_total_count = history()["totalCount"]
