@@ -1,5 +1,4 @@
 using Catalog.Api.Features.MaterialThicknesses;
-using Catalog.Api.Features.MaterialThicknesses.Dto;
 using Catalog.Api.Features.MaterialThicknesses.ForAdmin;
 using Catalog.Api.Features.MaterialThicknesses.ForAdmin.Dto;
 using Core.Attributes;
@@ -31,10 +30,10 @@ public sealed class MaterialThicknessesController : BaseApiController
      AllowAnonymous,
      EndpointSummary("Толщина материала"),
      EndpointDescription("Информация о толщине материала"),
-     ProducesResponseType(typeof(MaterialThicknessDto), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Толщина материала")]
-    public Task<MaterialThicknessDto> MaterialThickness(
+     ProducesResponseType(typeof(GetMaterialThicknessQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Толщина материала")]
+    public Task<GetMaterialThicknessQueryResult> MaterialThickness(
         [FromRoute, Description("Id толщины материала")] int id,
-        [FromServices] IQueryHandler<GetMaterialThicknessQuery, MaterialThicknessDto> handler) =>
+        [FromServices] IQueryHandler<GetMaterialThicknessQuery, GetMaterialThicknessQueryResult> handler) =>
         handler.Handle(new GetMaterialThicknessQuery(id), HttpContext.RequestAborted);
 
     [HttpPost,
