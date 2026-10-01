@@ -26,7 +26,7 @@ public sealed record SearchMaterialsQuery(
     [property: Description("ID форматов листа"), FromQuery] int[]? SheetSizeIds = null,
     [property: Description("Калькуляторы"), FromQuery] MaterialCalculatorEnum[]? Calculators = null,
     [property: Description("Номер страницы, начиная с 1"), FromQuery] int Page = 1,
-    [property: Description("Размер страницы от 1 до 96"), FromQuery] int PageSize = 24,
+    [property: Description("Размер страницы от 1 до 100"), FromQuery] int PageSize = 25,
     [property: Description("Поиск по названию или артикулу, до 250 символов"), FromQuery] string? Search = null,
     [property: Description("Наличие материала: true — количество больше нуля, false — количество меньше единицы"), FromQuery] bool? InStock = null,
     [property: Description("Порядок сортировки"), FromQuery] PublicMaterialSortEnum Sort = PublicMaterialSortEnum.CatalogOrder
@@ -41,7 +41,7 @@ public sealed class SearchMaterialsQueryValidator : AbstractValidator<SearchMate
             .GreaterThanOrEqualTo(1).WithMessage("Номер страницы должен быть не меньше 1")
             .Must((query, page) => query.PageSize < 1 || (long)(page - 1) * query.PageSize <= int.MaxValue)
             .WithMessage("Смещение страницы превышает допустимое значение");
-        RuleFor(x => x.PageSize).InclusiveBetween(1, 96).WithMessage("Размер страницы должен быть от 1 до 96");
+        RuleFor(x => x.PageSize).InclusiveBetween(1, 100).WithMessage("Размер страницы должен быть от 1 до 100");
         RuleFor(x => x.Search)
             .Must(search => search is null || search.Trim().Length <= 250)
             .WithMessage("Поисковая строка не должна превышать 250 символов");
