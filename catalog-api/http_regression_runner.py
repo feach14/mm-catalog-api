@@ -143,7 +143,7 @@ def start_server():
         if server.poll() is not None:
             raise RuntimeError("Catalog API terminated during startup")
         try:
-            status, _, _ = request("GET", "/api/materials/categories")
+            status, _, _ = request("GET", "/swagger/v1/swagger.json")
             if status == 200:
                 return
         except Exception:
@@ -189,7 +189,7 @@ def signin(phone, password, role):
 
 
 def categories():
-    response = request("GET", "/api/materials/categories")
+    response = request("GET", "/api/admin/materials/categories", auth=True)
     expect(response[0], 200, "categories list")
     return json_body(response)["items"]
 
@@ -238,8 +238,12 @@ def public_materials():
     return json_body(response)["items"]
 
 
-def create_category(name):
-    response = request("POST", "/api/admin/materials/categories", {"name": name, "externalLink": "https://example.test/" + name}, auth=True)
+def create_category(name, hide_on_site=False):
+    response = request("POST", "/api/admin/materials/categories", {
+        "name": name,
+        "externalLink": "https://example.test/" + name,
+        "hideOnSite": hide_on_site
+    }, auth=True)
     expect(response[0], 200, "create category")
     category_id = json_body(response)["id"]
     created_categories.append(category_id)
@@ -284,6 +288,8 @@ def material_model(name, category_id, flag, image=None):
         "allowSecondItemInOrder": True,
         "externalLink": "https://example.test/material",
         "price": 123.45,
+        "hideOnSite": False,
+        "hidePriceOnSite": False,
         "countTypeEnum": "M2"
     }
 
@@ -1054,6 +1060,60 @@ def run_material_type_scenarios(prefix, user_cookie):
     mark("MT-10", "Тестовые типы и материал удалены, истории нет")
 
 
+def run_visibility_scenarios(prefix, hidden_material_id, hidden_material_model,
+                             category_id, category_model, category_material_id):
+    hidden_material = dict(hidden_material_model, hideOnSite=True)
+    expect(request("PUT", f"/api/admin/materials/{hidden_material_id}", hidden_material, auth=True)[0],
+           200, "Скрытие материала")
+    admin_card = json_body(request("GET", f"/api/admin/materials/{hidden_material_id}", auth=True))
+    assert admin_card["hideOnSite"] is True and admin_card["hidePriceOnSite"] is False
+    admin_item = next(x for x in admin_materials() if x["id"] == hidden_material_id)
+    assert admin_item["hideOnSite"] is True and admin_item["hidePriceOnSite"] is False
+    expect(request("GET", f"/api/materials/{hidden_material_id}")[0], 400, "Скрытая карточка материала")
+    assert hidden_material_id not in {x["id"] for x in public_materials()}
+    equal(public_query("search", {"search": hidden_material_model["name"]})["totalCount"], 0,
+          "Скрытый материал в поиске")
+    facets = public_query("filters", {"search": hidden_material_model["name"]})
+    assert not any(facets[name] for name in ("categories", "manufacturers", "materialTypes", "thicknesses", "sheetSizes"))
+    mark("VIS-01", "Скрытый материал доступен администратору и исключён из публичных списка, карточки, поиска и фасетов")
+
+    hidden_price_material = dict(hidden_material_model, hidePriceOnSite=True)
+    expect(request("PUT", f"/api/admin/materials/{hidden_material_id}", hidden_price_material, auth=True)[0],
+           200, "Скрытие цены материала")
+    admin_card = json_body(request("GET", f"/api/admin/materials/{hidden_material_id}", auth=True))
+    assert admin_card["hideOnSite"] is False and admin_card["hidePriceOnSite"] is True
+    admin_item = next(x for x in admin_materials() if x["id"] == hidden_material_id)
+    assert admin_item["hideOnSite"] is False and admin_item["hidePriceOnSite"] is True
+    public_card = json_body(request("GET", f"/api/materials/{hidden_material_id}"))
+    assert "price" not in public_card and "hidePriceOnSite" not in public_card
+    mark("VIS-02", "Признак скрытия цены сохраняется в административных ответах и не расширяет публичный контракт")
+    expect(request("PUT", f"/api/admin/materials/{hidden_material_id}", hidden_material_model, auth=True)[0],
+           200, "Восстановление видимости материала")
+
+    hidden_category = dict(category_model, hideOnSite=True)
+    expect(request("PUT", f"/api/admin/materials/categories/{category_id}", hidden_category, auth=True)[0],
+           200, "Скрытие категории")
+    category_card = json_body(request("GET", f"/api/admin/materials/categories/{category_id}", auth=True))
+    assert category_card["hideOnSite"] is True
+    category_item = next(x for x in categories() if x["id"] == category_id)
+    assert category_item["hideOnSite"] is True
+    expect(request("GET", f"/api/materials/{category_material_id}")[0], 400, "Материал скрытой категории")
+    assert category_material_id not in {x["id"] for x in public_materials()}
+    equal(public_query("search", {"search": prefix})["totalCount"], 2, "Материалы скрытой категории в поиске")
+    problem(request("GET", "/api/materials/search?" + urllib.parse.urlencode({"categoryIds": category_id})),
+            "Скрытая категория в поиске")
+    problem(request("GET", "/api/materials/filters?" + urllib.parse.urlencode({"categoryIds": category_id})),
+            "Скрытая категория в фасетах")
+    mark("VIS-03", "Скрытая категория доступна администратору, скрывает материалы и отклоняется публичными фильтрами")
+
+    visible_category = dict(category_model, hideOnSite=False)
+    expect(request("PUT", f"/api/admin/materials/categories/{category_id}", visible_category, auth=True)[0],
+           200, "Восстановление видимости категории")
+    expect(request("GET", f"/api/materials/{category_material_id}")[0], 200,
+           "Карточка материала после восстановления категории")
+    mark("VIS-04", "Видимость материала и категории восстановлена перед остальной регрессией")
+
+
 def main():
     global cookie, history_run_id, primary_sheet_size_id, primary_manufacturer_id, primary_material_type_id
     prefix = "codex-http-" + time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
@@ -1100,6 +1160,9 @@ def main():
     if "/api/admin/catalog/history/test-runs/{runId}" in openapi_document["paths"]:
         raise AssertionError("Метод очистки тестовой истории не должен отображаться в OpenAPI")
     mark("DOC-02", "Метод очистки тестовой истории скрыт из OpenAPI")
+    if "/api/materials/categories" in openapi_document["paths"]:
+        raise AssertionError("Публичный метод категорий не должен отображаться в OpenAPI")
+    mark("DOC-04", "Публичные методы категорий отсутствуют в OpenAPI")
 
     credentials = load_test_credentials()
     user_cookie = signin(credentials["user"], credentials["password"], "user")
@@ -1152,7 +1215,9 @@ def main():
     material_types_response = request("GET", "/api/admin/materials/material-types", auth=True)
     expect(material_types_response[0], 200, "Получение типов материалов")
     material_types = json_body(material_types_response)["items"]
-    primary_material_type_id = next(item["id"] for item in material_types if item["name"] == "LDSP")
+    if not material_types:
+        raise AssertionError("Для регрессионного прогона требуется хотя бы один тип материала")
+    primary_material_type_id = material_types[0]["id"]
 
     existing_thicknesses = json_body(request("GET", "/api/admin/materials/thicknesses", auth=True))["items"]
     for value in (16, 18):
@@ -1232,7 +1297,7 @@ def main():
     mark("MFR-01—MFR-06", "Проверены операции с производителями, сортировка и её границы")
 
     expect(request("GET", "/api/materials")[0], 200, "public materials")
-    expect(request("GET", "/api/materials/categories")[0], 200, "public categories")
+    expect(request("GET", "/api/materials/categories")[0], 404, "removed public categories")
     expect(request("GET", "/api/admin/materials")[0], 401, "anonymous admin list")
     anonymous_mutations = [
         ("POST", "/api/admin/materials/categories", {"name": "x", "externalLink": "x"}),
@@ -1257,16 +1322,16 @@ def main():
     if [x["id"] for x in own] != [cat1, cat2, cat3]:
         raise AssertionError("created category order is incorrect")
     for category_id in (cat1, cat2, cat3):
-        response = request("GET", f"/api/materials/categories/{category_id}")
-        expect(response[0], 200, "public category card")
+        response = request("GET", f"/api/admin/materials/categories/{category_id}", auth=True)
+        expect(response[0], 200, "admin category card")
     response = request("PUT", f"/api/admin/materials/categories/{cat2}", {
-        "name": prefix + "-cat-b-updated", "externalLink": "https://example.test/updated"
+        "name": prefix + "-cat-b-updated", "externalLink": "https://example.test/updated", "hideOnSite": False
     }, auth=True)
     expect(response[0], 200, "update category")
     expect(request("PUT", f"/api/admin/materials/categories/{cat2}", {
-        "name": prefix + "-cat-b-updated", "externalLink": "https://example.test/updated"
+        "name": prefix + "-cat-b-updated", "externalLink": "https://example.test/updated", "hideOnSite": False
     }, auth=True)[0], 200, "no-op category update")
-    updated = json_body(request("GET", f"/api/materials/categories/{cat2}"))
+    updated = json_body(request("GET", f"/api/admin/materials/categories/{cat2}", auth=True))
     if updated["name"] != prefix + "-cat-b-updated":
         raise AssertionError("category update not visible")
     expect(request("POST", "/api/admin/materials/categories/change-order-col", {"categoryId": cat2, "direction": "UP"}, auth=True)[0], 200, "category up")
@@ -1331,12 +1396,12 @@ def main():
     expect(request("DELETE", f"/api/admin/materials/manufacturers/{primary_manufacturer_id}", auth=True)[0], 400, "delete used manufacturer")
     mark("MFR-07—MFR-08", "Связь с материалом отображается; удаление используемого производителя отклонено")
     mark("SIZE-05—SIZE-06", "Связь с материалом отображается; удаление используемого размера отклонено")
-    expect(request("GET", f"/api/materials/categories/{cat1}")[0], 200, "public category card after material")
+    expect(request("GET", f"/api/admin/materials/categories/{cat1}", auth=True)[0], 200, "admin category card after material")
     png_response = request("GET", "/api/materials/images/" + images[0][0])
     expect(png_response[0], 200, "bound PNG")
     if png_response[2] != png:
         raise AssertionError("bound PNG mismatch")
-    mark("AUTH-01—AUTH-07", "Проверены публичные списки, карточки, изображение и анонимные обращения к закрытым методам")
+    mark("AUTH-01—AUTH-07", "Проверены публичные материалы и изображения, удаление публичных категорий и анонимные обращения к закрытым методам")
     mark("IMG-06—IMG-07", "После перезапуска создан материал с PNG; проверены карточка и изображение")
 
     admin_ids = {x["id"] for x in admin_materials()}
@@ -1345,6 +1410,17 @@ def main():
     unfiltered_ids = {x["id"] for x in public_materials()}
     if not {m1, m2, m3}.issubset(unfiltered_ids):
         raise AssertionError("unfiltered public list omitted test materials")
+
+    run_visibility_scenarios(
+        prefix,
+        m2,
+        m2_model,
+        cat2,
+        {
+            "name": prefix + "-cat-b-updated",
+            "externalLink": "https://example.test/updated"
+        },
+        m3)
 
     for calculator, expected_id in (("Raskroy", m1), ("PvhFacades", m2), ("EmalFacades", m3)):
         ids = {x["id"] for x in public_query("search", {"search": prefix, "calculators": [calculator], "pageSize": 96})["items"]}
@@ -1474,14 +1550,14 @@ def main():
     duplicate = copy.deepcopy(base_invalid); duplicate["name"] = m2_model["name"]
     expect(request("POST", "/api/admin/materials", duplicate, auth=True)[0], 400, "duplicate material name")
     expect(request("GET", "/api/materials/2147483000")[0], 400, "missing material")
-    expect(request("GET", "/api/materials/categories/2147483000")[0], 400, "missing category")
+    expect(request("GET", "/api/admin/materials/categories/2147483000", auth=True)[0], 400, "missing category")
     expect(request("POST", "/api/admin/materials/change-order-col", {"id": m1, "direction": "SIDEWAYS"}, auth=True)[0], 400, "invalid direction")
     bad = copy.deepcopy(base_invalid); bad["name"] += "-guid"; bad["image"] = str(uuid.uuid4())
     expect(request("POST", "/api/admin/materials", bad, auth=True)[0], 400, "missing image GUID")
     mark("VAL-01—VAL-10", "Все проверенные некорректные модели и отсутствующие id/GUID вернули 400")
 
     counter_targets = (
-        ("/api/materials/categories", cat1),
+        ("/api/admin/materials/categories", cat1),
         ("/api/admin/materials/sheet-sizes", primary_sheet_size_id),
         ("/api/admin/materials/manufacturers", primary_manufacturer_id)
     )
