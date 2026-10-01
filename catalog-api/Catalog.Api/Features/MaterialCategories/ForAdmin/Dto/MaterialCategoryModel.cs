@@ -7,6 +7,9 @@ public sealed record MaterialCategoryModel
 
     [Description("Ссылка на внешний источник")]
     public required string ExternalLink { get; init; }
+
+    [Description("Признак: скрыть категорию на сайте")]
+    public bool HideOnSite { get; init; }
 }
 
 public class MaterialCategoryModelValidator : AbstractValidator<MaterialCategoryModel>

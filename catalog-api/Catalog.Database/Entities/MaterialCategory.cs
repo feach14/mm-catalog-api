@@ -14,4 +14,5 @@ public sealed record MaterialCategory
     public required int OrderByCol { get; set; }
 
     public required string ExternalLink { get; set; }
+    public bool HideOnSite { get; set; }
 }

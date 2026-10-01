@@ -114,6 +114,8 @@ public class UpdateMaterialCommandHandler(
         AddChange(changes, "обязательный комментарий", material.CommentOnMaterialIsRequired, command.Material.CommentOnMaterialIsRequired);
         AddChange(changes, "второй элемент в заказе", material.AllowSecondItemInOrder, command.Material.AllowSecondItemInOrder);
         AddChange(changes, "цена", material.Price, command.Material.Price);
+        AddChange(changes, "скрыт на сайте", material.HideOnSite, command.Material.HideOnSite);
+        AddChange(changes, "цена скрыта на сайте", material.HidePriceOnSite, command.Material.HidePriceOnSite);
         AddChange(changes, "единица", material.CountTypeEnum, command.Material.CountTypeEnum);
         AddChange(changes, "оригинальное изображение", original?.Guid, command.Material.Image);
         AddChange(changes, "миниатюра 240", thumbnail240?.Guid, command.Material.Thumbnail240);
@@ -139,6 +141,8 @@ public class UpdateMaterialCommandHandler(
         material.AllowSecondItemInOrder = command.Material.AllowSecondItemInOrder;
         material.ExternalLink = command.Material.ExternalLink;
         material.Price = command.Material.Price;
+        material.HideOnSite = command.Material.HideOnSite;
+        material.HidePriceOnSite = command.Material.HidePriceOnSite;
         material.CountTypeEnum = command.Material.CountTypeEnum;
 
         Guid?[] replacedImageGuids =

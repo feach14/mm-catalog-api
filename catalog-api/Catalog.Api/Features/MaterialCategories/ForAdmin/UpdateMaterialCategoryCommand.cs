@@ -23,12 +23,15 @@ public class UpdateMaterialCategoryCommandHandler(CatalogDbContext dbContext, IC
             changes.Add($"название «{materialCategory.Name}» → «{command.Category.Name}»");
         if (materialCategory.ExternalLink != command.Category.ExternalLink)
             changes.Add($"источник «{materialCategory.ExternalLink}» → «{command.Category.ExternalLink}»");
+        if (materialCategory.HideOnSite != command.Category.HideOnSite)
+            changes.Add($"скрыта на сайте {materialCategory.HideOnSite} → {command.Category.HideOnSite}");
 
         if (changes.Count == 0)
             return new UpdateMaterialCategoryCommandResult(true);
 
         materialCategory.Name = command.Category.Name;
         materialCategory.ExternalLink = command.Category.ExternalLink;
+        materialCategory.HideOnSite = command.Category.HideOnSite;
         dbContext.MaterialCategories.Update(materialCategory);
         historyWriter.Add(
             CatalogHistoryActionTypeEnum.Update,

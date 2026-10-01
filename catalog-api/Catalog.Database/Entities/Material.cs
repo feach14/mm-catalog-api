@@ -34,6 +34,8 @@ public sealed record Material
     public bool CommentOnMaterialIsRequired { get; set; }
     public bool AllowSecondItemInOrder { get; set; }
     public required decimal Price { get; set; }
+    public bool HideOnSite { get; set; }
+    public bool HidePriceOnSite { get; set; }
     public required CountTypeEnum CountTypeEnum { get; set; }
     public required int OrderByCol { get; set; }
 

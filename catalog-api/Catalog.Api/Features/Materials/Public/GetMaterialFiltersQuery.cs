@@ -31,7 +31,7 @@ public sealed class GetMaterialFiltersQueryValidator : AbstractValidator<GetMate
             .Cascade(CascadeMode.Stop)
             .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений категорий")
             .Must(values => values is null || values.All(value => value > 0)).WithMessage("Id категорий должны быть положительными числами")
-            .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialCategories.Select(x => x.Id), ct))
+            .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialCategories.Where(x => !x.HideOnSite).Select(x => x.Id), ct))
             .WithMessage("Одна или несколько категорий не найдены");
         RuleFor(x => x.ManufacturerIds)
             .Cascade(CascadeMode.Stop)
@@ -133,9 +133,10 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
         var selectedCategoryIds = (query.CategoryIds ?? []).Distinct().ToArray();
         var categories = await dbContext.MaterialCategories
             .AsNoTracking()
-            .Where(category =>
+            .Where(category => !category.HideOnSite
+                && (
                 categoriesBase.Any(material => material.CategoryId == category.Id)
-                || selectedCategoryIds.Contains(category.Id))
+                || selectedCategoryIds.Contains(category.Id)))
             .OrderBy(category => category.OrderByCol)
             .ThenBy(category => category.Id)
             .Select(category => new MaterialCategoryFilterDto(
@@ -237,6 +238,7 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
         GetMaterialFiltersQuery query,
         ExcludedFilterEnum excluded)
     {
+        materials = materials.Where(x => !x.HideOnSite && !x.Category.HideOnSite);
         materials = materials.FilterByCalculators((query.Calculators ?? []).Distinct().ToArray());
         var search = query.Search?.Trim();
         if (!string.IsNullOrEmpty(search))

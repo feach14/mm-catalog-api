@@ -113,6 +113,12 @@ public record MaterialModel
     [Description("Цена материала у поставщика")]
     public required decimal Price { get; init; }
 
+    [Description("Признак: скрыть материал на сайте")]
+    public bool HideOnSite { get; init; }
+
+    [Description("Признак: не показывать цену материала на сайте")]
+    public bool HidePriceOnSite { get; init; }
+
     [Description("Единица измерения"), JsonConverter(typeof(JsonStringEnumConverter))]
     public required CountTypeEnum CountTypeEnum { get; init; }
 }

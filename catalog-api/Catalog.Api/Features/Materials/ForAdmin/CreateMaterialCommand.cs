@@ -67,6 +67,8 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
             AllowSecondItemInOrder = command.Material.AllowSecondItemInOrder,
             ExternalLink = command.Material.ExternalLink,
             Price = command.Material.Price,
+            HideOnSite = command.Material.HideOnSite,
+            HidePriceOnSite = command.Material.HidePriceOnSite,
             CountTypeEnum = command.Material.CountTypeEnum,
             OrderByCol = maxOrderByCol + 1
         };
@@ -104,6 +106,7 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
             + $"толщина #{material.MaterialThicknessId}, "
             + $"количество {material.Count}, "
             + $"цена {material.Price}, "
+            + $"скрыт на сайте: {material.HideOnSite}, цена скрыта на сайте: {material.HidePriceOnSite}, "
             + $"изображения {string.Join(';', images.Select(x => $"{(x?.ToString() ?? "нет")}"))}.");
 
         await dbContext.SaveChangesAsync(ct);

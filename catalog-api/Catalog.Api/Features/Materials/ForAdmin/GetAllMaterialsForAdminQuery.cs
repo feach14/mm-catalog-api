@@ -24,6 +24,8 @@ public sealed record GetMaterialsQueryForAdminItemResult(
     [property: Description("Количество")] int Count,
     [property: Description("Порядковый номер записи (для сортировки)")] int OrderByCol,
     [property: Description("Стоимость материала")] decimal Price,
+    [property: Description("Признак: скрыть материал на сайте")] bool HideOnSite,
+    [property: Description("Признак: не показывать цену материала на сайте")] bool HidePriceOnSite,
     [property: Description("Применим к раскрою")] bool ApplicableToRaskroys,
     [property: Description("Применим к фасадам ПВХ")] bool ApplicableToPvhFacades,
     [property: Description("Применим к фасадам эмаль")] bool ApplicableToEmalFacades
@@ -49,6 +51,8 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
                 x.Count,
                 x.OrderByCol,
                 x.Price,
+                x.HideOnSite,
+                x.HidePriceOnSite,
                 x.ApplicableToRaskroys,
                 x.ApplicableToPvhFacades,
                 x.ApplicableToEmalFacades))

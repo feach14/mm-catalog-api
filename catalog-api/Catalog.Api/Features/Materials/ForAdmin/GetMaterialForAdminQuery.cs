@@ -29,6 +29,8 @@ public sealed record GetMaterialForAdminQueryResult(
     [property: Description("Признак: Разрешено добавлять вторым(и более) элементом списка расчетов в заявке")] bool AllowSecondItemInOrder,
     [property: Description("Ссылка на внешний источник")] string? ExternalLink,
     [property: Description("Цена за материал у поставщика")] decimal Price,
+    [property: Description("Признак: скрыть материал на сайте")] bool HideOnSite,
+    [property: Description("Признак: не показывать цену материала на сайте")] bool HidePriceOnSite,
     [property: Description("Единица измерения"), JsonConverter(typeof(JsonStringEnumConverter))] CountTypeEnum CountTypeEnum
 );
 
@@ -72,6 +74,8 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
                 x.AllowSecondItemInOrder,
                 x.ExternalLink,
                 x.Price,
+                x.HideOnSite,
+                x.HidePriceOnSite,
                 x.CountTypeEnum))
             .SingleOrDefaultAsync(ct)
         ?? throw new BadHttpRequestException($"Материал с id={query.Id} не найден");

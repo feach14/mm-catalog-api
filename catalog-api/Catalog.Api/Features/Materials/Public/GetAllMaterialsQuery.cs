@@ -29,6 +29,7 @@ public class GetAllMaterialsQueryHandler(CatalogDbContext dbContext) : IQueryHan
     public async Task<GetAllMaterialsQueryResult> Handle(GetAllMaterialsQuery query, CancellationToken ct)
     {
         var materials = await dbContext.Materials.AsNoTracking()
+            .Where(x => !x.HideOnSite && !x.Category.HideOnSite)
             .OrderBy(x => x.Category.OrderByCol)
             .ThenBy(x => x.OrderByCol)
             .Select(x => new GetAllMaterialsQueryItemResult(

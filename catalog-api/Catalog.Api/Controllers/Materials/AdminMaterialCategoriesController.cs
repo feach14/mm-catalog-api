@@ -1,4 +1,3 @@
-using Catalog.Api.Features.MaterialCategories;
 using Catalog.Api.Features.MaterialCategories.ForAdmin;
 using Catalog.Api.Features.MaterialCategories.ForAdmin.Dto;
 using Core.Attributes;
@@ -20,10 +19,10 @@ public class AdminMaterialCategoriesController : BaseApiController
     [HttpGet,
      EndpointSummary(nameof(MaterialCategories)),
      EndpointDescription("Список категорий материалов"),
-     ProducesResponseType(typeof(GetAllMaterialCategoriesQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Список категорий")]
-    public Task<GetAllMaterialCategoriesQueryResult> MaterialCategories(
-        [FromServices] IQueryHandler<GetAllMaterialCategoriesQuery, GetAllMaterialCategoriesQueryResult> handler) =>
-        handler.Handle(new GetAllMaterialCategoriesQuery(), HttpContext.RequestAborted);
+     ProducesResponseType(typeof(GetAllMaterialCategoriesForAdminQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Список категорий")]
+    public Task<GetAllMaterialCategoriesForAdminQueryResult> MaterialCategories(
+        [FromServices] IQueryHandler<GetAllMaterialCategoriesForAdminQuery, GetAllMaterialCategoriesForAdminQueryResult> handler) =>
+        handler.Handle(new GetAllMaterialCategoriesForAdminQuery(), HttpContext.RequestAborted);
 
     [HttpGet("{id:int}"),
      EndpointSummary(nameof(MaterialCategory)),
