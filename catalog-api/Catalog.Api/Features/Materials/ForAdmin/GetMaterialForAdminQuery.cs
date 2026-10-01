@@ -54,13 +54,37 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
                         .Where(image => image.ImageType == MaterialImageTypeEnum.Original)
                         .Select(image => (Guid?)image.Guid)
                         .SingleOrDefault(),
+                    OriginalMetadata = x.Images
+                        .Where(image => image.ImageType == MaterialImageTypeEnum.Original)
+                        .Select(image => new MaterialImageMetadataDto
+                        {
+                            ContentType = image.Type,
+                            Size = image.Data.Length
+                        })
+                        .SingleOrDefault(),
                     Thumbnail240 = x.Images
                         .Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail240)
                         .Select(image => (Guid?)image.Guid)
                         .SingleOrDefault(),
+                    Thumbnail240Metadata = x.Images
+                        .Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail240)
+                        .Select(image => new MaterialImageMetadataDto
+                        {
+                            ContentType = image.Type,
+                            Size = image.Data.Length
+                        })
+                        .SingleOrDefault(),
                     Thumbnail480 = x.Images
                         .Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail480)
                         .Select(image => (Guid?)image.Guid)
+                        .SingleOrDefault(),
+                    Thumbnail480Metadata = x.Images
+                        .Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail480)
+                        .Select(image => new MaterialImageMetadataDto
+                        {
+                            ContentType = image.Type,
+                            Size = image.Data.Length
+                        })
                         .SingleOrDefault()
                 },
                 x.KvM,

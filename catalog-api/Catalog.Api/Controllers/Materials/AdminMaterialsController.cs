@@ -2,6 +2,7 @@ using Catalog.Api.Features.Materials.ForAdmin;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
+using Core.RequestResponseLogger;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Catalog.Api.Controllers.Materials;
@@ -71,6 +72,7 @@ public class AdminMaterialsController : BaseApiController
 
     [HttpPost("images"),
      Consumes("multipart/form-data"),
+     SkipRequestBodyLogging,
      RequestSizeLimit(MaxImageRequestSize),
      EndpointSummary(nameof(UploadMaterialImage)),
      EndpointDescription("Загрузка оригинала или готовой миниатюры материала в формате PNG, JPEG или WebP размером до 5 МБ"),

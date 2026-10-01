@@ -3,6 +3,7 @@ using Catalog.Api.Features.Materials.Public;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
+using Core.RequestResponseLogger;
 using Microsoft.Net.Http.Headers;
 
 namespace Catalog.Api.Controllers.Materials;
@@ -48,6 +49,7 @@ public class MaterialsController : BaseApiController
         handler.Handle(new GetMaterialQuery(id), HttpContext.RequestAborted);
 
     [HttpGet("images/{fileGuid:guid}"),
+     SkipResponseBodyLogging,
      ResponseCache(Duration = ImageCacheDurationSeconds, Location = ResponseCacheLocation.Any),
      EndpointSummary(nameof(MaterialImage)),
      EndpointDescription("Изображение материала"),

@@ -235,9 +235,13 @@ dotnet_naming_rule.local_constants_should_be_camelcase.severity = suggestion
 dotnet_naming_rule.local_constants_should_be_camelcase.symbols = local_constants
 dotnet_naming_rule.local_constants_should_be_camelcase.style = camelcase
 
-dotnet_naming_rule.parameters_should_be_camelcase.severity = suggestion
+# Roslyn naming rules do not support alternative styles for the same symbol.
+dotnet_naming_rule.parameters_should_be_camelcase.severity = none
 dotnet_naming_rule.parameters_should_be_camelcase.symbols = parameters
 dotnet_naming_rule.parameters_should_be_camelcase.style = camelcase
+
+# Rider/ReSharper: allow both camelCase and _camelCase parameters.
+resharper_csharp_naming_rule.parameters = aaBb, _+aaBb
 
 dotnet_naming_rule.public_fields_should_be_pascalcase.severity = suggestion
 dotnet_naming_rule.public_fields_should_be_pascalcase.symbols = public_fields
