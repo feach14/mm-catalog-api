@@ -1,4 +1,5 @@
 using Catalog.Api.Features.History;
+using Core.AccountAuth;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
@@ -10,7 +11,7 @@ namespace Catalog.Api.Controllers;
  OpenApiTagOrder(8),
  Authorize(
     AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
-    Roles = AppConstants.AdministrationRoles),
+    Roles = AuthConstants.AdministrationRoles),
  ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
  ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав тестера, менеджера или администратора")]
 public sealed class AdminCatalogHistoryController : BaseApiController
@@ -26,7 +27,7 @@ public sealed class AdminCatalogHistoryController : BaseApiController
 
     [HttpDelete("test-runs/{runId:int}"),
      ApiExplorerSettings(IgnoreApi = true),
-     Authorize(Roles = AppConstants.TesterRoleName),
+     Authorize(Roles = AuthConstants.TesterRoleName),
      EndpointSummary(nameof(DeleteTestRunHistory)),
      EndpointDescription("Удаление записей истории, созданных изолированным тестовым прогоном"),
      ProducesResponseType(typeof(DeleteCatalogTestRunHistoryCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат очистки тестовой истории"),

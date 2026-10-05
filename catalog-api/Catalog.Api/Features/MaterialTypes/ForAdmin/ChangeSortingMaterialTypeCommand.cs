@@ -1,5 +1,5 @@
-using Catalog.Api.Enums;
 using Catalog.Database;
+using Core.BaseEnums;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.MaterialTypes.ForAdmin;

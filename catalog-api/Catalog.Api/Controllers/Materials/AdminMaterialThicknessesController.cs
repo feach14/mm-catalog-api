@@ -1,5 +1,6 @@
 using Catalog.Api.Features.MaterialThicknesses.ForAdmin;
 using Catalog.Api.Features.MaterialThicknesses.ForAdmin.Dto;
+using Core.AccountAuth;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
@@ -11,7 +12,7 @@ namespace Catalog.Api.Controllers.Materials;
  OpenApiTagOrder(7),
  Authorize(
     AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
-    Roles = AppConstants.AdministrationRoles),
+    Roles = AuthConstants.AdministrationRoles),
  ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
  ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав менеджера или администратора")]
 public sealed class AdminMaterialThicknessesController : BaseApiController

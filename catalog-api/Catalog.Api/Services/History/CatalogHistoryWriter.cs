@@ -1,6 +1,7 @@
 using Catalog.Database;
 using Catalog.Database.Entities;
 using Catalog.Database.Enums;
+using Core.AccountAuth;
 using Core.Extensions;
 
 namespace Catalog.Api.Services.History;
@@ -12,7 +13,7 @@ public sealed class CatalogHistoryWriter(
 {
     public void Add(CatalogHistoryActionTypeEnum actionType, CatalogHistoryEntityTypeEnum entityType, int entityId, string message)
     {
-        if (httpContextAccessor.HttpContext?.User.IsInRole(AppConstants.TesterRoleName) == true)
+        if (httpContextAccessor.HttpContext?.User.IsInRole(AuthConstants.TesterRoleName) == true)
             return;
 
         dbContext.ChangeHistory.Add(new CatalogChangeHistory
