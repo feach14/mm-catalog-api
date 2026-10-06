@@ -108,9 +108,9 @@ public class UpdateMaterialCommandHandler(
         AddChange(changes, "периметр", material.PerimetrM, command.Material.PerimetrM);
         AddChange(changes, "количество", material.Count, command.Material.Count);
         AddChange(changes, "ссылка", material.ExternalLink, command.Material.ExternalLink, true);
-        AddChange(changes, "раскрой", material.ApplicableToRaskroys, command.Material.ApplicableToRaskroys);
-        AddChange(changes, "фасады ПВХ", material.ApplicableToPvhFacades, command.Material.ApplicableToPvhFacades);
-        AddChange(changes, "фасады эмаль", material.ApplicableToEmalFacades, command.Material.ApplicableToEmalFacades);
+        AddChange(changes, "использование в заявке на распил", material.ApplicableToCutting, command.Material.ApplicableToCutting);
+        AddChange(changes, "использование в заявке на фасады ПВХ", material.ApplicableToPvhFacades, command.Material.ApplicableToPvhFacades);
+        AddChange(changes, "использование в заявке на фасады эмаль", material.ApplicableToEnamelFacades, command.Material.ApplicableToEnamelFacades);
         AddChange(changes, "обязательный комментарий", material.CommentOnMaterialIsRequired, command.Material.CommentOnMaterialIsRequired);
         AddChange(changes, "второй элемент в заказе", material.AllowSecondItemInOrder, command.Material.AllowSecondItemInOrder);
         AddChange(changes, "цена", material.Price, command.Material.Price);
@@ -134,9 +134,9 @@ public class UpdateMaterialCommandHandler(
         material.KvM = command.Material.KvM;
         material.PerimetrM = command.Material.PerimetrM;
         material.Count = command.Material.Count;
-        material.ApplicableToRaskroys = command.Material.ApplicableToRaskroys;
+        material.ApplicableToCutting = command.Material.ApplicableToCutting;
         material.ApplicableToPvhFacades = command.Material.ApplicableToPvhFacades;
-        material.ApplicableToEmalFacades = command.Material.ApplicableToEmalFacades;
+        material.ApplicableToEnamelFacades = command.Material.ApplicableToEnamelFacades;
         material.CommentOnMaterialIsRequired = command.Material.CommentOnMaterialIsRequired;
         material.AllowSecondItemInOrder = command.Material.AllowSecondItemInOrder;
         material.ExternalLink = command.Material.ExternalLink;

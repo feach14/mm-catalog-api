@@ -39,9 +39,9 @@ public sealed record Material
     public required CountTypeEnum CountTypeEnum { get; set; }
     public required int OrderByCol { get; set; }
 
-    public required bool ApplicableToRaskroys { get; set; }
+    public required bool ApplicableToCutting { get; set; }
     public required bool ApplicableToPvhFacades { get; set; }
-    public required bool ApplicableToEmalFacades { get; set; }
+    public required bool ApplicableToEnamelFacades { get; set; }
 
     public List<MaterialImage> Images { get; private set; }
 }

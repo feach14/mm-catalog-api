@@ -44,10 +44,10 @@ public class MaterialModelValidator : AbstractValidator<MaterialModel>
             .MustAsync(async (id, ct) => await dbContext.MaterialThicknesses.AsNoTracking().AnyAsync(x => x.Id == id, ct))
             .WithMessage("Указанная толщина материала не найдена");
         RuleFor(m => m.PerimetrM).GreaterThan(0).WithMessage("Периметр материала должен быть больше нуля");
-        RuleFor(m => m.ApplicableToRaskroys)
-            .Must((model, applicableToRaskroys) =>
-                applicableToRaskroys || model.ApplicableToPvhFacades || model.ApplicableToEmalFacades)
-            .WithMessage("Материал должен быть применен хотя бы к одному калькулятору");
+        RuleFor(m => m.ApplicableToCutting)
+            .Must((model, applicableToCutting) =>
+                applicableToCutting || model.ApplicableToPvhFacades || model.ApplicableToEnamelFacades)
+            .WithMessage("Необходимо выбрать хотя бы один вариант использования материала");
     }
 }
 
@@ -92,14 +92,14 @@ public record MaterialModel
     [Description("Количество метров по периметру плиты, не более трёх знаков после десятичной точки")]
     public required decimal PerimetrM { get; init; }
 
-    [Description("Признак: Материал применим в калькуляторе раскроя")]
-    public required bool ApplicableToRaskroys { get; init; }
+    [Description("Использование материала в заявке на распил")]
+    public required bool ApplicableToCutting { get; init; }
 
-    [Description("Признак: Материал применим в калькуляторе фасадов ПВХ")]
+    [Description("Использование материала в заявке на фасады ПВХ")]
     public required bool ApplicableToPvhFacades { get; init; }
 
-    [Description("Признак: Материал применим в калькуляторе фасадов эмаль")]
-    public required bool ApplicableToEmalFacades { get; init; }
+    [Description("Использование материала в заявке на фасады эмаль")]
+    public required bool ApplicableToEnamelFacades { get; init; }
 
     [Description("Признак: Комментарий к материалу обязателен при оформлении заявки(расчета)")]
     public bool CommentOnMaterialIsRequired { get; init; }

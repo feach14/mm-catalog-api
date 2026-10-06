@@ -3,6 +3,7 @@ using System;
 using Catalog.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Catalog.Database.Migrations
 {
     [DbContext(typeof(CatalogDbContext))]
-    partial class CatalogDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261006055142_RenameMaterialApplicableToCutting")]
+    partial class RenameMaterialApplicableToCutting
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -139,9 +142,9 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("applicable_to_cutting");
 
-                    b.Property<bool>("ApplicableToEnamelFacades")
+                    b.Property<bool>("ApplicableToEmalFacades")
                         .HasColumnType("boolean")
-                        .HasColumnName("applicable_to_enamel_facades");
+                        .HasColumnName("applicable_to_emal_facades");
 
                     b.Property<bool>("ApplicableToPvhFacades")
                         .HasColumnType("boolean")

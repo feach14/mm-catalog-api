@@ -17,8 +17,8 @@ internal static class MaterialCalculatorFilterExtensions
         var includeEmalFacades = calculators.Contains(MaterialCalculatorEnum.EmalFacades);
 
         return query.Where(x =>
-            (includeRaskroy && x.ApplicableToRaskroys)
+            (includeRaskroy && x.ApplicableToCutting)
             || (includePvhFacades && x.ApplicableToPvhFacades)
-            || (includeEmalFacades && x.ApplicableToEmalFacades));
+            || (includeEmalFacades && x.ApplicableToEnamelFacades));
     }
 }

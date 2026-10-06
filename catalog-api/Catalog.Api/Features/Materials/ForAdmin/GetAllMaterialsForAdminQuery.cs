@@ -26,9 +26,9 @@ public sealed record GetMaterialsQueryForAdminItemResult(
     [property: Description("Стоимость материала")] decimal Price,
     [property: Description("Признак: скрыть материал на сайте")] bool HideOnSite,
     [property: Description("Признак: не показывать цену материала на сайте")] bool HidePriceOnSite,
-    [property: Description("Применим к раскрою")] bool ApplicableToRaskroys,
-    [property: Description("Применим к фасадам ПВХ")] bool ApplicableToPvhFacades,
-    [property: Description("Применим к фасадам эмаль")] bool ApplicableToEmalFacades
+    [property: Description("Использование материала в заявке на распил")] bool ApplicableToCutting,
+    [property: Description("Использование материала в заявке на фасады ПВХ")] bool ApplicableToPvhFacades,
+    [property: Description("Использование материала в заявке на фасады эмаль")] bool ApplicableToEnamelFacades
 );
 
 public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetAllMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult>
@@ -53,9 +53,9 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
                 x.Price,
                 x.HideOnSite,
                 x.HidePriceOnSite,
-                x.ApplicableToRaskroys,
+                x.ApplicableToCutting,
                 x.ApplicableToPvhFacades,
-                x.ApplicableToEmalFacades))
+                x.ApplicableToEnamelFacades))
             .ToArrayAsync(ct);
 
         return new GetAllMaterialsForAdminQueryResult(materials);

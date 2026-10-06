@@ -14,7 +14,7 @@ public sealed record GetMaterialFiltersQuery(
     [property: Description("Толщины в миллиметрах"), FromQuery] decimal[]? Depths = null,
     [property: Description("ID толщин материалов"), FromQuery] int[]? ThicknessIds = null,
     [property: Description("ID форматов листа"), FromQuery] int[]? SheetSizeIds = null,
-    [property: Description("Калькуляторы"), FromQuery] MaterialCalculatorEnum[]? Calculators = null,
+    [property: Description("Варианты использования материала"), FromQuery] MaterialCalculatorEnum[]? Calculators = null,
     [property: Description("Поиск по названию или артикулу, до 250 символов"), FromQuery] string? Search = null,
     [property: Description("Наличие материала: true — количество больше нуля, false — количество меньше единицы"), FromQuery] bool? InStock = null
 ) : IQuery<GetMaterialFiltersQueryResult>;
@@ -63,8 +63,8 @@ public sealed class GetMaterialFiltersQueryValidator : AbstractValidator<GetMate
             .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений толщины")
             .Must(values => values is null || values.All(value => value > 0)).WithMessage("Толщина должна быть положительным конечным числом");
         RuleFor(x => x.Calculators)
-            .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений калькулятора");
-        RuleForEach(x => x.Calculators!).IsInEnum().When(x => x.Calculators is not null).WithMessage("Указан неизвестный калькулятор");
+            .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 вариантов использования материала");
+        RuleForEach(x => x.Calculators!).IsInEnum().When(x => x.Calculators is not null).WithMessage("Указан неизвестный вариант использования материала");
 
     }
 

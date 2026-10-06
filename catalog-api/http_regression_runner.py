@@ -281,9 +281,9 @@ def material_model(name, category_id, flag, image=None):
         "thicknessId": thickness_ids[18],
         "kvM": 5.796,
         "perimetrM": 9.74,
-        "applicableToRaskroys": flag == "raskroy",
+        "applicableToCutting": flag == "raskroy",
         "applicableToPvhFacades": flag == "pvhFacades",
-        "applicableToEmalFacades": flag == "emalFacades",
+        "applicableToEnamelFacades": flag == "emalFacades",
         "commentOnMaterialIsRequired": False,
         "allowSecondItemInOrder": True,
         "externalLink": "https://example.test/material",
@@ -566,7 +566,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
         if excluded != "inStock" and "inStock" in params:
             if (row["count"] > 0) != (params["inStock"] == "true"):
                 return False
-        flags = {"Raskroy": "applicableToRaskroys", "PvhFacades": "applicableToPvhFacades"}
+        flags = {"Raskroy": "applicableToCutting", "PvhFacades": "applicableToPvhFacades"}
         return not params.get("calculators") or any(row[flags[c]] for c in params["calculators"])
 
     def search_check(params):
@@ -1452,7 +1452,7 @@ def main():
         "categoryId": cat3, "name": prefix + "-mat-emal-updated", "article": "UPDATED",
         "count": 7, "sheetSizeId": secondary_sheet_size_id, "thicknessId": thickness_ids[16], "kvM": 2.977,
         "perimetrM": 7.32, "price": 456.78, "countTypeEnum": "SHT",
-        "applicableToRaskroys": True, "applicableToEmalFacades": False,
+        "applicableToCutting": True, "applicableToEnamelFacades": False,
         "commentOnMaterialIsRequired": True, "allowSecondItemInOrder": False
     })
     expect(request("PUT", f"/api/admin/materials/{m3}", m3_updated, auth=True)[0], 200, "update material")
@@ -1545,7 +1545,7 @@ def main():
     bad = copy.deepcopy(base_invalid); bad["price"] = 0
     expect(request("POST", "/api/admin/materials", bad, auth=True)[0], 400, "bad price")
     bad = copy.deepcopy(base_invalid)
-    bad.update({"applicableToRaskroys": False, "applicableToPvhFacades": False, "applicableToEmalFacades": False})
+    bad.update({"applicableToCutting": False, "applicableToPvhFacades": False, "applicableToEnamelFacades": False})
     expect(request("POST", "/api/admin/materials", bad, auth=True)[0], 400, "no calculator")
     duplicate = copy.deepcopy(base_invalid); duplicate["name"] = m2_model["name"]
     expect(request("POST", "/api/admin/materials", duplicate, auth=True)[0], 400, "duplicate material name")
