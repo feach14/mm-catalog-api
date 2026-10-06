@@ -1,7 +1,7 @@
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 using Catalog.Database;
-using Catalog.Database.Enums;
+using Core.BaseEnums;
 
 namespace Catalog.Api.Features.Materials.ForAdmin.Dto;
 

@@ -2,6 +2,7 @@ using Catalog.Api.Features.Materials.Dto;
 using Catalog.Api.Features.Materials.ForAdmin.Dto;
 using Catalog.Database;
 using Catalog.Database.Enums;
+using Core.BaseEnums;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.ForAdmin;

@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
-using Catalog.Database.Enums;
+using Core.BaseEnums;
 
-#pragma warning disable CS8618 // Параметры заполняются на уровне EF 
+#pragma warning disable CS8618 // Параметры заполняются на уровне EF
 
 namespace Catalog.Database.Entities;
 
