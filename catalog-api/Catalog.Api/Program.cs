@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Catalog.Api;
 using Catalog.Api.Services.History;
 using Catalog.Database;
@@ -21,6 +22,12 @@ builder.Services
     .AddHttpContextAccessor()
     .AddHttpClient()
     .AddFluentValidation<Program>()
+    .AddProblemDetails(options =>
+    {
+        options.CustomizeProblemDetails = context =>
+            context.ProblemDetails.Extensions["traceId"] = Activity.Current?.TraceId.ToHexString()
+                                                        ?? context.HttpContext.TraceIdentifier;
+    })
     .AddFeatures(typeof(Program).Assembly)
     .AddDbContextPool<CatalogDbContext>(opt =>
     {
@@ -29,14 +36,14 @@ builder.Services
     })
     .AddDbContextPool<DataProtectionKeyDbContext>(opt =>
     {
-        opt.UseNpgsql(appSettingsConfig.DbConnString);
+        opt.UseNpgsql(appSettingsConfig.DataProtectionDbConnString);
         opt.UseSnakeCaseNamingConvention();
     })
     .AddLogging(loggingBuilder =>
     {
         loggingBuilder.AddSeq(builder.Configuration.GetSection("Seq"));
         if (builder.Environment.IsDevelopment())
-            loggingBuilder.AddConsole();
+            loggingBuilder.AddSimpleConsole(options => options.IncludeScopes = true);
     })
     .AddOpenApiFromConfig<Program>(builder.Configuration)
     .AddDomainNameCorsPolicy(appSettingsConfig.Cors.DomainName)
@@ -71,9 +78,9 @@ app.UseDocUi(app.Configuration);
 if (app.Environment.IsProduction())
     app.UseHttpsRedirection();
 
+app.UseDomainNameCorsPolicy(appSettingsConfig.Cors.DomainName);
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseDomainNameCorsPolicy(appSettingsConfig.Cors.DomainName);
 app.UseProblemDetails();
 app.MapControllers();
 

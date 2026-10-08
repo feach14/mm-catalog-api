@@ -17,6 +17,7 @@ public sealed class ImageCacheConfiguration : IEntityTypeConfiguration<ImageCach
             .HasConversion<string>()
             .HasMaxLength(30)
             .IsRequired()
+            .HasSentinel(default(MaterialImageTypeEnum))
             .HasDefaultValue(MaterialImageTypeEnum.Original);
         eb.HasIndex(x => x.ImageType);
     }

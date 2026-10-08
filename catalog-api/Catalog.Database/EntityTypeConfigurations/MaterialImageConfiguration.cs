@@ -15,6 +15,7 @@ public class MaterialImageConfiguration : IEntityTypeConfiguration<MaterialImage
             .HasConversion<string>()
             .HasMaxLength(30)
             .IsRequired()
+            .HasSentinel(default(MaterialImageTypeEnum))
             .HasDefaultValue(MaterialImageTypeEnum.Original);
         eb.HasIndex(x => x.ImageType);
         eb.HasIndex(x => new { x.MaterialId, x.ImageType }).IsUnique();

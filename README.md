@@ -4,6 +4,14 @@
 
 Catalog API использует общий development-сертификат из Core. Установка и проверка описаны в [core/DevelopmentCertificates/README.md](core/DevelopmentCertificates/README.md).
 
+## Подключения к БД и общая авторизация
+
+`DbConnString` задаёт подключение к данным Catalog API. `DataProtectionDbConnString` задаёт отдельное подключение к общему хранилищу ключей Data Protection, которыми защищаются cookie авторизации; сами cookie в этой БД не хранятся. Строки подключения независимы: хост, база, пользователь и остальные параметры могут различаться.
+
+Для общей авторизации с Accounts API должны совпадать хранилище ключей, имя приложения Data Protection (`Cookie.CookieName(Cookie.DomainName)`), имя cookie и её домен. `DataProtectionDbConnString` должен указывать на хранилище Accounts API, выдавшего cookie.
+
+Оба подключения задаются в `appsettings.json` и `appsettings.Development.json` либо одноимёнными переменными окружения. После изменения строк подключения перезапустите API; перекомпиляция не требуется.
+
 ## Диагностика локальной разработки
 
 ### Сборка и форматирование в sandbox

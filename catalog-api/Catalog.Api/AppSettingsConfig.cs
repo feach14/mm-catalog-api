@@ -8,4 +8,5 @@ public sealed record AppSettingsConfig
     public required CorsConfiguration Cors { get; init; }
     public required CookieConfiguration Cookie { get; init; }
     public required string DbConnString { get; init; }
+    public required string DataProtectionDbConnString { get; init; }
 }
