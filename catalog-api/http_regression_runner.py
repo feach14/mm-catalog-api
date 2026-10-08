@@ -866,8 +866,8 @@ def run_thickness_scenarios(prefix, dimension_base, user_cookie, tester_cookie, 
                     {"name": model["name"], "value": dimension_base + 0.125001}):
         for method, url in (("POST", path), ("PUT", f"{path}/{entity_id}")):
             problem(request(method, url, invalid, auth=True), "Валидация толщины")
-    problem(request("POST", path, model, auth=True), "Дубликат значения толщины")
-    problem(request("PUT", f"{path}/{entity_id}", dict(model, value=18), auth=True), "Дубликат толщины при изменении")
+    problem(request("POST", path, model, auth=True), "Дубликат значения толщины", "value")
+    problem(request("PUT", f"{path}/{entity_id}", dict(model, value=18), auth=True), "Дубликат толщины при изменении", "value")
     equal(json_body(request("GET", f"{path}/{entity_id}", auth=True)), expected, "Атомарность отказа")
     for invalid_id in (0, -1, 2147483647):
         for method in ("GET", "PUT", "DELETE"):
@@ -1267,8 +1267,14 @@ def main():
     secondary_sheet_size_id = create_sheet_size(prefix + "-size-b", dimension_base + 2, dimension_base + 3)
     expect(request("GET", "/api/for-admin/materials/sheet-sizes", auth=True)[0], 200, "Список размеров для тестера")
     expect(request("GET", f"/api/for-admin/materials/sheet-sizes/{primary_sheet_size_id}", auth=True)[0], 200, "Карточка размера для тестера")
-    expect(request("POST", "/api/for-admin/materials/sheet-sizes", {"name": prefix + "-other", "height": dimension_base, "width": dimension_base + 1}, auth=True)[0], 400, "duplicate material sheet size")
-    expect(request("POST", "/api/for-admin/materials/sheet-sizes", {"name": prefix + "-size-a", "height": dimension_base + 4, "width": dimension_base + 5}, auth=True)[0], 400, "duplicate material sheet size name")
+    problem(request("POST", "/api/for-admin/materials/sheet-sizes", {"name": prefix + "-other", "height": dimension_base, "width": dimension_base + 1}, auth=True), "Дубликат пары размеров", "width")
+    problem(request("POST", "/api/for-admin/materials/sheet-sizes", {"name": prefix + "-size-a", "height": dimension_base + 4, "width": dimension_base + 5}, auth=True), "Дубликат названия размера", "name")
+    secondary_path = f"/api/for-admin/materials/sheet-sizes/{secondary_sheet_size_id}"
+    secondary_before = json_body(request("GET", secondary_path, auth=True))
+    problem(request("PUT", secondary_path, {"name": prefix + "-size-a", "height": dimension_base + 2, "width": dimension_base + 3}, auth=True), "Дубликат названия размера при изменении", "name")
+    problem(request("PUT", secondary_path, {"name": prefix + "-size-b", "height": dimension_base, "width": dimension_base + 1}, auth=True), "Дубликат пары размеров при изменении", "width")
+    equal(json_body(request("GET", secondary_path, auth=True)), secondary_before, "Размер не изменён после отклонения дублей")
+    mark("SIZE-03B", "Дубли названия и пары размеров при обновлении возвращают ошибки полей без изменения записи")
     temporary_sheet_size_id = create_sheet_size(prefix + "-size-temp", dimension_base + 6, dimension_base + 7)
     expect(request("PUT", f"/api/for-admin/materials/sheet-sizes/{temporary_sheet_size_id}", {"name": prefix + "-size-updated", "height": dimension_base + 8, "width": dimension_base + 9}, auth=True)[0], 200, "update material sheet size")
     expect(request("PUT", f"/api/for-admin/materials/sheet-sizes/{temporary_sheet_size_id}", {"name": prefix + "-size-updated", "height": dimension_base + 8, "width": dimension_base + 9}, auth=True)[0], 200, "no-op material sheet size update")

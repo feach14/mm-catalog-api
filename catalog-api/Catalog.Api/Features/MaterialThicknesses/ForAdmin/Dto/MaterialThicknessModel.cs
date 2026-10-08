@@ -23,6 +23,13 @@ public sealed class MaterialThicknessModelValidator : AbstractValidator<Material
         RuleFor(x => x.Value)
             .Cascade(CascadeMode.Stop)
             .Must(value => value > 0).WithMessage("Толщина должна быть положительным числом")
-            .PrecisionScale(18, 3, true).WithMessage("Толщина должна содержать не более 15 цифр до точки и трёх после точки");
+            .PrecisionScale(18, 3, true).WithMessage("Толщина должна содержать не более 15 цифр до точки и трёх после точки")
+            .MustAsync(async (value, ct) =>
+            {
+                var routeId = httpContextAccessor.HttpContext?.Request.RouteValues["id"]?.ToString();
+                _ = int.TryParse(routeId, out var id);
+                return !await dbContext.MaterialThicknesses.AsNoTracking().AnyAsync(
+                    x => x.Id != id && x.Value == value, ct);
+            }).WithMessage("Такая толщина материала уже существует.");
     }
 }

@@ -19,10 +19,6 @@ public sealed class UpdateMaterialThicknessCommandHandler(CatalogDbContext dbCon
         var thickness = await dbContext.MaterialThicknesses.SingleOrDefaultAsync(x => x.Id == command.Id, ct)
             ?? throw new BadHttpRequestException("Указанная толщина материала не найдена");
 
-        if (await dbContext.MaterialThicknesses.AnyAsync(
-                x => x.Id != command.Id && x.Value == command.Model.Value, ct))
-            throw new BadHttpRequestException("Такая толщина материала уже существует.");
-
         var name = command.Model.Name.Trim();
         var changes = new List<string>();
         if (thickness.Name != name)

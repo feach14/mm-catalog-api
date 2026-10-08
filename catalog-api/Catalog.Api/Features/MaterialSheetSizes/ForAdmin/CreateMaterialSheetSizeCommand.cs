@@ -17,13 +17,6 @@ public sealed class CreateMaterialSheetSizeCommandHandler(CatalogDbContext dbCon
 {
     public async Task<CreateMaterialSheetSizeCommandResult> Handle(CreateMaterialSheetSizeCommand command, CancellationToken ct)
     {
-        if (await dbContext.MaterialSheetSizes.AnyAsync(x => x.Name == command.Model.Name, ct))
-            throw new BadHttpRequestException("Размер материала с таким названием уже существует.");
-
-        if (await dbContext.MaterialSheetSizes.AnyAsync(
-                x => x.Height == command.Model.Height && x.Width == command.Model.Width, ct))
-            throw new BadHttpRequestException("Такой размер материала уже существует.");
-
         var maxOrderByCol = await dbContext.MaterialSheetSizes.MaxAsync(x => (int?)x.OrderByCol, ct) ?? 0;
         var size = new MaterialSheetSize
         {

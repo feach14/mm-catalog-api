@@ -17,9 +17,6 @@ public sealed class CreateMaterialThicknessCommandHandler(CatalogDbContext dbCon
 {
     public async Task<CreateMaterialThicknessCommandResult> Handle(CreateMaterialThicknessCommand command, CancellationToken ct)
     {
-        if (await dbContext.MaterialThicknesses.AnyAsync(x => x.Value == command.Model.Value, ct))
-            throw new BadHttpRequestException("Такая толщина материала уже существует.");
-
         await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
         var thickness = new MaterialThickness { Name = command.Model.Name.Trim(), Value = command.Model.Value };
         dbContext.MaterialThicknesses.Add(thickness);
