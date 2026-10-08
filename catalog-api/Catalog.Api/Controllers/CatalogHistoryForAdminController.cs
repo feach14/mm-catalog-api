@@ -7,14 +7,14 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Catalog.Api.Controllers;
 
-[Route("api/admin/catalog/history"),
- OpenApiTagOrder(8),
+[Route("api/for-admin/catalog/history"),
+ OpenApiTagOrder(10),
  Authorize(
     AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
     Roles = AuthConstants.AdministrationRoles),
  ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
  ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав тестера, менеджера или администратора")]
-public sealed class AdminCatalogHistoryController : BaseApiController
+public sealed class CatalogHistoryForAdminController : BaseApiController
 {
     [HttpGet,
      EndpointSummary(nameof(History)),

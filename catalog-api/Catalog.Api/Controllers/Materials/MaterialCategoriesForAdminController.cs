@@ -8,14 +8,14 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Catalog.Api.Controllers.Materials;
 
-[Route("api/admin/materials/categories"),
+[Route("api/for-admin/materials/categories"),
  OpenApiTagOrder(4),
  Authorize(
     AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
     Roles = AuthConstants.AdministrationRoles),
  ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
  ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав менеджера или администратора")]
-public class AdminMaterialCategoriesController : BaseApiController
+public class MaterialCategoriesForAdminController : BaseApiController
 {
     [HttpGet,
      EndpointSummary(nameof(MaterialCategories)),

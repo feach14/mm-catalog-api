@@ -8,28 +8,28 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Catalog.Api.Controllers.Materials;
 
-[Route("api/admin/materials"),
- OpenApiTagOrder(3),
+[Route("api/for-admin/materials"),
+ OpenApiTagOrder(2),
  Authorize(
     AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
     Roles = AuthConstants.AdministrationRoles),
  ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
  ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав менеджера или администратора")]
-public class AdminMaterialsController : BaseApiController
+public class MaterialsForAdminController : BaseApiController
 {
     [HttpGet,
-     EndpointSummary(nameof(MaterialsForAdminPanel)),
+     EndpointSummary(nameof(Materials)),
      EndpointDescription("Список материалов для административной панели"),
      ProducesResponseType(typeof(GetAllMaterialsForAdminQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Список материалов")]
-    public Task<GetAllMaterialsForAdminQueryResult> MaterialsForAdminPanel(
+    public Task<GetAllMaterialsForAdminQueryResult> Materials(
         [FromServices] IQueryHandler<GetAllMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult> handler) =>
         handler.Handle(new GetAllMaterialsForAdminQuery(), HttpContext.RequestAborted);
 
     [HttpGet("{id:int}"),
-     EndpointSummary(nameof(MaterialForAdminPanel)),
+     EndpointSummary(nameof(Material)),
      EndpointDescription("Информация о материале для административной панели"),
      ProducesResponseType(typeof(GetMaterialForAdminQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Материал")]
-    public Task<GetMaterialForAdminQueryResult> MaterialForAdminPanel(
+    public Task<GetMaterialForAdminQueryResult> Material(
         [FromRoute, Description("Id материала")] int id,
         [FromServices] IQueryHandler<GetMaterialForAdminQuery, GetMaterialForAdminQueryResult> handler) =>
         handler.Handle(new GetMaterialForAdminQuery(id), HttpContext.RequestAborted);

@@ -6,7 +6,7 @@ using Core.CQRS;
 namespace Catalog.Api.Controllers.Materials;
 
 [Route("api/materials/material-types"),
- OpenApiTagOrder(3),
+ OpenApiTagOrder(8),
  AllowAnonymous]
 public sealed class MaterialTypesController : BaseApiController
 {
