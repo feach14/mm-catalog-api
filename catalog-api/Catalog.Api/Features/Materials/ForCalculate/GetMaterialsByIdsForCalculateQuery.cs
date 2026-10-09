@@ -45,9 +45,9 @@ public sealed class GetMaterialsByIdsForCalculateQueryHandler(CatalogDbContext d
             .ThenBy(x => x.OrderByCol)
             .Select(x => new GetMaterialsByIdsForCalculateQueryItem
             (
-                x.Id, 
-                x.Name, 
-                x.Article, 
+                x.Id,
+                x.Name,
+                x.Article,
                 new PropertyDto(x.CategoryId, x.Category.Name)
             ))
             .ToArrayAsync(ct);

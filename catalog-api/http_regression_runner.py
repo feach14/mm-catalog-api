@@ -15,14 +15,16 @@ import urllib.request
 import uuid
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-API = os.environ.get("CATALOG_API_URL", "https://localhost:5005")
-ACCOUNTS = os.environ.get("ACCOUNTS_API_URL", "https://localhost:5003")
+API = os.environ.get("CATALOG_API_URL", "https://catalog-api.debug.feach.ru:5005")
+ACCOUNTS = os.environ.get("ACCOUNTS_API_URL", "https://accounts-api.debug.feach.ru:5003")
 CTX = ssl._create_unverified_context()
 cookie = None
 server = None
 server_log = None
 history_run_id = None
 results = {}
+failures = {}
+run_prefix = None
 created_materials = []
 created_categories = []
 created_sheet_sizes = []
@@ -34,6 +36,33 @@ guids = []
 thickness_ids = {}
 created_thicknesses = []
 created_material_types = []
+
+
+def validate_regression_environment():
+    expected = {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Cookie__CookieName": "AccountsApiCookie",
+        "Cookie__DomainName": ".debug.feach.ru",
+        "Cors__DomainName": "debug.feach.ru",
+    }
+    for name, value in expected.items():
+        if os.environ.get(name) != value:
+            raise RuntimeError(f"Для DEV-регресса явно задайте {name}={value}")
+    for name, host in (("CATALOG_API_URL", "catalog-api.debug.feach.ru"),
+                       ("ACCOUNTS_API_URL", "accounts-api.debug.feach.ru")):
+        value = os.environ.get(name, "")
+        url = urllib.parse.urlparse(value)
+        if (url.scheme != "https" or url.hostname != host or not url.port
+                or url.path not in ("", "/") or url.query or url.fragment or url.username):
+            raise RuntimeError(f"Для DEV-регресса явно задайте {name}=https://{host}:<порт>")
+    for name in ("DbConnString", "DataProtectionDbConnString"):
+        value = os.environ.get(name, "")
+        def connection_values(keys):
+            return re.findall(r"(?:^|;)\s*(?:" + keys + r")\s*=\s*([^;]*)", value, re.IGNORECASE)
+        if (connection_values("Host|Server") != ["185.151.240.63"]
+                or connection_values("Database") != ["mm-debug"]
+                or connection_values("Port") not in ([], ["5432"])):
+            raise RuntimeError(f"Для DEV-регресса явно задайте {name} на Host=185.151.240.63;Port=5432;Database=mm-debug")
 
 
 def load_test_credentials():
@@ -93,8 +122,16 @@ def expect(status, expected, label):
 
 
 def mark(case, detail):
+    if case in failures:
+        return
     results[case] = detail
     print(f"ПРОЙДЕН {case}: {detail}", file=sys.stderr, flush=True)
+
+
+def check_equal(case, actual, expected, label):
+    if actual != expected:
+        failures[case] = f"{label}: ожидалось {expected!r}, получено {actual!r}"
+        print(f"ПРОВАЛЕН {case}: {failures[case]}", file=sys.stderr, flush=True)
 
 
 def multipart(name, filename, content, content_type, fields=None):
@@ -223,6 +260,13 @@ def relation_counts(path, relation_id):
     card = json_body(card_response)
     list_counts = (list_item["materialsAnyCount"], list_item["materialsNotAnyCount"])
     equal(card["id"], relation_id, "Dictionary card ID")
+    equal(set(card) & {"materialsAnyCount", "materialsNotAnyCount"}, set(),
+          "Карточка справочника не содержит счётчиков")
+    relation_name = {"categories": "category", "sheet-sizes": "sheetSize",
+                     "manufacturers": "manufacturer"}[path.rsplit("/", 1)[1]]
+    rows = [item for item in admin_materials() if item[relation_name]["id"] == relation_id]
+    equal(list_counts, (sum(item["count"] > 0 for item in rows), sum(item["count"] < 1 for item in rows)),
+          "Счётчики справочника совпадают с административной выдачей")
     return list_counts
 
 
@@ -425,6 +469,17 @@ def run_history_scenarios(history_prefix, dimension_base, manager_cookie, tester
         if item["message"].count("→") != 1:
             raise AssertionError("history update contains fields that were not changed")
 
+    material_path = f"/api/for-admin/materials/{material_id}"
+    material_before = json_body(request("GET", material_path, auth_cookie=tester_cookie))
+    rejected_update = dict(updated_material, categoryId=0, article=history_prefix + "-rejected")
+    problem(request("PUT", material_path, rejected_update, auth_cookie=manager_cookie),
+            "Отклонённое изменение менеджером", "categoryId")
+    equal(json_body(request("GET", material_path, auth_cookie=tester_cookie)), material_before,
+          "Отклонённое изменение менеджером не меняет материал")
+    equal(history(search=history_prefix)["totalCount"], 8,
+          "Отклонённая команда менеджера не создаёт событие истории")
+    mark("HIST-07", "Неуспешное изменение менеджером не изменило материал и не создало событие истории")
+
     expect(request("PUT", f"/api/for-admin/materials/categories/{category_id}", updated_category_model,
                    auth_cookie=manager_cookie)[0], 200, "history category no-op")
     expect(request("PUT", f"/api/for-admin/materials/sheet-sizes/{size_id}", updated_size_model,
@@ -611,12 +666,13 @@ def run_search_facet_scenarios(prefix, dimension_base):
         equal(collected, [r["id"] for r in expected], sort)
     mark("SEARCH-04", "Проверены все страницы и пустая страница за пределами выдачи")
     mark("SEARCH-05", "Все способы сортировки сохраняют порядок при переходе между страницами")
-    for params in ({"page": 0}, {"page": -1}, {"pageSize": 0}, {"pageSize": 97},
-                   {"page": 2147483647, "pageSize": 96}):
+    for params in ({"page": 0}, {"page": -1}, {"pageSize": 0}, {"pageSize": 101},
+                   {"page": 2147483647, "pageSize": 100}):
         problem(request("GET", "/api/materials/search?" + urllib.parse.urlencode(params)), "page boundary")
-    for size in (1, 96):
+    for size in (1, 25, 50, 100):
         body = public_query("search", {"search": marker, "pageSize": size})
         equal(len(body["items"]), min(size, 5), "valid page size")
+        equal((body["page"], body["pageSize"], body["totalCount"]), (1, size, 5), "Метаданные размера страницы")
     mark("SEARCH-06", "Проверены границы пагинации и защита от переполнения")
     for endpoint in ("search", "filters"):
         public_query(endpoint, {"search": "x" * 250})
@@ -729,11 +785,13 @@ def run_variant_scenarios(prefix, category_id, png):
 
     def check_model():
         expected = {output: model.get(field) for field, (_, output) in fields.items()}
+        metadata = {output + "Metadata": {"contentType": "image/png", "size": len(uploaded[guid][1])} if guid else None
+                    for output, guid in expected.items()}
         cards = snapshots(material_id)
         search = public_query("search", {"search": model["name"]})
         equal(len(search["items"]), 1, "variant search count")
-        for card in cards + search["items"]:
-            equal(card["images"], expected, "variant projection")
+        for index, card in enumerate(cards + search["items"]):
+            equal(card["images"], expected | metadata if index == 1 else expected, "variant projection")
             equal(card["article"], model["article"], "variant article")
         for guid in expected.values():
             if guid:
@@ -747,7 +805,7 @@ def run_variant_scenarios(prefix, category_id, png):
         model.update({field: new_image(field) for field in fields})
         material_id = create_material(model)
         check_model()
-        mark("VAR-01", "Проверены три назначения изображений, поля ответов, MIME-типы и байты файлов")
+        mark("VAR-01", "Проверены три назначения изображений, административные метаданные, MIME-типы и байты файлов")
         for field in fields:
             wrong_field = next(other for other in fields if other != field)
             wrong_guid = new_image(wrong_field)
@@ -909,7 +967,12 @@ def run_thickness_scenarios(prefix, dimension_base, user_cookie, tester_cookie, 
             problem(request(method, url, dict(material, thicknessId=bad), auth=True), "Толщина материала не найдена")
     mark("THICK-05", "Связь материала, защита удаления, вложенный DTO в пяти выдачах, фильтр поиска")
     search = public_query("search", {"search": material["name"]})
-    equal((search["page"], search["pageSize"], search["totalCount"]), (1, 24, 1), "Пагинация по умолчанию")
+    check_equal("QUERY-01", (search["page"], search["pageSize"], search["totalCount"]),
+                (1, 25, 1), "Пагинация по умолчанию")
+    for size in (25, 50, 100):
+        page = public_query("search", {"pageSize": size})
+        check_equal("QUERY-01", (page["page"], page["pageSize"], len(page["items"])),
+                    (1, size, min(size, page["totalCount"])), "Размер страницы " + str(size))
     equal(public_query("search", {"search": material["name"], "thicknessIds": [entity_id, entity_id]})["totalCount"], 1, "Повтор толщины")
     equal(public_query("search", {"search": material["name"], "thicknessIds": [entity_id], "depths": [18]})["totalCount"], 0, "Пересечение depths и thicknessIds")
     public_query("search", {})
@@ -919,7 +982,7 @@ def run_thickness_scenarios(prefix, dimension_base, user_cookie, tester_cookie, 
         facets = public_query("filters", {"search": material["name"], "thicknessIds": [thickness_ids[18]]})
         actual = {x["id"]: x["count"] for x in facets["thicknesses"]}
         equal(actual, {entity_id: 1, thickness_ids[18]: 0}, "Собственный фильтр и нулевой выбранный вариант")
-    mark("QUERY-01", "Отсутствующие массивы, запросы без параметров и пагинация по умолчанию")
+    mark("QUERY-01", "Отсутствующие массивы, запросы без параметров, пагинация по умолчанию 25 и размеры 25/50/100")
     mark("THICK-06", "Повторы, пересечение с числовым фильтром depths, фасеты и нулевой выбранный вариант")
     expect(delete_material(material_id)[0], 200, "Очистка материала толщины")
     expect(request("DELETE", f"{path}/{entity_id}", auth=True)[0], 200, "Удаление свободной толщины")
@@ -992,7 +1055,7 @@ def run_decimal_scenarios(prefix, dimension_base, user_cookie, tester_cookie, ma
         tracked.remove(entity_id)
 
 
-def run_material_type_scenarios(prefix, user_cookie):
+def run_material_type_scenarios(prefix, user_cookie, openapi_document):
     path = "/api/for-admin/materials/material-types"
     ids = []
     for suffix in ("a", "b", "empty"):
@@ -1036,7 +1099,21 @@ def run_material_type_scenarios(prefix, user_cookie):
         item = next(x for x in json_body(request("GET", endpoint, auth=auth))["items"] if x["id"] == material_id)
         equal(set(item["materialType"]), {"id", "name"}, "Контракт вложенного типа")
         equal(item["materialType"]["id"], b, "Тип в списке")
-    mark("MT-08", "PropertyDto типа в пяти ответах, обязательность проверена HTTP")
+    schemas = openapi_document["components"]["schemas"]
+    for schema_name in ("GetAllMaterialsQueryItemResult", "GetMaterialsQueryForAdminItemResult",
+                        "GetMaterialQueryResult", "GetMaterialForAdminQueryResult", "PublicMaterialListItemDto"):
+        property_schema = schemas[schema_name]["properties"]["materialType"]
+        assert "#/components/schemas/PropertyDto" in json.dumps(property_schema), "Тип материала использует PropertyDto"
+        assert re.search("[А-Яа-я]", property_schema.get("description", "")), "Описание типа материала в OpenAPI"
+    for method, endpoint, schema_name in (("post", "/api/for-admin/materials", "CreateMaterialModel"),
+                                          ("put", "/api/for-admin/materials/{id}", "UpdateMaterialModel")):
+        input_schema = schemas[schema_name]
+        assert "materialTypeId" in input_schema.get("required", []), "materialTypeId обязателен в OpenAPI"
+        assert re.search("[А-Яа-я]", input_schema["properties"]["materialTypeId"].get("description", "")), "Описание materialTypeId"
+        body_schema = openapi_document["paths"][endpoint][method]["requestBody"]
+        assert body_schema.get("required"), "Тело материала обязательно в OpenAPI"
+        assert "#/components/schemas/" + schema_name in json.dumps(body_schema), "POST и PUT используют соответствующую входную модель"
+    mark("MT-08", "PropertyDto типа проверен в пяти ответах и OpenAPI; materialTypeId обязателен в POST и PUT")
     for selected, count in (([a], 0), ([b], 1), ([a, b], 1), ([b, b], 1)):
         equal(public_query("search", {"search": model["name"], "materialTypeIds": selected, "categoryIds": [category], "manufacturerIds": [model["manufacturerId"]]})["totalCount"], count, "Комбинированный поиск типов")
     mark("MT-06", "OR типов, повтор ID, AND категории и производителя")
@@ -1058,6 +1135,148 @@ def run_material_type_scenarios(prefix, user_cookie):
     created_categories.remove(category)
     equal(history(search=prefix + "-type")["totalCount"], 0, "Нет истории тестера")
     mark("MT-10", "Тестовые типы и материал удалены, истории нет")
+
+
+def run_calculate_scenarios(prefix, user_cookie, openapi_document):
+    path = "/api/for-calculate/materials"
+    by_ids_path = path + "/by-ids"
+    schemas = openapi_document["components"]["schemas"]
+
+    def schema_fields(schema_name, expected_fields):
+        schema = schemas[schema_name]
+        equal(set(schema["properties"]), set(expected_fields), "Поля схемы " + schema_name)
+        equal(set(schema.get("required", [])), set(expected_fields), "Обязательные поля " + schema_name)
+        for name, field in schema["properties"].items():
+            description = field.get("description", "")
+            assert re.search("[А-Яа-я]", description) or (name == "id" and description == "Id"), "Русское описание поля " + name
+        return schema["properties"]
+
+    def result_schema(operation, result_name, item_name):
+        response_schema = operation["responses"]["200"]["content"]["application/json"]["schema"]
+        assert "#/components/schemas/" + result_name in json.dumps(response_schema), "Схема ответа Calculate"
+        wrapper = schema_fields(result_name, {"items"})
+        equal(wrapper["items"]["type"], "array", "Массив материалов Calculate")
+        assert "#/components/schemas/" + item_name in json.dumps(wrapper["items"]), "Схема элемента Calculate"
+        fields = schema_fields(item_name, {"id", "name", "article", "category"})
+        id_types = fields["id"]["type"]
+        assert id_types == "integer" or (isinstance(id_types, list) and "integer" in id_types), "Тип Id Calculate включает integer"
+        for name in ("name", "article"):
+            equal(fields[name]["type"], "string", "Тип поля " + name)
+        assert "#/components/schemas/PropertyDto" in json.dumps(fields["category"]), "Категория Calculate использует PropertyDto"
+        schema_fields("PropertyDto", {"id", "name"})
+
+    get_operation = openapi_document["paths"][path]["get"]
+    equal(get_operation.get("parameters", []), [], "У полного Calculate-списка нет query-параметров")
+    result_schema(get_operation, "GetMaterialsForCalculateQueryResult", "GetMaterialsForCalculateQueryItem")
+    mark("CALC-01", "OpenAPI полного списка, массив items, обязательные поля и категория PropertyDto")
+    old_path = "/api/for-calculate/material-categories"
+    assert old_path not in openapi_document["paths"], "Старый расчётный endpoint категорий отсутствует в OpenAPI"
+    for schema_name in ("GetMaterialCategoriesForCalculateQueryResult", "GetMaterialCategoriesForCalculateQueryItem"):
+        assert schema_name not in schemas, "Старая схема категорий отсутствует в OpenAPI"
+    expect(request("GET", old_path, auth=True)[0], 404, "Удалённый расчётный endpoint категорий")
+    mark("CALC-02", "Старый endpoint категорий и его схемы удалены")
+
+    post_operation = openapi_document["paths"][by_ids_path]["post"]
+    equal(post_operation["summary"], "MaterialsByIds", "Summary чтения материалов по Id")
+    request_body = post_operation["requestBody"]
+    assert request_body.get("required"), "Тело запроса Calculate по Id обязательно"
+    assert "#/components/schemas/GetMaterialsByIdsForCalculateQuery" in json.dumps(request_body), "Схема запроса Calculate по Id"
+    request_fields = schema_fields("GetMaterialsByIdsForCalculateQuery", {"materialIds"})
+    equal(request_fields["materialIds"]["type"], "array", "Список Id в OpenAPI")
+    id_types = request_fields["materialIds"]["items"]["type"]
+    assert id_types == "integer" or (isinstance(id_types, list) and "integer" in id_types), "Тип Id в списке OpenAPI включает integer"
+    result_schema(post_operation, "GetMaterialsByIdsForCalculateQueryResult", "GetMaterialsByIdsForCalculateQueryItem")
+
+    fixture_categories = []
+    fixture_materials = []
+    try:
+        category_a = create_category(prefix + "-calculate-visible")
+        fixture_categories.append(category_a)
+        category_b = create_category(prefix + "-calculate-hidden", hide_on_site=True)
+        fixture_categories.append(category_b)
+        models = [material_model(prefix + "-calculate-" + suffix, category, flag)
+                  for suffix, category, flag in (("visible", category_a, "raskroy"),
+                                                 ("hidden", category_a, "raskroy"),
+                                                 ("zero", category_a, "pvhFacades"),
+                                                 ("hidden-category", category_b, "pvhFacades"))]
+        models[1]["hideOnSite"] = True
+        models[2]["count"] = 0
+        for model in models:
+            fixture_materials.append(create_material(model))
+        expect(request("POST", "/api/for-admin/materials/categories/change-order-col", {
+            "categoryId": category_b, "direction": "UP"
+        }, auth=True)[0], 200, "Порядок тестовых категорий Calculate")
+        expect(request("POST", "/api/for-admin/materials/change-order-col", {
+            "id": fixture_materials[2], "direction": "UP"
+        }, auth=True)[0], 200, "Порядок тестовых материалов Calculate")
+
+        def expected_rows():
+            return {item["id"]: item for item in admin_materials()}
+
+        def check_items(response, expected):
+            expect(response[0], 200, "Чтение материалов Calculate")
+            body = json_body(response)
+            equal(set(body), {"items"}, "Контракт ответа Calculate")
+            items = body["items"]
+            equal(len(items), len(expected), "Число материалов Calculate")
+            actual = {item["id"]: item for item in items}
+            equal(len(actual), len(items), "Id материалов Calculate не повторяются")
+            projection = {entity_id: {name: row[name] for name in ("id", "name", "article", "category")}
+                          for entity_id, row in expected.items()}
+            equal(actual, projection, "Точные материалы и текущие категории Calculate")
+            category_orders = {item["id"]: item["orderByCol"] for item in categories()}
+            keys = [(category_orders[item["category"]["id"]], expected[item["id"]]["orderByCol"])
+                    for item in items]
+            equal(keys, sorted(keys), "Порядок Calculate по категории и материалу")
+            return items
+
+        all_rows = expected_rows()
+        check_items(request("GET", path, auth=True), all_rows)
+        assert set(fixture_materials).issubset(all_rows), "Все тестовые материалы созданы"
+        mark("CALC-03", "Полный список содержит скрытые материалы, нулевое количество, материал без распила и скрытую категорию")
+
+        for auth_cookie, status in ((None, 401), (user_cookie, 403), (cookie, 200)):
+            expect(request("GET", path, auth_cookie=auth_cookie)[0], status, "Авторизация полного списка Calculate")
+            expect(request("POST", by_ids_path, {"materialIds": fixture_materials},
+                           auth_cookie=auth_cookie)[0], status, "Авторизация Calculate по Id")
+        mark("CALC-06", "Полный список: аноним получает 401, обычный пользователь 403, тестер 200")
+        mark("CALC-10", "OpenAPI POST MaterialsByIds, обязательное тело и поля; авторизация 401/403/200")
+
+        selected = {entity_id: all_rows[entity_id] for entity_id in fixture_materials}
+        check_items(request("POST", by_ids_path, {"materialIds": list(reversed(fixture_materials))}, auth=True), selected)
+        mark("CALC-07", "Чтение по Id возвращает только запрошенные материалы разных категорий, включая скрытые, в порядке каталога")
+        for invalid in ({}, {"materialIds": None}, {"materialIds": []}, {"materialIds": [0]},
+                        {"materialIds": [-1]}, {"materialIds": [fixture_materials[0], fixture_materials[0]]}):
+            problem(request("POST", by_ids_path, invalid, auth=True), "Валидация списка Id Calculate")
+        mark("CALC-09", "Отсутствующее поле, null, пустой список, неположительные Id и повторы дают 400 ProblemDetails")
+
+        deleted_id = fixture_materials[0]
+        expect(delete_material(deleted_id)[0], 200, "Физическое удаление материала Calculate")
+        fixture_materials.remove(deleted_id)
+        all_rows = expected_rows()
+        check_items(request("GET", path, auth=True), all_rows)
+        assert deleted_id not in all_rows, "Удалённый материал отсутствует в каталоге"
+        mark("CALC-04", "Полный список отсортирован по OrderByCol категорий и материалов; физически удалённый материал отсутствует")
+        unknown_id = 2147483647
+        assert unknown_id not in all_rows, "Контрольный Id отсутствует в каталоге"
+        snapshots_before = {entity_id: json_body(request("GET", f"/api/for-admin/materials/{entity_id}", auth=True))
+                            for entity_id in fixture_materials}
+        selected = {entity_id: all_rows[entity_id] for entity_id in fixture_materials}
+        check_items(request("POST", by_ids_path, {"materialIds": [unknown_id, deleted_id, *reversed(fixture_materials)]},
+                            auth=True), selected)
+        check_items(request("POST", by_ids_path, {"materialIds": [unknown_id, deleted_id]}, auth=True), {})
+        snapshots_after = {entity_id: json_body(request("GET", f"/api/for-admin/materials/{entity_id}", auth=True))
+                           for entity_id in fixture_materials}
+        equal(snapshots_after, snapshots_before, "Чтение Calculate по Id не изменяет материалы")
+        mark("CALC-08", "Неизвестные и удалённые Id пропущены, только неизвестные дают items: []; материалы не изменены")
+    finally:
+        for entity_id in list(reversed(fixture_materials)):
+            expect(delete_material(entity_id)[0], 200, "Очистка материала Calculate")
+            fixture_materials.remove(entity_id)
+        for category_id in reversed(fixture_categories):
+            expect(request("DELETE", f"/api/for-admin/materials/categories/{category_id}", auth=True)[0],
+                   200, "Очистка категории Calculate")
+            created_categories.remove(category_id)
 
 
 def run_visibility_scenarios(prefix, hidden_material_id, hidden_material_model,
@@ -1115,14 +1334,24 @@ def run_visibility_scenarios(prefix, hidden_material_id, hidden_material_model,
 
 
 def main():
-    global cookie, history_run_id, primary_sheet_size_id, primary_manufacturer_id, primary_material_type_id
+    global cookie, history_run_id, primary_sheet_size_id, primary_manufacturer_id, primary_material_type_id, run_prefix
+    validate_regression_environment()
     prefix = "codex-http-" + time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
+    run_prefix = prefix
+    print("Префикс тестовых данных: " + prefix, file=sys.stderr, flush=True)
     dimension_base = 10000 + int(uuid.uuid4().hex[:4], 16)
     png = b"\x89PNG\r\n\x1a\n" + b"catalog-png-test"
     jpeg = b"\xff\xd8\xff\xe0" + b"catalog-jpeg-test" + b"\xff\xd9"
     webp = b"RIFF" + (20).to_bytes(4, "little") + b"WEBP" + b"catalog-webp-test"
 
     start_server()
+    tls_probe = subprocess.run([
+        "/usr/bin/curl", "--silent", "--show-error", "--max-time", "30", "--output", os.devnull,
+        "--write-out", "%{http_code}", API + "/swagger/v1/swagger.json"
+    ], capture_output=True, text=True)
+    equal(tls_probe.returncode, 0, "Доверие цепочке и имени HTTPS-сертификата Catalog API")
+    equal(tls_probe.stdout, "200", "OpenAPI через HTTPS без отключения проверки сертификата")
+    mark("TLS-01", "Системный curl доверяет HTTPS-сертификату и имени Catalog API; OpenAPI вернул 200")
     openapi_response = request("GET", "/swagger/v1/swagger.json")
     expect(openapi_response[0], 200, "OpenAPI document")
     openapi_document = json_body(openapi_response)
@@ -1186,6 +1415,31 @@ def main():
     manager_cookie = signin(credentials["manager"], credentials["password"], "manager")
     admin_cookie = signin(credentials["administrator"], credentials["password"], "administrator")
     cookie = tester_cookie
+
+    for old_prefix, current_prefix in (("/api/admin/", "/api/for-admin/"),
+                                       ("/api/calculate/", "/api/for-calculate/")):
+        assert not any(path.startswith(old_prefix) for path in openapi_document["paths"]), "Старые маршруты отсутствуют в OpenAPI"
+        old_paths = {re.sub(r"\{[^}]+\}", "1", path.replace(current_prefix, old_prefix, 1))
+                     for path in openapi_document["paths"] if path.startswith(current_prefix)}
+        for old_path in sorted(old_paths):
+            expect(request("GET", old_path, auth=True)[0], 404, "Старый маршрут " + old_path)
+    for current_path in ("/api/for-admin/materials", "/api/for-calculate/materials"):
+        expect(request("GET", current_path, auth=True)[0], 200, "Чтение по текущему назначению API")
+    expect(request("GET", "/api/materials")[0], 200, "Публичное чтение материалов")
+    mark("DOC-05", "Административные и расчётные группы используют текущие маршруты; старые /api/admin и /api/calculate дают 404")
+
+    allowed_origin = os.environ.get("CATALOG_CORS_ORIGIN", "https://debug.feach.ru")
+    for origin, allowed in ((allowed_origin, True), ("https://catalog-regression.invalid", False)):
+        for auth_cookie, status in ((None, 401), (user_cookie, 403)):
+            response = request("GET", "/api/for-admin/materials", auth_cookie=auth_cookie, headers={"Origin": origin})
+            expect(response[0], status, "CORS сохраняет статус отказа в доступе")
+            response_headers = {key.lower(): value for key, value in response[1].items()}
+            if allowed:
+                equal(response_headers.get("access-control-allow-origin"), origin, "Разрешённый Origin при отказе")
+                equal(response_headers.get("access-control-allow-credentials"), "true", "Cookie разрешена политикой CORS")
+            else:
+                assert not any(key.startswith("access-control-allow-") for key in response_headers), "Посторонний Origin не получает разрешения CORS"
+        mark("AUTH-14" if allowed else "AUTH-15", "Для 401 и 403 проверены заголовки CORS " + ("разрешённого" if allowed else "постороннего") + " origin")
     role_probes = [
         ("GET", "/api/for-admin/materials", 200),
         ("GET", "/api/for-admin/catalog/history", 200),
@@ -1300,7 +1554,7 @@ def main():
     mark("SIZE-08—SIZE-09", "Размер материала перемещён вверх и вниз")
 
     primary_manufacturer_id = create_manufacturer(prefix + "-manufacturer-a")
-    run_material_type_scenarios(prefix, user_cookie)
+    run_material_type_scenarios(prefix, user_cookie, openapi_document)
     secondary_manufacturer_id = create_manufacturer(prefix + "-manufacturer-b")
     expect(request("GET", f"/api/for-admin/materials/manufacturers/{primary_manufacturer_id}", auth=True)[0], 200, "Карточка производителя для тестера")
     temporary_manufacturer_id = create_manufacturer(prefix + "-manufacturer-temp")
@@ -1583,6 +1837,9 @@ def main():
         ("/api/for-admin/materials/sheet-sizes", primary_sheet_size_id),
         ("/api/for-admin/materials/manufacturers", primary_manufacturer_id)
     )
+    no_stock_model = material_model(prefix + "-counter-no-stock", cat1, "raskroy")
+    no_stock_model["count"] = 0
+    no_stock_id = create_material(no_stock_model)
     counters_before_delete = [relation_counts(path, relation_id) for path, relation_id in counter_targets]
     expect(request("GET", "/api/materials/images/" + images[2][0])[0], 200, "WebP before delete")
     expect(delete_material(m1)[0], 200, "delete material")
@@ -1595,13 +1852,18 @@ def main():
     for before, after in zip(counters_before_delete, counters_after_delete):
         if after != (before[0] - 1, before[1]):
             raise AssertionError(f"physically deleted material remained in relation counters: {before} -> {after}")
+    expect(delete_material(no_stock_id)[0], 200, "Удаление материала не в наличии для счётчиков")
+    counters_after_both_deletes = [relation_counts(path, relation_id) for path, relation_id in counter_targets]
+    for before, after in zip(counters_before_delete, counters_after_both_deletes):
+        equal(after, (before[0] - 1, before[1] - 1), "Оба счётчика уменьшились после физического удаления")
     expect(delete_material(m1)[0], 400, "repeat material delete")
     for guid, _, _ in images:
         expect(request("GET", "/api/materials/images/" + guid)[0], 400, "final image GUID check")
     mark("MAT-09—MAT-11", "Проверены физическое удаление, отсутствие в списках и карточках, повторное удаление")
-    mark("CAT-11, SIZE-10, MFR-11", "Физически удалённый материал исключён из счётчиков списков справочников")
+    mark("CAT-11, SIZE-10, MFR-11", "Оба счётчика уменьшились после удаления материалов в наличии и не в наличии; карточки справочников не содержат счётчиков")
     mark("IMG-13—IMG-14", "После удаления WebP недоступен; все три GUID недоступны")
 
+    run_calculate_scenarios(prefix, user_cookie, openapi_document)
     run_search_facet_scenarios(prefix, dimension_base)
     run_variant_scenarios(prefix, cat1, png)
 
@@ -1695,24 +1957,35 @@ def main():
     observed_history_total_count = history()["totalCount"]
 
     print(json.dumps({
-        "success": True,
+        "success": not failures,
         "prefix": prefix,
         "historyRunId": completed_history_run_id,
         "historyPrefix": history_prefix,
         "observedHistoryTotalCount": observed_history_total_count,
-        "results": results
+        "results": results,
+        "failures": failures
     }, ensure_ascii=False, indent=2))
+    return not failures
 
 
 if __name__ == "__main__":
     try:
-        main()
+        if not main():
+            sys.exit(1)
     except Exception as error:
-        print(json.dumps({"success": False, "error": str(error), "results": results}, ensure_ascii=False, indent=2))
         try:
             cleanup()
         except Exception:
             pass
+        print(json.dumps({
+            "success": False, "prefix": run_prefix, "error": str(error),
+            "results": results, "failures": failures,
+            "remainingTestEntityCounts": {
+                "materials": len(created_materials), "categories": len(created_categories),
+                "sheetSizes": len(created_sheet_sizes), "manufacturers": len(created_manufacturers),
+                "thicknesses": len(created_thicknesses), "materialTypes": len(created_material_types)
+            }
+        }, ensure_ascii=False, indent=2))
         sys.exit(1)
     finally:
         stop_server()

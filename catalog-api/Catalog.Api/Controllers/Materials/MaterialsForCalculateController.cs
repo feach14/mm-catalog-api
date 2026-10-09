@@ -1,4 +1,3 @@
-using Catalog.Api.Features.MaterialCategories.ForCalculate;
 using Catalog.Api.Features.Materials.ForCalculate;
 using Core.AccountAuth;
 using Core.Attributes;
@@ -17,22 +16,13 @@ namespace Catalog.Api.Controllers.Materials;
  ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав тестера, менеджера или администратора")]
 public class MaterialsForCalculateController : BaseApiController
 {
-    [HttpGet("material-categories"),
-     EndpointSummary(nameof(MaterialCategories)),
-     EndpointDescription("Категории материалов для CalculateAPI"),
-     ProducesResponseType(typeof(GetMaterialCategoriesForCalculateQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Все категории материалов")]
-    public Task<GetMaterialCategoriesForCalculateQueryResult> MaterialCategories(
-        [FromServices] IQueryHandler<GetMaterialCategoriesForCalculateQuery, GetMaterialCategoriesForCalculateQueryResult> handler) =>
-        handler.Handle(new GetMaterialCategoriesForCalculateQuery(), HttpContext.RequestAborted);
-
     [HttpGet("materials"),
      EndpointSummary(nameof(Materials)),
-     EndpointDescription("Материалы категории для CalculateAPI"),
-     ProducesResponseType(typeof(GetMaterialsForCalculateQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Все материалы выбранной категории")]
+     EndpointDescription("Материалы"),
+     ProducesResponseType(typeof(GetMaterialsForCalculateQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Материалы")]
     public Task<GetMaterialsForCalculateQueryResult> Materials(
-        [FromQuery] GetMaterialsForCalculateQuery query,
         [FromServices] IQueryHandler<GetMaterialsForCalculateQuery, GetMaterialsForCalculateQueryResult> handler) =>
-        handler.Handle(query, HttpContext.RequestAborted);
+        handler.Handle(new GetMaterialsForCalculateQuery(), HttpContext.RequestAborted);
 
     [HttpPost("materials/by-ids"),
      EndpointSummary(nameof(MaterialsByIds)),
