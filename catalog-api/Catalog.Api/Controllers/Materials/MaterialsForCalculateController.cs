@@ -24,6 +24,16 @@ public class MaterialsForCalculateController : BaseApiController
         [FromServices] IQueryHandler<GetMaterialsForCalculateQuery, GetMaterialsForCalculateQueryResult> handler) =>
         handler.Handle(new GetMaterialsForCalculateQuery(), HttpContext.RequestAborted);
 
+    [HttpGet("materials/{id:int}"),
+     AllowAnonymous,
+     EndpointSummary(nameof(Material)),
+     EndpointDescription("Материал для расчёта"),
+     ProducesResponseType(typeof(GetMaterialForCalculateQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Материал")]
+    public Task<GetMaterialForCalculateQueryResult> Material(
+        [FromRoute, Description("Id материала")] int id,
+        [FromServices] IQueryHandler<GetMaterialForCalculateQuery, GetMaterialForCalculateQueryResult> handler) =>
+        handler.Handle(new GetMaterialForCalculateQuery(id), HttpContext.RequestAborted);
+
     [HttpPost("materials/by-ids"),
      EndpointSummary(nameof(MaterialsByIds)),
      EndpointDescription("Материалы по Id"),
