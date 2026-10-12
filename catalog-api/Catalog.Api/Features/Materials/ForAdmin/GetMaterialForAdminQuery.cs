@@ -32,7 +32,7 @@ public sealed record GetMaterialForAdminQueryResult(
     [property: Description("Цена за материал у поставщика")] decimal Price,
     [property: Description("Признак: скрыть материал на сайте")] bool HideOnSite,
     [property: Description("Признак: не показывать цену материала на сайте")] bool HidePriceOnSite,
-    [property: Description("Единица измерения"), JsonConverter(typeof(JsonStringEnumConverter))] CountTypeEnum CountTypeEnum
+    [property: Description("Единица измерения"), JsonConverter(typeof(StrictStringEnumConverter))] CountTypeEnum CountTypeEnum
 );
 
 public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetMaterialForAdminQuery, GetMaterialForAdminQueryResult>

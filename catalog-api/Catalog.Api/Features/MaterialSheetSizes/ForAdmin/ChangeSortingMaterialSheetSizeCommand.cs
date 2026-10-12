@@ -6,7 +6,7 @@ namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
 
 public sealed record ChangeSortingMaterialSheetSizeCommand(
     [property: Description("Id размера материала")] int Id,
-    [property: Description("Направление: выше или ниже текущего положения"), JsonConverter(typeof(JsonStringEnumConverter))] DirectionSortEnum Direction)
+    [property: Description("Направление: выше или ниже текущего положения"), JsonConverter(typeof(StrictStringEnumConverter))] DirectionSortEnum Direction)
     : ICommand<ChangeSortingMaterialSheetSizeCommandResult>;
 
 public sealed class ChangeSortingMaterialSheetSizeCommandValidator

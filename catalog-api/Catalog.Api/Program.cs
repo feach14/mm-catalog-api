@@ -16,7 +16,7 @@ builder.Services.Configure<AppSettingsConfig>(builder.Configuration.Bind);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ICatalogHistoryWriter, CatalogHistoryWriter>();
 builder.Services.ConfigureHttpJsonOptions(options =>
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    options.SerializerOptions.Converters.Add(new StrictStringEnumConverter()));
 var appSettingsConfig = builder.Configuration.Get<AppSettingsConfig>()
                         ?? throw new InvalidOperationException($"Missing {nameof(AppSettingsConfig)}");
 
@@ -53,7 +53,7 @@ builder.Services
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.WriteIndented = true;
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.Converters.Add(new StrictStringEnumConverter());
     });
 
 builder.Services.AddDataProtection()

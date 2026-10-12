@@ -6,7 +6,7 @@ namespace Catalog.Api.Features.Materials.ForAdmin;
 
 public record ChangeSortingMaterialCommand(
     [property: Description("Id материала")] int Id,
-    [property: Description("Направление: (выше (+1) / ниже (-1) текущего положения"), JsonConverter(typeof(JsonStringEnumConverter))] DirectionSortEnum Direction)
+    [property: Description("Направление: UP — выше, DOWN — ниже"), JsonConverter(typeof(StrictStringEnumConverter))] DirectionSortEnum Direction)
     : ICommand<ChangeSortingMaterialCommandResult>;
 
 public sealed class ChangeSortingMaterialCommandValidator : AbstractValidator<ChangeSortingMaterialCommand>

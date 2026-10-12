@@ -1,6 +1,6 @@
 namespace Catalog.Api.Features.Materials.ForAdmin.Dto;
 
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(StrictStringEnumConverter))]
 public enum MaterialCalculatorEnum
 {
     Raskroy = 1,

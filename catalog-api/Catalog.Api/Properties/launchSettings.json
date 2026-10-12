@@ -5,8 +5,8 @@
             "commandName": "Project",
             "dotnetRunMessages": true,
             "launchBrowser": true,
-            "launchUrl": "https://catalog-api.debug.feach.ru:5005/scalar",
-            "applicationUrl": "https://localhost:5005",
+            "launchUrl": "https://catalog-api.debug.feach.ru:5015/scalar",
+            "applicationUrl": "https://localhost:5015",
             "environmentVariables": {
                 "ASPNETCORE_ENVIRONMENT": "Development"
             }

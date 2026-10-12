@@ -119,6 +119,6 @@ public record MaterialModel
     [Description("Признак: не показывать цену материала на сайте")]
     public bool HidePriceOnSite { get; init; }
 
-    [Description("Единица измерения"), JsonConverter(typeof(JsonStringEnumConverter))]
+    [Description("Единица измерения"), JsonConverter(typeof(StrictStringEnumConverter))]
     public required CountTypeEnum CountTypeEnum { get; init; }
 }

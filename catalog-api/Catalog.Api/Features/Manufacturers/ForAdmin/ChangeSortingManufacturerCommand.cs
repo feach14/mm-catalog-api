@@ -6,7 +6,7 @@ namespace Catalog.Api.Features.Manufacturers.ForAdmin;
 
 public sealed record ChangeSortingManufacturerCommand(
     [property: Description("Id производителя")] int Id,
-    [property: Description("Направление: выше или ниже текущего положения"), JsonConverter(typeof(JsonStringEnumConverter))] DirectionSortEnum Direction) : ICommand<ChangeSortingManufacturerCommandResult>;
+    [property: Description("Направление: выше или ниже текущего положения"), JsonConverter(typeof(StrictStringEnumConverter))] DirectionSortEnum Direction) : ICommand<ChangeSortingManufacturerCommandResult>;
 
 public sealed class ChangeSortingManufacturerCommandValidator : AbstractValidator<ChangeSortingManufacturerCommand>
 {
