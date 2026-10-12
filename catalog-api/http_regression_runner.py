@@ -326,9 +326,9 @@ def material_model(name, category_id, flag, image=None):
         "thicknessId": thickness_ids[18],
         "kvM": 5.796,
         "perimetrM": 9.74,
-        "applicableToCutting": flag == "raskroy",
+        "applicableToCutting": flag == "cutting",
         "applicableToPvhFacades": flag == "pvhFacades",
-        "applicableToEnamelFacades": flag == "emalFacades",
+        "applicableToEnamelFacades": flag == "enamelFacades",
         "commentOnMaterialIsRequired": False,
         "allowSecondItemInOrder": True,
         "externalLink": "https://example.test/material",
@@ -419,7 +419,7 @@ def run_history_scenarios(history_prefix, dimension_base, manager_cookie, tester
     created_manufacturers.append(manufacturer_id)
 
     material_name = history_prefix + "-material"
-    material = material_model(material_name, category_id, "raskroy")
+    material = material_model(material_name, category_id, "cutting")
     material.update({"sheetSizeId": size_id, "manufacturerId": manufacturer_id})
     response = request("POST", "/api/for-admin/materials", material, auth_cookie=manager_cookie)
     expect(response[0], 200, "history material create")
@@ -607,7 +607,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
         }, auth=True)[0], 200, "configure facet size")
     rows = []
     for i, letter in enumerate("ABCDE"):
-        model = material_model(marker + "-" + letter, cats[i % 2], "raskroy" if i % 2 == 0 else "pvhFacades")
+        model = material_model(marker + "-" + letter, cats[i % 2], "cutting" if i % 2 == 0 else "pvhFacades")
         model.update(manufacturerId=makers[(i // 2) % 2], sheetSizeId=sizes[i % 2],
                      thicknessId=thickness_ids[16 + 2 * (i % 2)], count=i % 2, article=marker + f"-article-{i}")
         rows.append(dict(model, depth=16 + 2 * (i % 2), id=create_material(model)))
@@ -622,7 +622,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
         if excluded != "inStock" and "inStock" in params:
             if (row["count"] > 0) != (params["inStock"] == "true"):
                 return False
-        flags = {"Raskroy": "applicableToCutting", "PvhFacades": "applicableToPvhFacades"}
+        flags = {"Cutting": "applicableToCutting", "PvhFacades": "applicableToPvhFacades"}
         return not params.get("calculators") or any(row[flags[c]] for c in params["calculators"])
 
     def search_check(params):
@@ -638,9 +638,9 @@ def run_search_facet_scenarios(prefix, dimension_base):
         search_check({"search": "  " + term.upper() + "  "})
     mark("SEARCH-01", "Проверены поиск по названию и артикулу, независимость от регистра и удаление пробелов по краям")
     for symbol in ("%", "_", "\\"):
-        model = material_model(prefix + "-literal-" + symbol, cats[0], "raskroy")
+        model = material_model(prefix + "-literal-" + symbol, cats[0], "cutting")
         material_id = create_material(model)
-        control = material_model(prefix + "-literal-X" + str(ord(symbol)), cats[0], "raskroy")
+        control = material_model(prefix + "-literal-X" + str(ord(symbol)), cats[0], "cutting")
         control_id = create_material(control)
         body = public_query("search", {"search": model["name"]})
         equal([r["id"] for r in body["items"]], [material_id], "literal search")
@@ -648,7 +648,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
         expect(delete_material(control_id)[0], 200, "literal control cleanup")
     mark("SEARCH-02", "Спецсимволы шаблонов LIKE обрабатываются буквально")
     choices = {"categoryIds": cats[:2], "manufacturerIds": makers[:2], "sheetSizeIds": sizes[:2],
-               "depths": [16, 18], "thicknessIds": [thickness_ids[16], thickness_ids[18]], "calculators": ["Raskroy", "PvhFacades"]}
+               "depths": [16, 18], "thicknessIds": [thickness_ids[16], thickness_ids[18]], "calculators": ["Cutting", "PvhFacades"]}
     for key, values in choices.items():
         search_check({"search": marker, key: values + values})
     for stock in ("true", "false"):
@@ -720,7 +720,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
         facets_check({"search": marker, field: [choices[field][0]]})
     mark("FACET-01", "При расчёте каждой группы исключается её собственный фильтр")
     facets_check({"search": marker, "categoryIds": [cats[0]], "manufacturerIds": [makers[0]],
-                  "sheetSizeIds": [sizes[0]], "depths": [16], "calculators": ["Raskroy"], "inStock": "false"})
+                  "sheetSizeIds": [sizes[0]], "depths": [16], "calculators": ["Cutting"], "inStock": "false"})
     mark("FACET-02", "Счётчики при совместных ограничениях сверены с исходными тестовыми данными")
     facets_check({"search": marker, "categoryIds": [cats[2]], "manufacturerIds": [makers[2]],
                   "sheetSizeIds": [sizes[2]], "depths": [99]})
@@ -755,7 +755,7 @@ def run_variant_scenarios(prefix, category_id, png):
     fields = {"image": ("Original", "original"), "thumbnail240": ("Thumbnail240", "thumbnail240"),
               "thumbnail480": ("Thumbnail480", "thumbnail480")}
     uploaded = {}
-    model = material_model(prefix + "-variants-A", category_id, "raskroy")
+    model = material_model(prefix + "-variants-A", category_id, "cutting")
     material_id = None
 
     def new_image(field):
@@ -830,7 +830,7 @@ def run_variant_scenarios(prefix, category_id, png):
             update()
             problem(request("GET", "/api/materials/images/" + old), "replaced thumbnail")
         mark("VAR-04", "Замена отдельной миниатюры делает прежний GUID недоступным, включая кеш")
-        other = material_model(prefix + "-variants-B", category_id, "raskroy")
+        other = material_model(prefix + "-variants-B", category_id, "cutting")
         other.update({field: new_image(field) for field in fields})
         other_id = create_material(other)
         for field in ("thumbnail240", "thumbnail480"):
@@ -880,7 +880,7 @@ def run_variant_scenarios(prefix, category_id, png):
                     guid in snapshots(entity_id)[1]["images"].values()
                     for entity_id in created_materials)
                 if not attached:
-                    temporary = material_model(prefix + "-drain-" + guid, category_id, "raskroy")
+                    temporary = material_model(prefix + "-drain-" + guid, category_id, "cutting")
                     temporary[field] = guid
                     temporary_id = create_material(temporary)
                     expect(delete_material(temporary_id)[0], 200, "unused upload cleanup")
@@ -944,7 +944,7 @@ def run_thickness_scenarios(prefix, dimension_base, user_cookie, tester_cookie, 
     category = create_category(prefix + "-thickness-cat")
     maker = create_manufacturer(prefix + "-thickness-maker")
     size = create_sheet_size(prefix + "-thickness-size", dimension_base + 200, dimension_base + 201)
-    material = material_model(prefix + "-thickness-material", category, "raskroy")
+    material = material_model(prefix + "-thickness-material", category, "cutting")
     material.update(manufacturerId=maker, sheetSizeId=size, thicknessId=entity_id)
     material_id = create_material(material)
     nested_expected = {"id": entity_id, "name": expected["name"]}
@@ -1003,7 +1003,7 @@ def run_decimal_scenarios(prefix, dimension_base, user_cookie, tester_cookie, ma
     category = create_category(prefix + "-decimal-category")
     maker = create_manufacturer(prefix + "-decimal-maker")
     size = create_sheet_size(prefix + "-decimal-size", dimension_base + 300, dimension_base + 301)
-    model = material_model(prefix + "-decimal-material", category, "raskroy")
+    model = material_model(prefix + "-decimal-material", category, "cutting")
     model.update(manufacturerId=maker, sheetSizeId=size)
     material_id = create_material(model)
     for value in (dimension_base, dimension_base + .1, dimension_base + .12, dimension_base + .123):
@@ -1084,7 +1084,7 @@ def run_material_type_scenarios(prefix, user_cookie, openapi_document):
         problem(request("POST", path + "/change-order-col", {"id": entity, "direction": direction}, auth=True), "Граница порядка")
     mark("MT-03", "Перестановка UP/DOWN и обе границы")
     category = create_category(prefix + "-type-category")
-    model = dict(material_model(prefix + "-typed", category, "raskroy"), materialTypeId=a)
+    model = dict(material_model(prefix + "-typed", category, "cutting"), materialTypeId=a)
     material_id = create_material(model)
     for value in (None, 0, 2147483647):
         invalid = dict(model, materialTypeId=value)
@@ -1215,8 +1215,8 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
         category_b = create_category(prefix + "-calculate-hidden", hide_on_site=True)
         fixture_categories.append(category_b)
         models = [material_model(prefix + "-calculate-" + suffix, category, flag)
-                  for suffix, category, flag in (("visible", category_a, "raskroy"),
-                                                 ("hidden", category_a, "raskroy"),
+                  for suffix, category, flag in (("visible", category_a, "cutting"),
+                                                 ("hidden", category_a, "cutting"),
                                                  ("zero", category_a, "pvhFacades"),
                                                  ("hidden-category", category_b, "pvhFacades"))]
         models[1]["hideOnSite"] = True
@@ -1736,14 +1736,14 @@ def main():
         raise AssertionError("PNG changed after restart")
     mark("IMG-05", "Загруженный PNG доступен после перезапуска")
 
-    m1_model = material_model(prefix + "-mat-raskroy", cat1, "raskroy", images[0][0])
+    m1_model = material_model(prefix + "-mat-cutting", cat1, "cutting", images[0][0])
     m2_model = material_model(prefix + "-mat-pvh", cat1, "pvhFacades")
-    m3_model = material_model(prefix + "-mat-emal", cat2, "emalFacades")
+    m3_model = material_model(prefix + "-mat-enamel", cat2, "enamelFacades")
     m1, m2, m3 = [create_material(x) for x in (m1_model, m2_model, m3_model)]
-    invalid_manufacturer_model = material_model(prefix + "-invalid-manufacturer", cat1, "raskroy")
+    invalid_manufacturer_model = material_model(prefix + "-invalid-manufacturer", cat1, "cutting")
     invalid_manufacturer_model["manufacturerId"] = 2147483647
     expect(request("POST", "/api/for-admin/materials", invalid_manufacturer_model, auth=True)[0], 400, "invalid manufacturer id")
-    zero_manufacturer_model = material_model(prefix + "-zero-manufacturer", cat1, "raskroy")
+    zero_manufacturer_model = material_model(prefix + "-zero-manufacturer", cat1, "cutting")
     zero_manufacturer_model["manufacturerId"] = 0
     expect(request("POST", "/api/for-admin/materials", zero_manufacturer_model, auth=True)[0], 400, "zero manufacturer id")
     expect(request("GET", f"/api/materials/{m1}")[0], 200, "public material card")
@@ -1785,7 +1785,7 @@ def main():
         },
         m3)
 
-    for calculator, expected_id in (("Raskroy", m1), ("PvhFacades", m2), ("EmalFacades", m3)):
+    for calculator, expected_id in (("Cutting", m1), ("PvhFacades", m2), ("EnamelFacades", m3)):
         ids = {x["id"] for x in public_query("search", {"search": prefix, "calculators": [calculator], "pageSize": 96})["items"]}
         if expected_id not in ids:
             raise AssertionError(f"filter {calculator} omitted expected material")
@@ -1793,7 +1793,7 @@ def main():
         if wrong_test_ids:
             raise AssertionError(f"filter {calculator} returned inapplicable test material")
 
-    combined_ids = {x["id"] for x in public_query("search", {"search": prefix, "calculators": ["Raskroy", "PvhFacades"], "pageSize": 96})["items"]}
+    combined_ids = {x["id"] for x in public_query("search", {"search": prefix, "calculators": ["Cutting", "PvhFacades"], "pageSize": 96})["items"]}
     if not {m1, m2}.issubset(combined_ids) or m3 in combined_ids:
         raise AssertionError("combined calculator filter returned incorrect test materials")
     expect(request("GET", "/api/materials/search?calculators=Unknown")[0], 400, "invalid calculator")
@@ -1812,7 +1812,7 @@ def main():
 
     m3_updated = copy.deepcopy(m3_model)
     m3_updated.update({
-        "categoryId": cat3, "name": prefix + "-mat-emal-updated", "article": "UPDATED",
+        "categoryId": cat3, "name": prefix + "-mat-enamel-updated", "article": "UPDATED",
         "count": 7, "sheetSizeId": secondary_sheet_size_id, "thicknessId": thickness_ids[16], "kvM": 2.977,
         "perimetrM": 7.32, "price": 456.78, "countTypeEnum": "SHT",
         "applicableToCutting": True, "applicableToEnamelFacades": False,
@@ -1840,7 +1840,7 @@ def main():
     mark("CAT-09", "Удаление используемой категории отклонено; связанные сущности сохранены")
     mark("MAT-01—MAT-08", "Проверены создание, списки, карточки, фильтры, изменение, сортировка, её изоляция и границы")
 
-    foreign_create_model = material_model(prefix + "-foreign-image-create", cat2, "raskroy", images[0][0])
+    foreign_create_model = material_model(prefix + "-foreign-image-create", cat2, "cutting", images[0][0])
     expect(request("POST", "/api/for-admin/materials", foreign_create_model, auth=True)[0], 400, "create with another material image")
     foreign_update_model = copy.deepcopy(m2_model)
     foreign_update_model["image"] = images[0][0]
@@ -1897,7 +1897,7 @@ def main():
             raise AssertionError("WebP changed after restart")
     mark("IMG-12", "После перезапуска WebP дважды получен с исходными байтами")
 
-    base_invalid = material_model(prefix + "-validation", cat2, "raskroy")
+    base_invalid = material_model(prefix + "-validation", cat2, "cutting")
     expect(request("POST", "/api/for-admin/materials", {}, auth=True)[0], 400, "empty required fields")
     for bad_category in (0, 2147483000):
         bad = copy.deepcopy(base_invalid); bad["categoryId"] = bad_category; bad["name"] += str(bad_category)
@@ -1924,7 +1924,7 @@ def main():
         ("/api/for-admin/materials/sheet-sizes", primary_sheet_size_id),
         ("/api/for-admin/materials/manufacturers", primary_manufacturer_id)
     )
-    no_stock_model = material_model(prefix + "-counter-no-stock", cat1, "raskroy")
+    no_stock_model = material_model(prefix + "-counter-no-stock", cat1, "cutting")
     no_stock_model["count"] = 0
     no_stock_id = create_material(no_stock_model)
     counters_before_delete = [relation_counts(path, relation_id) for path, relation_id in counter_targets]

@@ -214,7 +214,7 @@ ASPNETCORE_URLS="$CATALOG_API_URL" python3 catalog-api/http_regression_runner.py
 |---|---|---|---|
 | MAT-01 | Создание материалов | Создать минимум три материала | Успех, получены id |
 | MAT-02 | Выдача и карточки | Проверить публичные списки/карточки и методы административной панели | Материалы отображаются в соответствующих выдачах |
-| MAT-03 | Фильтры по вариантам использования материала | Вызвать `/api/materials/search` и проверить `calculators=Raskroy`, `calculators=PvhFacades`, `calculators=EmalFacades` и несколько параметров `calculators` в одном запросе | Возвращаются материалы, применимые хотя бы к одному выбранному варианту использования материала |
+| MAT-03 | Фильтры по вариантам использования материала | Вызвать `/api/materials/search` и проверить `calculators=Cutting`, `calculators=PvhFacades`, `calculators=EnamelFacades` и несколько параметров `calculators` в одном запросе | Возвращаются материалы, применимые хотя бы к одному выбранному варианту использования материала |
 | MAT-03A | Список без фильтра | Вызвать `/api/materials` и `/api/for-admin/materials` без query-параметров; проверить их отсутствие в OpenAPI | Возвращаются все существующие материалы |
 | MAT-03B | Некорректный вариант использования материала | Вызвать `/api/materials/search?calculators=Unknown` | `400 Bad Request` |
 | MAT-03C | Фильтр наличия | Вызвать `/api/materials/search` с `inStock=true`, затем с `inStock=false`; проверить, что query-параметры не меняют полные списки `/api/materials` и `/api/for-admin/materials` | Для `true` у всех материалов `count > 0`; для `false` у всех материалов `count < 1`; без параметра возвращаются обе группы |

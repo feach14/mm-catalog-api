@@ -12,13 +12,13 @@ internal static class MaterialCalculatorFilterExtensions
         if (calculators is not { Length: > 0 })
             return query;
 
-        var includeRaskroy = calculators.Contains(MaterialCalculatorEnum.Raskroy);
+        var includeCutting = calculators.Contains(MaterialCalculatorEnum.Cutting);
         var includePvhFacades = calculators.Contains(MaterialCalculatorEnum.PvhFacades);
-        var includeEmalFacades = calculators.Contains(MaterialCalculatorEnum.EmalFacades);
+        var includeEnamelFacades = calculators.Contains(MaterialCalculatorEnum.EnamelFacades);
 
         return query.Where(x =>
-            (includeRaskroy && x.ApplicableToCutting)
+            (includeCutting && x.ApplicableToCutting)
             || (includePvhFacades && x.ApplicableToPvhFacades)
-            || (includeEmalFacades && x.ApplicableToEnamelFacades));
+            || (includeEnamelFacades && x.ApplicableToEnamelFacades));
     }
 }
