@@ -13,6 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from decimal import Decimal
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 API = os.environ.get("CATALOG_API_URL", "https://catalog-api.debug.feach.ru:5005")
@@ -1137,7 +1138,7 @@ def run_material_type_scenarios(prefix, user_cookie, openapi_document):
     mark("MT-10", "Тестовые типы и материал удалены, истории нет")
 
 
-def run_calculate_scenarios(prefix, user_cookie, openapi_document):
+def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, openapi_document):
     path = "/api/for-calculate/materials"
     by_ids_path = path + "/by-ids"
     schemas = openapi_document["components"]["schemas"]
@@ -1187,6 +1188,25 @@ def run_calculate_scenarios(prefix, user_cookie, openapi_document):
     assert id_types == "integer" or (isinstance(id_types, list) and "integer" in id_types), "Тип Id в списке OpenAPI включает integer"
     result_schema(post_operation, "GetMaterialsByIdsForCalculateQueryResult", "GetMaterialsByIdsForCalculateQueryItem")
 
+    material_operation = openapi_document["paths"][path + "/{id}"]["get"]
+    equal(material_operation["summary"], "Material", "Summary одиночного чтения Calculate")
+    assert "requestBody" not in material_operation, "Одиночное чтение Calculate не принимает тело"
+    material_parameters = material_operation.get("parameters", [])
+    equal(len(material_parameters), 1, "Одиночное чтение Calculate принимает только route Id")
+    material_parameter = material_parameters[0]
+    equal((material_parameter["name"], material_parameter["in"], material_parameter.get("required")),
+          ("id", "path", True), "Обязательный route Id материала")
+    equal(material_parameter["schema"]["type"], "integer", "Целочисленный route Id материала")
+    assert re.search("[А-Яа-я]", material_parameter.get("description", "")), "Описание route Id материала"
+    material_response_schema = material_operation["responses"]["200"]["content"]["application/json"]["schema"]
+    assert "#/components/schemas/GetMaterialForCalculateQueryResult" in json.dumps(material_response_schema), "Схема одиночного ответа Calculate"
+    material_fields = schema_fields("GetMaterialForCalculateQueryResult", {"id", "kvM", "perimetrM"})
+    for name, expected_type in (("id", "integer"), ("kvM", "number"), ("perimetrM", "number")):
+        field_types = material_fields[name]["type"]
+        assert expected_type in (field_types if isinstance(field_types, list) else [field_types]), "Тип поля одиночного ответа " + name
+    for name, unit_pattern in (("kvM", "м²"), ("perimetrM", r"\bм\b")):
+        assert re.search(unit_pattern, material_fields[name]["description"]), "Единицы измерения " + name
+
     fixture_categories = []
     fixture_materials = []
     try:
@@ -1201,6 +1221,7 @@ def run_calculate_scenarios(prefix, user_cookie, openapi_document):
                                                  ("hidden-category", category_b, "pvhFacades"))]
         models[1]["hideOnSite"] = True
         models[2]["count"] = 0
+        models[0].update(kvM=5.678, perimetrM=10.125)
         for model in models:
             fixture_materials.append(create_material(model))
         expect(request("POST", "/api/for-admin/materials/categories/change-order-col", {
@@ -1230,6 +1251,17 @@ def run_calculate_scenarios(prefix, user_cookie, openapi_document):
             equal(keys, sorted(keys), "Порядок Calculate по категории и материалу")
             return items
 
+        def check_material(response, entity_id, model):
+            expect(response[0], 200, "Одиночное чтение материала Calculate")
+            body = json.loads(response[2].decode(), parse_float=Decimal)
+            equal(set(body), {"id", "kvM", "perimetrM"}, "Ровно три поля одиночного ответа Calculate")
+            assert type(body["id"]) is int, "Id одиночного материала — число integer"
+            equal(body["id"], entity_id, "Id одиночного материала")
+            for name in ("kvM", "perimetrM"):
+                assert type(body[name]) in (int, Decimal), "Измерение передано числом: " + name
+                equal(Decimal(body[name]), Decimal(str(model[name])), "Точное значение " + name)
+            return body
+
         all_rows = expected_rows()
         check_items(request("GET", path, auth=True), all_rows)
         assert set(fixture_materials).issubset(all_rows), "Все тестовые материалы созданы"
@@ -1250,6 +1282,55 @@ def run_calculate_scenarios(prefix, user_cookie, openapi_document):
             problem(request("POST", by_ids_path, invalid, auth=True), "Валидация списка Id Calculate")
         mark("CALC-09", "Отсутствующее поле, null, пустой список, неположительные Id и повторы дают 400 ProblemDetails")
 
+        material_id = fixture_materials[0]
+        material_path = f"{path}/{material_id}"
+        admin_path = f"/api/for-admin/materials/{material_id}"
+        admin_before_response = request("GET", admin_path, auth=True)
+        expect(admin_before_response[0], 200, "Карточка материала до ролевых чтений")
+        admin_before = json_body(admin_before_response)
+        guest_material = check_material(request("GET", material_path), material_id, models[0])
+        mark("CALC-11", "OpenAPI и ответ одиночного GET: только обязательный route Id и три поля id/kvM/perimetrM с единицами")
+        for role, auth_cookie in (("пользователь", user_cookie), ("тестер", cookie),
+                                  ("менеджер", manager_cookie), ("администратор", admin_cookie)):
+            assert auth_cookie, "Получена cookie роли: " + role
+            equal(check_material(request("GET", material_path, auth_cookie=auth_cookie), material_id, models[0]),
+                  guest_material, "Роль не меняет одиночный ответ Calculate: " + role)
+        admin_after_response = request("GET", admin_path, auth=True)
+        expect(admin_after_response[0], 200, "Карточка материала после ролевых чтений")
+        equal(json_body(admin_after_response), admin_before, "Гостевые и ролевые чтения не меняют материал")
+        mark("CALC-12", "Гость, пользователь, тестер, менеджер и администратор получают одинаковый ответ 200 без изменения материала")
+
+        for kv_m, perimetr_m in ((5, 10), (5.6, 10.1), (5.67, 10.12), (0.001, 0.001)):
+            models[0] = dict(models[0], kvM=kv_m, perimetrM=perimetr_m)
+            expect(request("PUT", admin_path, models[0], auth=True)[0], 200, "Изменение десятичных измерений материала")
+            check_material(request("GET", material_path), material_id, models[0])
+        mark("CALC-14", "Площадь в м² и периметр в м совпадают с decimal после создания и обновлений с 0–3 знаками, включая 0.001")
+
+        for entity_id, model in zip(fixture_materials, models):
+            check_material(request("GET", f"{path}/{entity_id}"), entity_id, model)
+        mark("CALC-15", "Одиночный GET читает скрытый материал, материал скрытой категории, нулевой остаток и материал без распила")
+
+        public_response = request("GET", f"/api/materials/{material_id}")
+        expect(public_response[0], 200, "Публичная карточка видимого материала")
+        public_card = json_body(public_response)
+        public_fields = {"id", "name", "article", "category", "sheetSize", "manufacturer", "materialType",
+                         "thickness", "images", "count", "commentOnMaterialIsRequired", "orderByCol"}
+        equal(set(public_card), public_fields, "Прежний полный контракт публичной карточки без kvM/perimetrM")
+        for name in public_fields - {"images"}:
+            equal(public_card[name], admin_before[name], "Значение публичной карточки: " + name)
+        image_fields = {"original", "thumbnail240", "thumbnail480"}
+        equal(public_card["images"], {name: admin_before["images"][name] for name in image_fields},
+              "Публичная карточка сохраняет GUID изображений без метаданных")
+        check_material(request("GET", material_path), material_id, models[0])
+        models[0] = dict(models[0], hideOnSite=True)
+        expect(request("PUT", admin_path, models[0], auth=True)[0], 200, "Скрытие собственного материала")
+        problem(request("GET", f"/api/materials/{material_id}"), "Скрытый материал отсутствует в публичной карточке")
+        check_material(request("GET", material_path), material_id, models[0])
+        hidden_category_material_id = fixture_materials[3]
+        problem(request("GET", f"/api/materials/{hidden_category_material_id}"), "Материал скрытой категории отсутствует в публичной карточке")
+        check_material(request("GET", f"{path}/{hidden_category_material_id}"), hidden_category_material_id, models[3])
+        mark("CALC-16", "Публичная карточка сохраняет прежний контракт и скрывает материал/категорию; одиночный Calculate GET остаётся доступным")
+
         deleted_id = fixture_materials[0]
         expect(delete_material(deleted_id)[0], 200, "Физическое удаление материала Calculate")
         fixture_materials.remove(deleted_id)
@@ -1259,6 +1340,12 @@ def run_calculate_scenarios(prefix, user_cookie, openapi_document):
         mark("CALC-04", "Полный список отсортирован по OrderByCol категорий и материалов; физически удалённый материал отсутствует")
         unknown_id = 2147483647
         assert unknown_id not in all_rows, "Контрольный Id отсутствует в каталоге"
+        for invalid_id in (unknown_id, deleted_id, 0, -1):
+            response = request("GET", f"{path}/{invalid_id}")
+            problem(response, "Одиночное чтение отсутствующего материала")
+            assert "не найден" in (json_body(response).get("detail") or "").lower(), "Сообщение об отсутствующем материале"
+        expect(request("GET", path + "/not-an-integer")[0], 404, "Нечисловой Id не соответствует маршруту")
+        mark("CALC-13", "Неизвестный, удалённый, нулевой и отрицательный Id дают 400 ProblemDetails; нечисловой маршрут даёт 404")
         snapshots_before = {entity_id: json_body(request("GET", f"/api/for-admin/materials/{entity_id}", auth=True))
                             for entity_id in fixture_materials}
         selected = {entity_id: all_rows[entity_id] for entity_id in fixture_materials}
@@ -1863,7 +1950,7 @@ def main():
     mark("CAT-11, SIZE-10, MFR-11", "Оба счётчика уменьшились после удаления материалов в наличии и не в наличии; карточки справочников не содержат счётчиков")
     mark("IMG-13—IMG-14", "После удаления WebP недоступен; все три GUID недоступны")
 
-    run_calculate_scenarios(prefix, user_cookie, openapi_document)
+    run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, openapi_document)
     run_search_facet_scenarios(prefix, dimension_base)
     run_variant_scenarios(prefix, cat1, png)
 
