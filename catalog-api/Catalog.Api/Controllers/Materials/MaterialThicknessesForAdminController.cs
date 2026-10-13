@@ -14,7 +14,7 @@ namespace Catalog.Api.Controllers.Materials;
     AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
     Roles = AuthConstants.AdministrationRoles),
  ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
- ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав менеджера или администратора")]
+ ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав тестера, менеджера или администратора")]
 public sealed class MaterialThicknessesForAdminController : BaseApiController
 {
     [HttpGet,

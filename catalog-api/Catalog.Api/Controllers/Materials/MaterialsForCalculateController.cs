@@ -11,15 +11,15 @@ namespace Catalog.Api.Controllers.Materials;
  OpenApiTagOrder(3),
  Authorize(
     AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
-    Roles = AuthConstants.AdministrationRoles),
- ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
- ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав тестера, менеджера или администратора")]
+    Roles = AuthConstants.AdministrationRoles)]
 public class MaterialsForCalculateController : BaseApiController
 {
     [HttpGet("materials"),
      EndpointSummary(nameof(Materials)),
      EndpointDescription("Материалы"),
-     ProducesResponseType(typeof(GetMaterialsForCalculateQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Материалы")]
+     ProducesResponseType(typeof(GetMaterialsForCalculateQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Материалы"),
+     ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
+     ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав тестера, менеджера или администратора")]
     public Task<GetMaterialsForCalculateQueryResult> Materials(
         [FromServices] IQueryHandler<GetMaterialsForCalculateQuery, GetMaterialsForCalculateQueryResult> handler) =>
         handler.Handle(new GetMaterialsForCalculateQuery(), HttpContext.RequestAborted);
@@ -37,7 +37,9 @@ public class MaterialsForCalculateController : BaseApiController
     [HttpPost("materials/by-ids"),
      EndpointSummary(nameof(MaterialsByIds)),
      EndpointDescription("Материалы по Id"),
-     ProducesResponseType(typeof(GetMaterialsByIdsForCalculateQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Материалы")]
+     ProducesResponseType(typeof(GetMaterialsByIdsForCalculateQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Материалы"),
+     ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
+     ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав тестера, менеджера или администратора")]
     public Task<GetMaterialsByIdsForCalculateQueryResult> MaterialsByIds(
         [FromBody, Description("Материалы по Id")] GetMaterialsByIdsForCalculateQuery query,
         [FromServices] IQueryHandler<GetMaterialsByIdsForCalculateQuery, GetMaterialsByIdsForCalculateQueryResult> handler) =>

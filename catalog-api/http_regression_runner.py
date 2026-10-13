@@ -1420,6 +1420,91 @@ def run_visibility_scenarios(prefix, hidden_material_id, hidden_material_model,
     mark("VIS-04", "Видимость материала и категории восстановлена перед остальной регрессией")
 
 
+def run_openapi_metadata_scenarios(document):
+    """DOC-07/08: проверка готового документа без HTTP, авторизации и изменения БД."""
+    schemas = document["components"]["schemas"]
+
+    def nodes(schema):
+        yield schema
+        if "$ref" in schema:
+            prefix = "#/components/schemas/"
+            assert schema["$ref"].startswith(prefix), "Неизвестная ссылка OpenAPI"
+            yield from nodes(schemas[schema["$ref"][len(prefix):]])
+        for keyword in ("allOf", "anyOf", "oneOf"):
+            for child in schema.get(keyword, []):
+                yield from nodes(child)
+
+    def properties(schema):
+        return {name: field for node in nodes(schema) for name, field in node.get("properties", {}).items()}
+
+    def required(schema):
+        return set().union(*(node.get("required", []) for node in nodes(schema)))
+
+    def russian_description(schema):
+        return any(re.search("[А-Яа-яЁё]", node.get("description", "")) for node in nodes(schema))
+
+    anonymous_gets = {
+        "/api/materials", "/api/materials/{id}", "/api/materials/search", "/api/materials/filters",
+        "/api/materials/material-types", "/api/for-calculate/materials/{id}",
+    }
+    image_path = "/api/materials/images/{fileGuid}"
+    counts = {"protected": 0, "anonymous": 0, "image": 0}
+    for path, path_item in document["paths"].items():
+        for method, operation in path_item.items():
+            if method not in {"get", "post", "put", "delete", "patch", "head", "options", "trace"}:
+                continue
+            label = method.upper() + " " + path
+            expected_codes = {"200", "400", "500"}
+            if method == "get" and path == image_path:
+                counts["image"] += 1
+                expected_codes.update(("304", "412"))
+            elif method == "get" and path in anonymous_gets:
+                counts["anonymous"] += 1
+            else:
+                assert path.startswith(("/api/for-admin/", "/api/for-calculate/")), label
+                counts["protected"] += 1
+                expected_codes.update(("401", "403"))
+            responses = operation["responses"]
+            equal(set(responses), expected_codes, label + ": набор HTTP-ответов")
+            for code, response in responses.items():
+                assert re.search("[А-Яа-яЁё]", response.get("description", "")), label + ": описание " + code
+                if code in {"401", "403", "304", "412"}:
+                    assert not response.get("content"), label + ": ответ " + code + " не должен иметь тело"
+                if code == "403":
+                    assert "тестер" in response["description"].lower(), label + ": описание прав учитывает тестера"
+                if code in {"400", "500"}:
+                    content = response.get("content", {})
+                    assert "application/problem+json" in content, label + ": формат ошибки " + code
+                    error_fields = properties(content["application/problem+json"]["schema"])
+                    assert {"status", "title", "detail"}.issubset(error_fields), label + ": схема ProblemDetails " + code
+    equal(counts, {"protected": 39, "anonymous": 6, "image": 1}, "Количество операций по доступу и виду ответа")
+    assert "If-Match" in document["paths"][image_path]["get"]["responses"]["412"]["description"], "Описание условия 412"
+    mark("DOC-07", "Статусы всех 46 операций соответствуют доступу; локальные ошибки имеют ProblemDetails, ответы авторизации и кеша — без тела")
+
+    upload = document["paths"]["/api/for-admin/materials/images"]["post"]
+    body = upload["requestBody"]
+    assert body.get("required"), "Multipart-тело загрузки обязательно"
+    form = properties(body["content"]["multipart/form-data"]["schema"])
+    equal(set(form), {"File", "ImageType"}, "Поля формы загрузки изображения")
+    assert any(node.get("type") == "string" and node.get("format") == "binary" for node in nodes(form["File"])), "Файл имеет бинарную схему"
+    assert any(node.get("description") == "Файл изображения" for node in nodes(form["File"])), "Русское описание поля File"
+    assert any(node.get("description") == "Назначение изображения" for node in nodes(form["ImageType"])), "Русское описание поля ImageType"
+    expected_types = {"Original", "Thumbnail240", "Thumbnail480"}
+    assert any(set(node.get("enum", [])) == expected_types for node in nodes(form["ImageType"])), "Строковые варианты назначения изображения"
+    assert not any(node.get("type") == "integer" for node in nodes(form["ImageType"])), "Назначение изображения не должно описываться числом"
+    result = upload["responses"]["200"]["content"]["application/json"]["schema"]
+    fields = properties(result)
+    expected_fields = {"fileGuid", "fileName", "contentType", "imageType"}
+    equal(set(fields), expected_fields, "Поля ответа загрузки изображения")
+    equal(required(result), expected_fields, "Обязательные поля ответа загрузки изображения")
+    assert all(russian_description(field) for field in fields.values()), "Русские описания всех полей ответа загрузки"
+    assert any(node.get("type") == "string" and node.get("format") == "uuid" for node in nodes(fields["fileGuid"])), "GUID ответа загрузки"
+    for name in ("fileName", "contentType"):
+        assert any(node.get("type") == "string" for node in nodes(fields[name])), "Строковое поле " + name
+    assert any(set(node.get("enum", [])) == expected_types for node in nodes(fields["imageType"])), "Назначение изображения в ответе"
+    mark("DOC-08", "Multipart File/ImageType имеют русские описания; тело обязательно, ответ содержит четыре описанных обязательных поля")
+
+
 def main():
     global cookie, history_run_id, primary_sheet_size_id, primary_manufacturer_id, primary_material_type_id, run_prefix
     validate_regression_environment()
@@ -1442,6 +1527,7 @@ def main():
     openapi_response = request("GET", "/swagger/v1/swagger.json")
     expect(openapi_response[0], 200, "OpenAPI document")
     openapi_document = json_body(openapi_response)
+    run_openapi_metadata_scenarios(openapi_document)
     for endpoint in ("/api/materials", "/api/for-admin/materials"):
         equal(openapi_document["paths"][endpoint]["get"].get("parameters", []), [],
               "Полный список не имеет query-параметров в OpenAPI")
