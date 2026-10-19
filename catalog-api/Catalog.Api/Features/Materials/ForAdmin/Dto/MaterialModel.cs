@@ -32,18 +32,11 @@ public class MaterialModelValidator : AbstractValidator<MaterialModel>
             .GreaterThan(0).WithMessage("Не указан тип материала")
             .MustAsync(async (materialTypeId, ct) => await dbContext.MaterialTypes.AnyAsync(x => x.Id == materialTypeId, ct))
             .WithMessage("Указанный тип материала не найден");
-        RuleFor(m => m.KvM)
-            .Cascade(CascadeMode.Stop)
-            .GreaterThan(0).WithMessage("Полезная площадь материала должна быть больше нуля")
-            .PrecisionScale(18, 3, true).WithMessage("Площадь должна содержать не более 15 цифр до точки и трёх после точки");
-        RuleFor(m => m.PerimetrM)
-            .PrecisionScale(18, 3, true).WithMessage("Периметр должен содержать не более 15 цифр до точки и трёх после точки");
         RuleFor(m => m.ThicknessId)
             .Cascade(CascadeMode.Stop)
             .GreaterThan(0).WithMessage("Не указана толщина материала")
             .MustAsync(async (id, ct) => await dbContext.MaterialThicknesses.AsNoTracking().AnyAsync(x => x.Id == id, ct))
             .WithMessage("Указанная толщина материала не найдена");
-        RuleFor(m => m.PerimetrM).GreaterThan(0).WithMessage("Периметр материала должен быть больше нуля");
         RuleFor(m => m.ApplicableToCutting)
             .Must((model, applicableToCutting) =>
                 applicableToCutting || model.ApplicableToPvhFacades || model.ApplicableToEnamelFacades)
@@ -85,12 +78,6 @@ public record MaterialModel
 
     [Description("Id толщины материала")]
     public required int ThicknessId { get; init; }
-
-    [Description("Количество кв.м. в плите материала, не более трёх знаков после десятичной точки")]
-    public required decimal KvM { get; init; }
-
-    [Description("Количество метров по периметру плиты, не более трёх знаков после десятичной точки")]
-    public required decimal PerimetrM { get; init; }
 
     [Description("Использование материала в заявке на распил")]
     public required bool ApplicableToCutting { get; init; }

@@ -104,8 +104,6 @@ public class UpdateMaterialCommandHandler(
         AddChange(changes, "название", material.Name, command.Material.Name, true);
         AddChange(changes, "артикул", material.Article, command.Material.Article, true);
         AddChange(changes, "толщина", material.MaterialThicknessId, command.Material.ThicknessId);
-        AddChange(changes, "площадь", material.KvM, command.Material.KvM);
-        AddChange(changes, "периметр", material.PerimetrM, command.Material.PerimetrM);
         AddChange(changes, "количество", material.Count, command.Material.Count);
         AddChange(changes, "ссылка", material.ExternalLink, command.Material.ExternalLink, true);
         AddChange(changes, "использование в заявке на распил", material.ApplicableToCutting, command.Material.ApplicableToCutting);
@@ -131,8 +129,6 @@ public class UpdateMaterialCommandHandler(
         material.Article = command.Material.Article;
         material.Name = command.Material.Name;
         material.MaterialThicknessId = command.Material.ThicknessId;
-        material.KvM = command.Material.KvM;
-        material.PerimetrM = command.Material.PerimetrM;
         material.Count = command.Material.Count;
         material.ApplicableToCutting = command.Material.ApplicableToCutting;
         material.ApplicableToPvhFacades = command.Material.ApplicableToPvhFacades;

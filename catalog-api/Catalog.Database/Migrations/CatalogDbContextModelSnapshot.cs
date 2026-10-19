@@ -182,11 +182,6 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("hide_price_on_site");
 
-                    b.Property<decimal>("KvM")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("numeric(18,3)")
-                        .HasColumnName("kv_m");
-
                     b.Property<int>("MaterialManufacturerId")
                         .HasColumnType("integer")
                         .HasColumnName("material_manufacturer_id");
@@ -214,11 +209,6 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
                         .HasColumnName("order_by_col");
-
-                    b.Property<decimal>("PerimetrM")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("numeric(18,3)")
-                        .HasColumnName("perimetr_m");
 
                     b.Property<decimal>("Price")
                         .HasColumnType("numeric")

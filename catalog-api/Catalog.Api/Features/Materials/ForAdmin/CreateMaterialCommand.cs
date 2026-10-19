@@ -57,8 +57,6 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
             Article = command.Material.Article,
             Name = command.Material.Name,
             MaterialThicknessId = command.Material.ThicknessId,
-            KvM = command.Material.KvM,
-            PerimetrM = command.Material.PerimetrM,
             Count = command.Material.Count,
             ApplicableToCutting = command.Material.ApplicableToCutting,
             ApplicableToPvhFacades = command.Material.ApplicableToPvhFacades,

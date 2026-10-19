@@ -13,7 +13,6 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from decimal import Decimal
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 API = os.environ.get("CATALOG_API_URL", "https://catalog-api.debug.feach.ru:5005")
@@ -324,8 +323,6 @@ def material_model(name, category_id, flag, image=None):
         "image": image,
         "count": 2,
         "thicknessId": thickness_ids[18],
-        "kvM": 5.796,
-        "perimetrM": 9.74,
         "applicableToCutting": flag == "cutting",
         "applicableToPvhFacades": flag == "pvhFacades",
         "applicableToEnamelFacades": flag == "enamelFacades",
@@ -1014,28 +1011,14 @@ def run_decimal_scenarios(prefix, dimension_base, user_cookie, tester_cookie, ma
         created_thicknesses.append(thickness_id)
         expect(request("PUT", f"{path}/{thickness_id}", body, auth=True)[0], 200, "Сохранение decimal толщины")
         equal(json_body(request("GET", f"{path}/{thickness_id}", auth=True))["value"], value, "Точное значение толщины")
-        measurement = value - dimension_base + 1
-        measurement = round(measurement, 3)
-        candidate = dict(model, kvM=measurement, perimetrM=measurement)
-        temporary_id = create_material(dict(candidate, name=model["name"] + "-temporary"))
-        equal(json_body(request("GET", f"/api/for-admin/materials/{temporary_id}", auth=True))["kvM"], measurement, "Точная площадь при создании")
-        expect(delete_material(temporary_id)[0], 200, "Очистка decimal материала")
-        expect(request("PUT", f"/api/for-admin/materials/{material_id}", candidate, auth=True)[0], 200, "Обновление decimal материала")
-        card = json_body(request("GET", f"/api/for-admin/materials/{material_id}", auth=True))
-        equal((card["kvM"], card["perimetrM"]), (measurement, measurement), "Точные измерения после обновления")
         if value != dimension_base + .123:
             expect(request("DELETE", f"{path}/{thickness_id}", auth=True)[0], 200, "Очистка толщины")
             created_thicknesses.remove(thickness_id)
-    mark("DEC-01", "POST/PUT толщины, площади и периметра: 0–3 знака сохранены точно")
+    mark("DEC-01", "POST/PUT толщины: 0–3 знака сохранены точно")
     for invalid in (1.1234, 1000000000000000):
         for method, url in (("POST", path), ("PUT", f"{path}/{thickness_id}")):
             problem(request(method, url, {"name": prefix + "-invalid", "value": invalid}, auth=True), "Точность толщины")
-        for field in ("kvM", "perimetrM"):
-            for method, url in (("POST", "/api/for-admin/materials"), ("PUT", f"/api/for-admin/materials/{material_id}")):
-                problem(request(method, url, dict(model, **{field: invalid}), auth=True), "Точность измерения")
-    mark("DEC-02", "POST/PUT отклоняют лишнюю дробную и целую цифру")
-    raw = json.dumps(dict(model, kvM=1.123, perimetrM=1.123)).replace("1.123", "1.1230").encode()
-    expect(request("PUT", f"/api/for-admin/materials/{material_id}", raw, auth=True, raw=True, headers={"Content-Type": "application/json"})[0], 200, "Завершающий ноль измерений")
+    mark("DEC-02", "POST/PUT толщины отклоняют лишнюю дробную и целую цифру")
     raw = ('{"name": "' + prefix + '-decimal-thickness", "value": ' + str(dimension_base) + '.1230}').encode()
     expect(request("PUT", f"{path}/{thickness_id}", raw, auth=True, raw=True, headers={"Content-Type": "application/json"})[0], 200, "Завершающий ноль толщины")
     mark("DEC-03", "JSON с завершающим нулём принят без потери значения")
@@ -1200,12 +1183,14 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
     assert re.search("[А-Яа-я]", material_parameter.get("description", "")), "Описание route Id материала"
     material_response_schema = material_operation["responses"]["200"]["content"]["application/json"]["schema"]
     assert "#/components/schemas/GetMaterialForCalculateQueryResult" in json.dumps(material_response_schema), "Схема одиночного ответа Calculate"
-    material_fields = schema_fields("GetMaterialForCalculateQueryResult", {"id", "kvM", "perimetrM", "width", "height"})
-    for name, expected_type in (("id", "integer"), ("kvM", "number"), ("perimetrM", "number"), ("width", "integer"), ("height", "integer")):
+    material_fields = schema_fields("GetMaterialForCalculateQueryResult", {"id", "width", "height"})
+    for name in ("id", "width", "height"):
         field_types = material_fields[name]["type"]
-        assert expected_type in (field_types if isinstance(field_types, list) else [field_types]), "Тип поля одиночного ответа " + name
-    for name, unit_pattern in (("kvM", "м²"), ("perimetrM", r"\bм\b"), ("width", "мм"), ("height", "мм")):
-        assert re.search(unit_pattern, material_fields[name]["description"]), "Единицы измерения " + name
+        assert "integer" in (field_types if isinstance(field_types, list) else [field_types]), "Тип поля одиночного ответа включает integer: " + name
+    for name in ("width", "height"):
+        assert "мм" in material_fields[name]["description"], "Единицы измерения " + name
+    for schema_name in ("CreateMaterialModel", "UpdateMaterialModel", "GetMaterialForAdminQueryResult"):
+        assert not {"kvM", "perimetrM"}.intersection(schemas[schema_name]["properties"]), "Удалённые измерения отсутствуют в схеме " + schema_name
 
     fixture_categories = []
     fixture_materials = []
@@ -1221,7 +1206,6 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
                                                  ("hidden-category", category_b, "pvhFacades"))]
         models[1]["hideOnSite"] = True
         models[2]["count"] = 0
-        models[0].update(kvM=5.678, perimetrM=10.125)
         for model in models:
             fixture_materials.append(create_material(model))
         expect(request("POST", "/api/for-admin/materials/categories/change-order-col", {
@@ -1255,16 +1239,13 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
 
         def check_material(response, entity_id, model):
             expect(response[0], 200, "Одиночное чтение материала Calculate")
-            body = json.loads(response[2].decode(), parse_float=Decimal)
-            equal(set(body), {"id", "kvM", "perimetrM", "width", "height"}, "Ровно пять полей одиночного ответа Calculate")
+            body = json_body(response)
+            equal(set(body), {"id", "width", "height"}, "Ровно три поля одиночного ответа Calculate")
             assert type(body["id"]) is int, "Id одиночного материала — число integer"
             equal(body["id"], entity_id, "Id одиночного материала")
             for name in ("width", "height"):
                 assert type(body[name]) is int, "Размер плиты передан целым числом: " + name
                 equal(body[name], sheet_size_rows[model["sheetSizeId"]][name], "Размер плиты в мм: " + name)
-            for name in ("kvM", "perimetrM"):
-                assert type(body[name]) in (int, Decimal), "Измерение передано числом: " + name
-                equal(Decimal(body[name]), Decimal(str(model[name])), "Точное значение " + name)
             return body
 
         all_rows = expected_rows()
@@ -1294,7 +1275,7 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
         expect(admin_before_response[0], 200, "Карточка материала до ролевых чтений")
         admin_before = json_body(admin_before_response)
         guest_material = check_material(request("GET", material_path), material_id, models[0])
-        mark("CALC-11", "OpenAPI и ответ одиночного GET: только обязательный route Id и пять полей id/kvM/perimetrM/width/height с единицами")
+        mark("CALC-11", "OpenAPI и ответ одиночного GET: обязательный route Id и три целочисленных поля id/width/height; размеры в мм")
         for role, auth_cookie in (("пользователь", user_cookie), ("тестер", cookie),
                                   ("менеджер", manager_cookie), ("администратор", admin_cookie)):
             assert auth_cookie, "Получена cookie роли: " + role
@@ -1305,11 +1286,16 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
         equal(json_body(admin_after_response), admin_before, "Гостевые и ролевые чтения не меняют материал")
         mark("CALC-12", "Гость, пользователь, тестер, менеджер и администратор получают одинаковый ответ 200 без изменения материала")
 
-        for kv_m, perimetr_m in ((5, 10), (5.6, 10.1), (5.67, 10.12), (0.001, 0.001)):
-            models[0] = dict(models[0], kvM=kv_m, perimetrM=perimetr_m)
-            expect(request("PUT", admin_path, models[0], auth=True)[0], 200, "Изменение десятичных измерений материала")
+        assert not {"kvM", "perimetrM"}.intersection(models[0]), "Создание материала не передаёт удалённые измерения"
+        assert not {"kvM", "perimetrM"}.intersection(admin_before), "Административная карточка не возвращает удалённые измерения"
+        for sheet_size_id in (secondary_sheet_size_id, primary_sheet_size_id):
+            models[0] = dict(models[0], sheetSizeId=sheet_size_id)
+            expect(request("PUT", admin_path, models[0], auth=True)[0], 200, "Изменение формата плиты без площади и периметра")
             check_material(request("GET", material_path), material_id, models[0])
-        mark("CALC-14", "Площадь в м² и периметр в м совпадают с decimal после создания и обновлений с 0–3 знаками, включая 0.001")
+            admin_card = json_body(request("GET", admin_path, auth=True))
+            equal(admin_card["sheetSize"]["id"], sheet_size_id, "Сохранён новый формат плиты")
+            assert not {"kvM", "perimetrM"}.intersection(admin_card), "Обновлённая карточка не возвращает удалённые измерения"
+        mark("CALC-14", "Создание и обновление без kvM/perimetrM; административные схемы и карточка не содержат их, Calculate возвращает размеры выбранного формата в мм")
 
         for entity_id, model in zip(fixture_materials, models):
             check_material(request("GET", f"{path}/{entity_id}"), entity_id, model)
@@ -1904,8 +1890,8 @@ def main():
     m3_updated = copy.deepcopy(m3_model)
     m3_updated.update({
         "categoryId": cat3, "name": prefix + "-mat-enamel-updated", "article": "UPDATED",
-        "count": 7, "sheetSizeId": secondary_sheet_size_id, "thicknessId": thickness_ids[16], "kvM": 2.977,
-        "perimetrM": 7.32, "price": 456.78, "countTypeEnum": "SHT",
+        "count": 7, "sheetSizeId": secondary_sheet_size_id, "thicknessId": thickness_ids[16],
+        "price": 456.78, "countTypeEnum": "SHT",
         "applicableToCutting": True, "applicableToEnamelFacades": False,
         "commentOnMaterialIsRequired": True, "allowSecondItemInOrder": False
     })
@@ -1993,7 +1979,7 @@ def main():
     for bad_category in (0, 2147483000):
         bad = copy.deepcopy(base_invalid); bad["categoryId"] = bad_category; bad["name"] += str(bad_category)
         expect(request("POST", "/api/for-admin/materials", bad, auth=True)[0], 400, "bad category")
-    for field, value in (("sheetSizeId", 0), ("thicknessId", 0), ("kvM", -1), ("perimetrM", 0)):
+    for field, value in (("sheetSizeId", 0), ("thicknessId", 0)):
         bad = copy.deepcopy(base_invalid); bad[field] = value; bad["name"] += "-" + field
         expect(request("POST", "/api/for-admin/materials", bad, auth=True)[0], 400, "bad dimensions")
     bad = copy.deepcopy(base_invalid); bad["price"] = 0

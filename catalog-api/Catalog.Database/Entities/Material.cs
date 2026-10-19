@@ -27,8 +27,6 @@ public sealed record Material
     public required int MaterialThicknessId { get; set; }
     public MaterialThickness MaterialThickness { get; private set; }
 
-    public required decimal KvM { get; set; }
-    public required decimal PerimetrM { get; set; }
     public int Count { get; set; }
     public string? ExternalLink { get; set; }
     public bool CommentOnMaterialIsRequired { get; set; }

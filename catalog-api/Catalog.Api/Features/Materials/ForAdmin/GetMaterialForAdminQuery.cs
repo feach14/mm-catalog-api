@@ -19,8 +19,6 @@ public sealed record GetMaterialForAdminQueryResult(
     [property: Description("Тип материала")] PropertyDto MaterialType,
     [property: Description("Толщина материала")] PropertyDto Thickness,
     [property: Description("Оригинал и миниатюры материала")] MaterialImagesDto Images,
-    [property: Description("Количество кв. м. в плите")] decimal KvM,
-    [property: Description("Количество метров по периметру плиты")] decimal PerimetrM,
     [property: Description("Использование материала в заявке на распил")] bool ApplicableToCutting,
     [property: Description("Использование материала в заявке на фасады ПВХ")] bool ApplicableToPvhFacades,
     [property: Description("Использование материала в заявке на фасады эмаль")] bool ApplicableToEnamelFacades,
@@ -88,8 +86,6 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
                         })
                         .SingleOrDefault()
                 },
-                x.KvM,
-                x.PerimetrM,
                 x.ApplicableToCutting,
                 x.ApplicableToPvhFacades,
                 x.ApplicableToEnamelFacades,

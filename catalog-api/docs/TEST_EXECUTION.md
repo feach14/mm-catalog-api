@@ -1,19 +1,22 @@
-# Последняя адресная проверка
+# Результат точечных проверок
 
-Дата: 2026-10-19. Проект: `mm-catalog-api`. Область: размеры листа в `GET /api/for-calculate/materials/{id}`.
+Дата: 19.10.2026. Этап 1: удаление полей материала `KvM` и `PerimetrM` из Catalog API и catalog-front.
 
-В `GetMaterialForCalculateQueryResult` добавлены обязательные целочисленные `width` и `height` в миллиметрах. Projection читает их из связанного `MaterialSheetSize`; прежние `id`, `kvM` и `perimetrM` сохранены. Ожидания существующих CALC-11—16 и HTTP-раннера актуализированы.
+## Выполнено
 
-## Результаты
+- `dotnet build catalog-api/catalog-api.slnx --no-restore --disable-build-servers -v:minimal` — успешно, ошибок нет. Сохранились 5 предупреждений NuGet об уязвимостях существующих зависимостей `System.Security.Cryptography.Pkcs` и `System.Security.Cryptography.Xml`; зависимости не менялись.
+- `dotnet format catalog-api/catalog-api.slnx --verify-no-changes --no-restore` — успешно. Сборка и форматирование выполнены вне sandbox после остановки зависших собственных процессов.
+- Миграция `20261019214841_RemoveMaterialMeasurements` создана средствами EF Core; проверено, что она удаляет только `catalog.materials.kv_m` и `catalog.materials.perimetr_m`. Файлы приведены к UTF-8 без BOM и LF. К базе миграция не применялась.
+- Временный API запущен по текущему Debug-профилю на свободном порту 5015. `GET /swagger/v1/swagger.json` — успешно: схема `GetMaterialForCalculateQueryResult` содержит ровно обязательные `id`, `width`, `height`, формат `int32`, размеры описаны в мм. Стандартная схема .NET допускает `type: ["integer", "string"]`; фактические значения ответа — целые JSON-числа.
+- `CreateMaterialModel`, `UpdateMaterialModel` и `GetMaterialForAdminQueryResult` не содержат `kvM` и `perimetrM` ни в свойствах, ни в `required`.
+- `GET /api/for-calculate/materials/133` — HTTP 200, ровно три поля нового контракта, положительные размеры. Данные материала не изменялись.
+- Обновлён существующий HTTP-раннер: создание/обновление без удалённых полей, чтение размеров, смена формата плиты. Синтаксис Python проверен без записи кэша; полный регресс не запускался.
+- В catalog-front `npm run build` — успешно; два предупреждения Webpack о размере сборки. Поля отсутствуют в форме и POST/PUT payload.
 
-- `dotnet build catalog-api/catalog-api.slnx --no-restore --disable-build-servers -m:1 -p:UseSharedCompilation=false` — успешно, 0 ошибок и предупреждений.
-- `dotnet format catalog-api/catalog-api.slnx --verify-no-changes --no-restore` — успешно.
-- Синтаксис существующего Python-раннера, `git diff --check`, UTF-8 без BOM, LF и отсутствие завершающего LF в изменённых файлах — успешно.
-- Реальный `GET /swagger/v1/swagger.json` — HTTP 200. Схема `GetMaterialForCalculateQueryResult` содержит ровно пять обязательных полей: `id`, `kvM`, `perimetrM`, `width`, `height`; `width` и `height` имеют тип `integer` и описание единиц в миллиметрах.
-- Анонимный `GET /api/for-calculate/materials/133` — HTTP 200: `id=133`, `kvM=4.1`, `perimetrM=9.16`, `width=1830`, `height=2750`.
+## Ограничения
 
-Проверены HTTP-контракт и чтение существующего материала. Полный регресс, полные сценарии CALC-11—16 с ролевыми проверками и изменением тестовых материалов не запускались. Внутренние проверки через DI, модели тестов, EF и прямые запросы к БД не выполнялись.
+- Создание и обновление материала не выполнялись: миграцию базы применяет пользователь. До её применения старые обязательные столбцы мешают созданию материала новой версией API.
+- UI внутри Admin Shell не проверен: `https://admin.debug.feach.ru:6001/catalog` недоступен, соединение отклонено. Сценарии прямого URL, переходов, Back/Forward и повторного mount остаются непроверенными.
+- Текущий Calculate API использует удаляемые поля. Перед совместным обновлением сервисов требуется второй этап: расчёт периметра по ширине и высоте листа и определение числа листов через сервис раскроя.
 
-Перед запуском порт `5005` был свободен. Использован собственный DEV-процесс на `https://catalog-api.debug.feach.ru:5005` со штатным профилем `Debug`, временным `--urls` и `Database=mm-debug` в переменных окружения двух подключений. Постоянные адреса, порты и настройки не менялись. После завершения проверок собственный процесс остановлен; `lsof` подтвердил отсутствие слушателя на порту `5005`.
-
-Тестовые данные и временные файлы не создавались. Core, настройки, миграции и staging сохранены.
+Тестовые сущности не создавались. Собственный временный API остановлен после проверки; пользовательские процессы не затрагивались.
