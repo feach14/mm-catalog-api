@@ -1200,11 +1200,11 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
     assert re.search("[А-Яа-я]", material_parameter.get("description", "")), "Описание route Id материала"
     material_response_schema = material_operation["responses"]["200"]["content"]["application/json"]["schema"]
     assert "#/components/schemas/GetMaterialForCalculateQueryResult" in json.dumps(material_response_schema), "Схема одиночного ответа Calculate"
-    material_fields = schema_fields("GetMaterialForCalculateQueryResult", {"id", "kvM", "perimetrM"})
-    for name, expected_type in (("id", "integer"), ("kvM", "number"), ("perimetrM", "number")):
+    material_fields = schema_fields("GetMaterialForCalculateQueryResult", {"id", "kvM", "perimetrM", "width", "height"})
+    for name, expected_type in (("id", "integer"), ("kvM", "number"), ("perimetrM", "number"), ("width", "integer"), ("height", "integer")):
         field_types = material_fields[name]["type"]
         assert expected_type in (field_types if isinstance(field_types, list) else [field_types]), "Тип поля одиночного ответа " + name
-    for name, unit_pattern in (("kvM", "м²"), ("perimetrM", r"\bм\b")):
+    for name, unit_pattern in (("kvM", "м²"), ("perimetrM", r"\bм\b"), ("width", "мм"), ("height", "мм")):
         assert re.search(unit_pattern, material_fields[name]["description"]), "Единицы измерения " + name
 
     fixture_categories = []
@@ -1251,12 +1251,17 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
             equal(keys, sorted(keys), "Порядок Calculate по категории и материалу")
             return items
 
+        sheet_size_rows = {row["id"]: row for row in sheet_sizes()}
+
         def check_material(response, entity_id, model):
             expect(response[0], 200, "Одиночное чтение материала Calculate")
             body = json.loads(response[2].decode(), parse_float=Decimal)
-            equal(set(body), {"id", "kvM", "perimetrM"}, "Ровно три поля одиночного ответа Calculate")
+            equal(set(body), {"id", "kvM", "perimetrM", "width", "height"}, "Ровно пять полей одиночного ответа Calculate")
             assert type(body["id"]) is int, "Id одиночного материала — число integer"
             equal(body["id"], entity_id, "Id одиночного материала")
+            for name in ("width", "height"):
+                assert type(body[name]) is int, "Размер плиты передан целым числом: " + name
+                equal(body[name], sheet_size_rows[model["sheetSizeId"]][name], "Размер плиты в мм: " + name)
             for name in ("kvM", "perimetrM"):
                 assert type(body[name]) in (int, Decimal), "Измерение передано числом: " + name
                 equal(Decimal(body[name]), Decimal(str(model[name])), "Точное значение " + name)
@@ -1289,7 +1294,7 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
         expect(admin_before_response[0], 200, "Карточка материала до ролевых чтений")
         admin_before = json_body(admin_before_response)
         guest_material = check_material(request("GET", material_path), material_id, models[0])
-        mark("CALC-11", "OpenAPI и ответ одиночного GET: только обязательный route Id и три поля id/kvM/perimetrM с единицами")
+        mark("CALC-11", "OpenAPI и ответ одиночного GET: только обязательный route Id и пять полей id/kvM/perimetrM/width/height с единицами")
         for role, auth_cookie in (("пользователь", user_cookie), ("тестер", cookie),
                                   ("менеджер", manager_cookie), ("администратор", admin_cookie)):
             assert auth_cookie, "Получена cookie роли: " + role
