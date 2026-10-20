@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Catalog.Api;
+using Catalog.Api.Extensions;
 using Catalog.Api.Services.History;
 using Catalog.Database;
 using Core.AccountAuth;
@@ -70,9 +71,11 @@ builder.Services
     });
 
 builder.Services.AddMemoryCache();
+builder.Services.AddCompactMaterialsResponseCompression();
 
 var app = builder.Build();
 await app.DataProtectionInit();
+app.UseCompactMaterialsResponseCompression();
 app.UseMiddleware<RequestResponseLoggerMiddleware>();
 app.MapOpenApi(ApiDocExtensions.OpenApiFilePath);
 app.UseDocUi(app.Configuration);

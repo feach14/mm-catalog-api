@@ -9,7 +9,22 @@ namespace Catalog.Api.Features.Materials.ForAdmin;
 public sealed record GetAllMaterialsForAdminQuery : IQuery<GetAllMaterialsForAdminQueryResult>;
 
 public sealed record GetAllMaterialsForAdminQueryResult(
-    [property: Description("Список материалов")] GetMaterialsQueryForAdminItemResult[] Items);
+    [property: Description("Список материалов")] GetMaterialsQueryForAdminItemResult[] Items,
+    [property: Description("Справочники для фильтров и редактора")] MaterialsForAdminFiltersDto Filters);
+
+public sealed record MaterialsForAdminFiltersDto(
+    [property: Description("Категории")] PropertyDto[] Categories,
+    [property: Description("Производители")] PropertyDto[] Manufacturers,
+    [property: Description("Типы материалов")] PropertyDto[] MaterialTypes,
+    [property: Description("Толщины")] PropertyDto[] Thicknesses,
+    [property: Description("Форматы плит")] MaterialsForAdminSheetSizeFilterDto[] SheetSizes);
+
+public sealed record MaterialsForAdminSheetSizeFilterDto(
+    [property: Description("Id")] int Id,
+    [property: Description("Название")] string Name,
+    [property: Description("Высота")] int Height,
+    [property: Description("Ширина")] int Width,
+    [property: Description("Показывать в фильтрах")] bool ShowInFilters);
 
 public sealed record GetMaterialsQueryForAdminItemResult(
     [property: Description("Id материала")] int Id,
@@ -58,6 +73,37 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
                 x.ApplicableToEnamelFacades))
             .ToArrayAsync(ct);
 
-        return new GetAllMaterialsForAdminQueryResult(materials);
+        var categories = await dbContext.MaterialCategories.AsNoTracking()
+            .OrderBy(x => x.OrderByCol)
+            .Select(x => new PropertyDto(x.Id, x.Name))
+            .ToArrayAsync(ct);
+
+        var manufacturers = await dbContext.MaterialManufacturers.AsNoTracking()
+            .OrderBy(x => x.OrderByCol)
+            .Select(x => new PropertyDto(x.Id, x.Name))
+            .ToArrayAsync(ct);
+
+        var materialTypes = await dbContext.MaterialTypes.AsNoTracking()
+            .OrderBy(x => x.OrderByCol)
+            .Select(x => new PropertyDto(x.Id, x.Name))
+            .ToArrayAsync(ct);
+
+        var thicknesses = await dbContext.MaterialThicknesses.AsNoTracking()
+            .OrderBy(x => x.Value)
+            .Select(x => new PropertyDto(x.Id, x.Name))
+            .ToArrayAsync(ct);
+
+        var sheetSizes = await dbContext.MaterialSheetSizes.AsNoTracking()
+            .OrderBy(x => x.OrderByCol)
+            .Select(x => new MaterialsForAdminSheetSizeFilterDto(
+                x.Id,
+                x.Name,
+                x.Height,
+                x.Width,
+                x.ShowInFilters))
+            .ToArrayAsync(ct);
+
+        return new GetAllMaterialsForAdminQueryResult(materials,
+            new MaterialsForAdminFiltersDto(categories, manufacturers, materialTypes, thicknesses, sheetSizes));
     }
 }

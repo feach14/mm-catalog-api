@@ -1,3 +1,5 @@
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using Catalog.Api.Features.Materials.ForAdmin;
 using Core.AccountAuth;
 using Core.Attributes;
@@ -24,6 +26,22 @@ public class MaterialsForAdminController : BaseApiController
     public Task<GetAllMaterialsForAdminQueryResult> Materials(
         [FromServices] IQueryHandler<GetAllMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult> handler) =>
         handler.Handle(new GetAllMaterialsForAdminQuery(), HttpContext.RequestAborted);
+
+    [HttpGet("compact"),
+     EndpointSummary(nameof(CompactMaterials)),
+     EndpointDescription("Компактный список материалов для административной панели"),
+     ProducesResponseType(typeof(GetCompactMaterialsForAdminQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Компактный список материалов")]
+    public async Task<JsonResult> CompactMaterials(
+        [FromServices] IQueryHandler<GetCompactMaterialsForAdminQuery, GetCompactMaterialsForAdminQueryResult> handler,
+        [FromServices] IOptions<JsonOptions> jsonOptions)
+    {
+        var result = await handler.Handle(new GetCompactMaterialsForAdminQuery(), HttpContext.RequestAborted);
+        return new JsonResult(result, new JsonSerializerOptions(jsonOptions.Value.JsonSerializerOptions)
+        {
+            WriteIndented = false,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        });
+    }
 
     [HttpGet("{id:int}"),
      EndpointSummary(nameof(Material)),

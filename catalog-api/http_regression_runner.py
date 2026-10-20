@@ -276,6 +276,32 @@ def admin_materials():
     return json_body(response)["items"]
 
 
+def run_compact_materials_scenario():
+    path = "/api/for-admin/materials/compact"
+    relations = {"s": "sheetSize", "m": "manufacturer", "t": "materialType",
+                 "th": "thickness", "c": "category"}
+    renamed_fields = {"i": "id", "n": "name", "a": "article", "q": "count", "p": "price",
+                      "o": "orderByCol", "h": "hideOnSite", "hp": "hidePriceOnSite",
+                      "cu": "applicableToCutting", "pv": "applicableToPvhFacades",
+                      "en": "applicableToEnamelFacades"}
+    ordinary_response = request("GET", "/api/for-admin/materials", auth=True)
+    compact_response = request("GET", path, auth=True)
+    expect(ordinary_response[0], 200, "Обычный административный список")
+    expect(compact_response[0], 200, "Компактный административный список")
+    ordinary = json_body(ordinary_response)
+    compact = json_body(compact_response)
+    equal(set(compact), {"items", "filters"}, "Обёртка компактной выдачи")
+    expected = [{
+        **{name: row[relation]["id"] for name, relation in relations.items()},
+        **{name: row[source] for name, source in renamed_fields.items()}
+    } for row in ordinary["items"]]
+    equal(compact["items"], expected, "Значения и порядок компактного списка совпадают с обычным")
+    equal(compact["filters"], ordinary["filters"], "Одинаковые справочники для фильтров")
+    outside_strings = re.sub(r'"(?:\\.|[^"\\])*"', '""', compact_response[2].decode())
+    assert not re.search(r"\s", outside_strings), "Компактный JSON не содержит форматирующих пробелов"
+    mark("MAT-03D", "Compact сохраняет значения, порядок и фильтры обычной выдачи; JSON не содержит форматирующих пробелов")
+
+
 def public_materials():
     response = request("GET", "/api/materials")
     expect(response[0], 200, "Полный публичный список материалов")
@@ -1412,7 +1438,7 @@ def run_visibility_scenarios(prefix, hidden_material_id, hidden_material_model,
 
 
 def run_openapi_metadata_scenarios(document):
-    """DOC-07/08: проверка готового документа без HTTP, авторизации и изменения БД."""
+    """DOC-07/08/09: проверка готового документа без HTTP, авторизации и изменения БД."""
     schemas = document["components"]["schemas"]
 
     def nodes(schema):
@@ -1468,9 +1494,9 @@ def run_openapi_metadata_scenarios(document):
                     assert "application/problem+json" in content, label + ": формат ошибки " + code
                     error_fields = properties(content["application/problem+json"]["schema"])
                     assert {"status", "title", "detail"}.issubset(error_fields), label + ": схема ProblemDetails " + code
-    equal(counts, {"protected": 39, "anonymous": 6, "image": 1}, "Количество операций по доступу и виду ответа")
+    equal(counts, {"protected": 40, "anonymous": 6, "image": 1}, "Количество операций по доступу и виду ответа")
     assert "If-Match" in document["paths"][image_path]["get"]["responses"]["412"]["description"], "Описание условия 412"
-    mark("DOC-07", "Статусы всех 46 операций соответствуют доступу; локальные ошибки имеют ProblemDetails, ответы авторизации и кеша — без тела")
+    mark("DOC-07", "Статусы всех 47 операций соответствуют доступу; локальные ошибки имеют ProblemDetails, ответы авторизации и кеша — без тела")
 
     upload = document["paths"]["/api/for-admin/materials/images"]["post"]
     body = upload["requestBody"]
@@ -1494,6 +1520,21 @@ def run_openapi_metadata_scenarios(document):
         assert any(node.get("type") == "string" for node in nodes(fields[name])), "Строковое поле " + name
     assert any(set(node.get("enum", [])) == expected_types for node in nodes(fields["imageType"])), "Назначение изображения в ответе"
     mark("DOC-08", "Multipart File/ImageType имеют русские описания; тело обязательно, ответ содержит четыре описанных обязательных поля")
+
+    compact = document["paths"]["/api/for-admin/materials/compact"]["get"]
+    equal(compact.get("parameters", []), [], "Компактный список не принимает query-параметров")
+    compact_result = compact["responses"]["200"]["content"]["application/json"]["schema"]
+    assert "#/components/schemas/GetCompactMaterialsForAdminQueryResult" in json.dumps(compact_result)
+    equal(set(properties(compact_result)), {"items", "filters"}, "Обёртка компактной выдачи в OpenAPI")
+    compact_item = schemas["GetCompactMaterialsForAdminQueryItem"]
+    compact_fields = {
+        "i", "n", "a", "s", "m", "t", "th", "c", "q", "o", "p", "h", "hp", "cu", "pv", "en"
+    }
+    equal(set(properties(compact_item)), compact_fields, "Ровно 16 полей компактного материала в OpenAPI")
+    equal(required(compact_item), compact_fields, "Обязательные поля компактного материала в OpenAPI")
+    equal(properties(compact_item)["i"]["description"], "Id", "Описание идентификатора компактного материала")
+    assert all(russian_description(field) for name, field in properties(compact_item).items() if name != "i"), "Русские описания компактных полей"
+    mark("DOC-09", "Отдельный compact endpoint описывает 16 обязательных полей материала и обёртку items/filters без query-параметров")
 
 
 def main():
@@ -1847,6 +1888,7 @@ def main():
     admin_ids = {x["id"] for x in admin_materials()}
     if not {m1, m2, m3}.issubset(admin_ids):
         raise AssertionError("created materials absent from admin list")
+    run_compact_materials_scenario()
     unfiltered_ids = {x["id"] for x in public_materials()}
     if not {m1, m2, m3}.issubset(unfiltered_ids):
         raise AssertionError("unfiltered public list omitted test materials")
