@@ -542,6 +542,55 @@ namespace Catalog.Database.Migrations
                     b.ToTable("material_categories", "catalog");
                 });
 
+            modelBuilder.Entity("Catalog.Database.Entities.MaterialEdgeLink", b =>
+                {
+                    b.Property<int>("MaterialId")
+                        .HasColumnType("integer")
+                        .HasColumnName("material_id");
+
+                    b.Property<int>("EdgeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("edge_id");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer")
+                        .HasColumnName("priority");
+
+                    b.HasKey("MaterialId", "EdgeId")
+                        .HasName("pk_material_edge_links");
+
+                    b.HasIndex("EdgeId")
+                        .HasDatabaseName("ix_material_edge_links_edge_id");
+
+                    b.HasIndex("MaterialId", "Priority")
+                        .HasDatabaseName("ix_material_edge_links_material_id_priority");
+
+                    b.ToTable("material_edge_links", "catalog");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.MaterialEdgeLinkMarking", b =>
+                {
+                    b.Property<int>("MaterialId")
+                        .HasColumnType("integer")
+                        .HasColumnName("material_id");
+
+                    b.Property<int>("EdgeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("edge_id");
+
+                    b.Property<int>("MarkingId")
+                        .HasColumnType("integer")
+                        .HasColumnName("marking_id");
+
+                    b.HasKey("MaterialId", "EdgeId", "MarkingId")
+                        .HasName("pk_material_edge_link_markings");
+
+                    b.HasIndex("MarkingId")
+                        .HasDatabaseName("ix_material_edge_link_markings_marking_id");
+
+                    b.ToTable("material_edge_link_markings", "catalog");
+                });
+
             modelBuilder.Entity("Catalog.Database.Entities.MaterialImage", b =>
                 {
                     b.Property<int>("Id")
@@ -732,6 +781,39 @@ namespace Catalog.Database.Migrations
                     b.ToTable("material_types", "catalog");
                 });
 
+            modelBuilder.Entity("Catalog.Database.Entities.RelationMarking", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("normalized_name")
+                        .HasComputedColumnSql("lower(btrim(name))", true);
+
+                    b.HasKey("Id")
+                        .HasName("pk_relation_markings");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("ix_relation_markings_normalized_name");
+
+                    b.ToTable("relation_markings", "catalog");
+                });
+
             modelBuilder.Entity("Catalog.Database.Entities.Edge", b =>
                 {
                     b.HasOne("Catalog.Database.Entities.EdgeManufacturer", "Manufacturer")
@@ -822,6 +904,48 @@ namespace Catalog.Database.Migrations
                     b.Navigation("MaterialType");
                 });
 
+            modelBuilder.Entity("Catalog.Database.Entities.MaterialEdgeLink", b =>
+                {
+                    b.HasOne("Catalog.Database.Entities.Edge", "Edge")
+                        .WithMany()
+                        .HasForeignKey("EdgeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_material_edge_links_edges_edge_id");
+
+                    b.HasOne("Catalog.Database.Entities.Material", "Material")
+                        .WithMany()
+                        .HasForeignKey("MaterialId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_material_edge_links_materials_material_id");
+
+                    b.Navigation("Edge");
+
+                    b.Navigation("Material");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.MaterialEdgeLinkMarking", b =>
+                {
+                    b.HasOne("Catalog.Database.Entities.RelationMarking", "Marking")
+                        .WithMany("Links")
+                        .HasForeignKey("MarkingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_material_edge_link_markings_relation_markings_marking_id");
+
+                    b.HasOne("Catalog.Database.Entities.MaterialEdgeLink", "Link")
+                        .WithMany("Markings")
+                        .HasForeignKey("MaterialId", "EdgeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_material_edge_link_markings_material_edge_links_material_id");
+
+                    b.Navigation("Link");
+
+                    b.Navigation("Marking");
+                });
+
             modelBuilder.Entity("Catalog.Database.Entities.MaterialImage", b =>
                 {
                     b.HasOne("Catalog.Database.Entities.Material", "Material")
@@ -864,6 +988,11 @@ namespace Catalog.Database.Migrations
                     b.Navigation("Materials");
                 });
 
+            modelBuilder.Entity("Catalog.Database.Entities.MaterialEdgeLink", b =>
+                {
+                    b.Navigation("Markings");
+                });
+
             modelBuilder.Entity("Catalog.Database.Entities.MaterialManufacturer", b =>
                 {
                     b.Navigation("Materials");
@@ -882,6 +1011,11 @@ namespace Catalog.Database.Migrations
             modelBuilder.Entity("Catalog.Database.Entities.MaterialType", b =>
                 {
                     b.Navigation("Materials");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.RelationMarking", b =>
+                {
+                    b.Navigation("Links");
                 });
 #pragma warning restore 612, 618
         }

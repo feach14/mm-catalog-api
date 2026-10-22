@@ -32,5 +32,8 @@ public class CatalogDbContext(DbContextOptions<CatalogDbContext> _options) : DbC
     public DbSet<EdgeSaleUnit> EdgeSaleUnits { get; init; }
     public DbSet<EdgeImage> EdgeImages { get; init; }
     public DbSet<EdgeImageCache> EdgeImageCache { get; init; }
+    public DbSet<RelationMarking> RelationMarkings { get; init; }
+    public DbSet<MaterialEdgeLink> MaterialEdgeLinks { get; init; }
+    public DbSet<MaterialEdgeLinkMarking> MaterialEdgeLinkMarkings { get; init; }
     public DbSet<CatalogChangeHistory> ChangeHistory { get; init; }
 }
