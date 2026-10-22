@@ -1,21 +1,14 @@
 using Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
 using Catalog.Api.Features.MaterialSheetSizes.ForAdmin.Dto;
-using Core.AccountAuth;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
-using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Catalog.Api.Controllers.Materials;
 
 [Route("api/for-admin/materials/sheet-sizes"),
- OpenApiTagOrder(6),
- Authorize(
-    AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
-    Roles = AuthConstants.AdministrationRoles),
- ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
- ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав тестера, менеджера или администратора")]
-public sealed class MaterialSheetSizesForAdminController : BaseApiController
+ OpenApiTagOrder(6)]
+public sealed class MaterialSheetSizesForAdminController : BaseAdministrationApiController
 {
     [HttpGet,
      EndpointSummary(nameof(MaterialSheetSizes)),

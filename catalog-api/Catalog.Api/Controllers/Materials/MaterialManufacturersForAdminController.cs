@@ -1,21 +1,14 @@
 using Catalog.Api.Features.Manufacturers.Dto;
 using Catalog.Api.Features.Manufacturers.ForAdmin;
-using Core.AccountAuth;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
-using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Catalog.Api.Controllers.Materials;
 
 [Route("api/for-admin/materials/manufacturers"),
- OpenApiTagOrder(5),
- Authorize(
-    AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
-    Roles = AuthConstants.AdministrationRoles),
- ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
- ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав тестера, менеджера или администратора")]
-public sealed class MaterialManufacturersForAdminController : BaseApiController
+ OpenApiTagOrder(5)]
+public sealed class MaterialManufacturersForAdminController : BaseAdministrationApiController
 {
     [HttpGet,
      EndpointSummary(nameof(Manufacturers)),

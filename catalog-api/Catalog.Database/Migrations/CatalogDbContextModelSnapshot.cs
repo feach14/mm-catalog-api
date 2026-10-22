@@ -18,7 +18,7 @@ namespace Catalog.Database.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("catalog")
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -79,6 +79,270 @@ namespace Catalog.Database.Migrations
                         .HasDatabaseName("ix_change_history_entity_type_entity_id");
 
                     b.ToTable("change_history", "catalog");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.Edge", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Article")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("article");
+
+                    b.Property<bool>("IsStockItem")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_stock_item");
+
+                    b.Property<int>("ManufacturerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("manufacturer_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("SaleUnitId")
+                        .HasColumnType("integer")
+                        .HasColumnName("sale_unit_id");
+
+                    b.Property<decimal?>("StockQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("numeric(18,3)")
+                        .HasColumnName("stock_quantity");
+
+                    b.Property<int>("ThicknessId")
+                        .HasColumnType("integer")
+                        .HasColumnName("thickness_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_edges");
+
+                    b.HasIndex("ManufacturerId")
+                        .HasDatabaseName("ix_edges_manufacturer_id");
+
+                    b.HasIndex("SaleUnitId")
+                        .HasDatabaseName("ix_edges_sale_unit_id");
+
+                    b.HasIndex("ThicknessId")
+                        .HasDatabaseName("ix_edges_thickness_id");
+
+                    b.ToTable("edges", "catalog");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.EdgeImage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("data");
+
+                    b.Property<int>("EdgeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("edge_id");
+
+                    b.Property<Guid>("Guid")
+                        .HasColumnType("uuid")
+                        .HasColumnName("guid");
+
+                    b.Property<string>("ImageType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("image_type");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_edge_images");
+
+                    b.HasIndex("Guid")
+                        .IsUnique()
+                        .HasDatabaseName("ix_edge_images_guid");
+
+                    b.HasIndex("EdgeId", "ImageType")
+                        .IsUnique()
+                        .HasDatabaseName("ix_edge_images_edge_id_image_type");
+
+                    b.ToTable("edge_images", "catalog");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.EdgeImageCache", b =>
+                {
+                    b.Property<Guid>("Guid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("guid");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("data");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("ImageType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("image_type");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Guid")
+                        .HasName("pk_edge_image_cache");
+
+                    b.ToTable("edge_image_cache", "catalog");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.EdgeManufacturer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("normalized_name")
+                        .HasComputedColumnSql("lower(btrim(name))", true);
+
+                    b.HasKey("Id")
+                        .HasName("pk_edge_manufacturers");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("ix_edge_manufacturers_normalized_name");
+
+                    b.ToTable("edge_manufacturers", "catalog");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.EdgeSaleUnit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Length")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("numeric(18,3)")
+                        .HasColumnName("length");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("normalized_name")
+                        .HasComputedColumnSql("lower(btrim(name))", true);
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_edge_sale_units");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("ix_edge_sale_units_normalized_name");
+
+                    b.HasIndex("Type", "Length")
+                        .IsUnique()
+                        .HasDatabaseName("ix_edge_sale_units_type_length");
+
+                    b.ToTable("edge_sale_units", "catalog");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.EdgeThickness", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("normalized_name")
+                        .HasComputedColumnSql("lower(btrim(name))", true);
+
+                    b.Property<decimal>("Value")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("numeric(18,3)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id")
+                        .HasName("pk_edge_thicknesses");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("ix_edge_thicknesses_normalized_name");
+
+                    b.HasIndex("Value")
+                        .IsUnique()
+                        .HasDatabaseName("ix_edge_thicknesses_value");
+
+                    b.ToTable("edge_thicknesses", "catalog");
                 });
 
             modelBuilder.Entity("Catalog.Database.Entities.ImageCache", b =>
@@ -468,6 +732,48 @@ namespace Catalog.Database.Migrations
                     b.ToTable("material_types", "catalog");
                 });
 
+            modelBuilder.Entity("Catalog.Database.Entities.Edge", b =>
+                {
+                    b.HasOne("Catalog.Database.Entities.EdgeManufacturer", "Manufacturer")
+                        .WithMany("Edges")
+                        .HasForeignKey("ManufacturerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_edges_edge_manufacturers_manufacturer_id");
+
+                    b.HasOne("Catalog.Database.Entities.EdgeSaleUnit", "SaleUnit")
+                        .WithMany("Edges")
+                        .HasForeignKey("SaleUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_edges_edge_sale_units_sale_unit_id");
+
+                    b.HasOne("Catalog.Database.Entities.EdgeThickness", "Thickness")
+                        .WithMany("Edges")
+                        .HasForeignKey("ThicknessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_edges_edge_thicknesses_thickness_id");
+
+                    b.Navigation("Manufacturer");
+
+                    b.Navigation("SaleUnit");
+
+                    b.Navigation("Thickness");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.EdgeImage", b =>
+                {
+                    b.HasOne("Catalog.Database.Entities.Edge", "Edge")
+                        .WithMany("Images")
+                        .HasForeignKey("EdgeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_edge_images_edges_edge_id");
+
+                    b.Navigation("Edge");
+                });
+
             modelBuilder.Entity("Catalog.Database.Entities.Material", b =>
                 {
                     b.HasOne("Catalog.Database.Entities.MaterialCategory", "Category")
@@ -526,6 +832,26 @@ namespace Catalog.Database.Migrations
                         .HasConstraintName("fk_material_images_materials_material_id");
 
                     b.Navigation("Material");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.Edge", b =>
+                {
+                    b.Navigation("Images");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.EdgeManufacturer", b =>
+                {
+                    b.Navigation("Edges");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.EdgeSaleUnit", b =>
+                {
+                    b.Navigation("Edges");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.EdgeThickness", b =>
+                {
+                    b.Navigation("Edges");
                 });
 
             modelBuilder.Entity("Catalog.Database.Entities.Material", b =>

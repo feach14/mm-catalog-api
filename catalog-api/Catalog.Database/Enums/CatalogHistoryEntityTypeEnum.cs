@@ -7,5 +7,9 @@ public enum CatalogHistoryEntityTypeEnum
     Manufacturer,
     SheetSize,
     Thickness,
-    MaterialType
+    MaterialType,
+    Edge,
+    EdgeManufacturer,
+    EdgeThickness,
+    EdgeSaleUnit
 }

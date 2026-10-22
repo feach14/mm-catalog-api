@@ -1,23 +1,16 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Catalog.Api.Features.Materials.ForAdmin;
-using Core.AccountAuth;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
 using Core.RequestResponseLogger;
-using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Catalog.Api.Controllers.Materials;
 
 [Route("api/for-admin/materials"),
- OpenApiTagOrder(2),
- Authorize(
-    AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
-    Roles = AuthConstants.AdministrationRoles),
- ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
- ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав тестера, менеджера или администратора")]
-public class MaterialsForAdminController : BaseApiController
+ OpenApiTagOrder(2)]
+public class MaterialsForAdminController : BaseAdministrationApiController
 {
     [HttpGet,
      EndpointSummary(nameof(Materials)),

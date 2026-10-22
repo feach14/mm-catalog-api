@@ -3,18 +3,12 @@ using Core.AccountAuth;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
-using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Catalog.Api.Controllers;
 
 [Route("api/for-admin/catalog/history"),
- OpenApiTagOrder(10),
- Authorize(
-    AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
-    Roles = AuthConstants.AdministrationRoles),
- ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
- ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав тестера, менеджера или администратора")]
-public sealed class CatalogHistoryForAdminController : BaseApiController
+ OpenApiTagOrder(10)]
+public sealed class CatalogHistoryForAdminController : BaseAdministrationApiController
 {
     [HttpGet,
      EndpointSummary(nameof(History)),

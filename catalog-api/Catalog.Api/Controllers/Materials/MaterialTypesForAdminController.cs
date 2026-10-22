@@ -1,21 +1,14 @@
 using Catalog.Api.Features.MaterialTypes.ForAdmin;
 using Catalog.Api.Features.MaterialTypes.ForAdmin.Dto;
-using Core.AccountAuth;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
-using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Catalog.Api.Controllers.Materials;
 
 [Route("api/for-admin/materials/material-types"),
- OpenApiTagOrder(9),
- Authorize(
-    AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
-    Roles = AuthConstants.AdministrationRoles),
- ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
- ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав тестера, менеджера или администратора")]
-public sealed class MaterialTypesForAdminController : BaseApiController
+ OpenApiTagOrder(9)]
+public sealed class MaterialTypesForAdminController : BaseAdministrationApiController
 {
     [HttpGet,
      EndpointSummary(nameof(MaterialTypes)),
