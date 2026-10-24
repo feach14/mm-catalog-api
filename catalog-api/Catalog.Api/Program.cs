@@ -20,6 +20,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new StrictStringEnumConverter()));
 var appSettingsConfig = builder.Configuration.Get<AppSettingsConfig>()
                         ?? throw new InvalidOperationException($"Missing {nameof(AppSettingsConfig)}");
+var apiDocEnabled = builder.Configuration.GetValue<bool>("ApiDoc:Enabled");
 
 builder.Services
     .AddHttpContextAccessor()
@@ -39,7 +40,10 @@ builder.Services
     })
     .AddDbContextPool<DataProtectionKeyDbContext>(opt =>
     {
-        opt.UseNpgsql(appSettingsConfig.DataProtectionDbConnString);
+        if (appSettingsConfig.Authentication.Provider == AuthenticationProviderEnum.Vek)
+            opt.UseSqlServer(appSettingsConfig.DataProtectionDbConnString);
+        else
+            opt.UseNpgsql(appSettingsConfig.DataProtectionDbConnString);
         opt.UseSnakeCaseNamingConvention();
     })
     .AddLogging(loggingBuilder =>
@@ -48,7 +52,6 @@ builder.Services
         if (builder.Environment.IsDevelopment())
             loggingBuilder.AddSimpleConsole(options => options.IncludeScopes = true);
     })
-    .AddOpenApiFromConfig<Program>(builder.Configuration)
     .AddDomainNameCorsPolicy(appSettingsConfig.Cors.DomainName)
     .AddControllers()
     .AddJsonOptions(options =>
@@ -73,12 +76,18 @@ builder.Services
 builder.Services.AddMemoryCache();
 builder.Services.AddCompactMaterialsResponseCompression();
 
+if (apiDocEnabled)
+    builder.Services.AddOpenApiFromConfig<Program>(builder.Configuration);
+
 var app = builder.Build();
 await app.DataProtectionInit();
 app.UseCompactMaterialsResponseCompression();
 app.UseMiddleware<RequestResponseLoggerMiddleware>();
-app.MapOpenApi(ApiDocExtensions.OpenApiFilePath);
-app.UseDocUi(app.Configuration);
+if (apiDocEnabled)
+{
+    app.MapOpenApi(ApiDocExtensions.OpenApiFilePath);
+    app.UseDocUi(app.Configuration);
+}
 
 if (app.Environment.IsProduction())
     app.UseHttpsRedirection();

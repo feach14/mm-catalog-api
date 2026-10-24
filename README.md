@@ -12,6 +12,10 @@ CRUD кромок и справочников производителей, то
 
 Catalog API использует общий development-сертификат из Core. Установка и проверка описаны в [core/DevelopmentCertificates/README.md](core/DevelopmentCertificates/README.md).
 
+## Документация API
+
+`ApiDoc:Enabled` включает OpenAPI, Scalar и Swagger UI. В `appsettings.json` документация выключена, в `appsettings.Development.json` включена. Если флаг отсутствует, документация недоступна. Для включения в другом окружении задайте `ApiDoc__Enabled=true` и перезапустите API.
+
 ## Подключения к БД и общая авторизация
 
 `DbConnString` задаёт подключение к данным Catalog API. `DataProtectionDbConnString` задаёт отдельное подключение к общему хранилищу ключей Data Protection, которыми защищаются cookie авторизации; сами cookie в этой БД не хранятся. Строки подключения независимы: хост, база, пользователь и остальные параметры могут различаться.
@@ -19,6 +23,28 @@ Catalog API использует общий development-сертификат и�
 Для общей авторизации с Accounts API должны совпадать хранилище ключей, имя приложения Data Protection (`Cookie.CookieName(Cookie.DomainName)`), имя cookie и её домен. `DataProtectionDbConnString` должен указывать на хранилище Accounts API, выдавшего cookie.
 
 Оба подключения задаются в `appsettings.json` и `appsettings.Development.json` либо одноимёнными переменными окружения. После изменения строк подключения перезапустите API; перекомпиляция не требуется.
+
+`Authentication:Provider` выбирает только провайдер БД ключей: `Accounts` — прежний PostgreSQL по умолчанию, `Vek` — MS SQL ВЕК. Cookie-авторизация и существующие проверки ролей остаются общими. ВЕК выпускает совместимую cookie; PostgreSQL с данными каталога остаётся отдельным подключением.
+
+Catalog API использует `Microsoft.Data.SqlClient 7.1.1` без необязательного пакета Azure-аутентификации. `SatelliteResourceLanguages=en` исключает языковые сборки зависимостей из build/publish; русские сообщения самого API сохраняются. Публикацию выполняйте в чистую папку, чтобы в ней не оставались файлы предыдущих зависимостей.
+
+## Публикация Main и Vek
+
+Два профиля публикации в папку можно выбрать в IDE или запустить из корня репозитория:
+
+```bash
+dotnet publish catalog-api/Catalog.Api/Catalog.Api.csproj -c Release --no-restore -p:PublishProfile=Main
+dotnet publish catalog-api/Catalog.Api/Catalog.Api.csproj -c Release --no-restore -p:PublishProfile=Vek
+```
+
+| Профиль | Папка результата | Источник опубликованного `appsettings.json` |
+| --- | --- | --- |
+| [Main](catalog-api/Catalog.Api/Properties/PublishProfiles/Main.pubxml) | `catalog-api/Catalog.Api/bin/Publish/Main/` | `appsettings.json` |
+| [Vek](catalog-api/Catalog.Api/Properties/PublishProfiles/Vek.pubxml) | `catalog-api/Catalog.Api/bin/Publish/Vek/` | `appsettings.Vek.json` |
+
+В папке `Vek` опубликованный `appsettings.json` содержит точную копию `appsettings.Vek.json`. Это полный конфиг, а не дополнение к основному. Редактируйте настройки ВЕК в этом JSON и повторяйте команду.
+
+Окружение приложения остаётся `Production` по умолчанию; задавать `ASPNETCORE_ENVIRONMENT=Vek` не требуется. Исходные JSON и конфигурация локальной сборки не меняются. Обычный publish без профиля использует основной `appsettings.json`; `appsettings.Development.json` и отдельный `appsettings.Vek.json` не публикуются. При повторной публикации основной файл настроек перезаписывается выбранным вариантом.
 
 ## Диагностика локальной разработки
 
