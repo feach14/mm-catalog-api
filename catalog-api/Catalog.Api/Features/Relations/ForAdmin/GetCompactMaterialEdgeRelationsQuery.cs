@@ -24,9 +24,9 @@ public sealed class GetCompactMaterialEdgeRelationsQueryHandler(CatalogDbContext
                 link.Markings.OrderBy(marking => marking.MarkingId).Select(marking => marking.MarkingId).ToArray()))
             .ToArrayAsync(ct);
         var markings = await dbContext.RelationMarkings.AsNoTracking()
-            .OrderBy(marking => marking.Name)
+            .OrderBy(marking => marking.OrderByCol)
             .ThenBy(marking => marking.Id)
-            .Select(marking => new RelationMarkingOptionDto(marking.Id, marking.Name))
+            .Select(marking => new RelationMarkingOptionDto(marking.Id, marking.Name, marking.OrderByCol))
             .ToArrayAsync(ct);
 
         return new GetCompactMaterialEdgeRelationsQueryResult(items, new MaterialEdgeRelationFiltersDto(markings));

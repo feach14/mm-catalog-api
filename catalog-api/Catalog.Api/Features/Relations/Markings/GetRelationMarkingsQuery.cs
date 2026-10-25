@@ -17,12 +17,13 @@ public sealed class GetRelationMarkingsQueryHandler(CatalogDbContext dbContext)
     {
         RelationMarkingDto[] items = await dbContext.RelationMarkings
             .AsNoTracking()
-            .OrderBy(x => x.Name)
+            .OrderBy(x => x.OrderByCol)
             .ThenBy(x => x.Id)
             .Select(x => new RelationMarkingDto(
                 x.Id,
                 x.Name,
-                x.Links.Count()))
+                x.Links.Count(),
+                x.OrderByCol))
             .ToArrayAsync(ct);
         return new GetRelationMarkingsQueryResult(items);
     }

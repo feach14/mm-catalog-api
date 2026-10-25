@@ -36,6 +36,15 @@ public sealed class RelationMarkingsForAdminController : BaseAdministrationApiCo
         [FromServices] ICommandHandler<CreateRelationMarkingCommand, CreateRelationMarkingCommandResult> handler) =>
         handler.Handle(new CreateRelationMarkingCommand(model), HttpContext.RequestAborted);
 
+    [HttpPost("change-order-col"),
+     EndpointSummary(nameof(ChangeSortingRelationMarking)),
+     EndpointDescription("Перемещение маркировки"),
+     ProducesResponseType(typeof(ChangeSortingRelationMarkingCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
+    public Task<ChangeSortingRelationMarkingCommandResult> ChangeSortingRelationMarking(
+        [FromBody, Description("Параметры перемещения")] ChangeSortingRelationMarkingCommand command,
+        [FromServices] ICommandHandler<ChangeSortingRelationMarkingCommand, ChangeSortingRelationMarkingCommandResult> handler) =>
+        handler.Handle(command, HttpContext.RequestAborted);
+
     [HttpPut("{id:int}"),
      EndpointSummary(nameof(UpdateRelationMarking)),
      EndpointDescription("Обновление маркировки"),

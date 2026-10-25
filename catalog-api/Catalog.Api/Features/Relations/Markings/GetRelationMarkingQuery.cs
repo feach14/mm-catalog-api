@@ -16,7 +16,8 @@ public sealed class GetRelationMarkingQueryHandler(CatalogDbContext dbContext)
             .Select(x => new RelationMarkingDto(
                 x.Id,
                 x.Name,
-                x.Links.Count()))
+                x.Links.Count(),
+                x.OrderByCol))
             .SingleOrDefaultAsync(ct)
         ?? throw new BadHttpRequestException("Маркировка не найдена.");
 }

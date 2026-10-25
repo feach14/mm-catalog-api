@@ -4,4 +4,5 @@ namespace Catalog.Api.Features.Relations.Markings.Dto;
 public sealed record RelationMarkingDto(
     [property: Description("Id")] int Id,
     [property: Description("Название")] string Name,
-    [property: Description("Количество связей")] int Count);
+    [property: Description("Количество связей")] int Count,
+    [property: Description("Порядок сортировки")] int OrderByCol);

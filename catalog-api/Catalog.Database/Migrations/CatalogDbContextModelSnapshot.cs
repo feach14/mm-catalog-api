@@ -813,12 +813,21 @@ namespace Catalog.Database.Migrations
                         .HasColumnName("normalized_name")
                         .HasComputedColumnSql("lower(btrim(name))", true);
 
+                    b.Property<int>("OrderByCol")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("order_by_col");
+
                     b.HasKey("Id")
                         .HasName("pk_relation_markings");
 
                     b.HasIndex("NormalizedName")
                         .IsUnique()
                         .HasDatabaseName("ix_relation_markings_normalized_name");
+
+                    b.HasIndex("OrderByCol", "Id")
+                        .HasDatabaseName("ix_relation_markings_order_by_col_id");
 
                     b.ToTable("relation_markings", "catalog");
                 });
