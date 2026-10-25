@@ -1,3 +1,4 @@
+using Catalog.Api.Infrastructure.Ordering;
 using Catalog.Database;
 using Core.BaseEnums;
 using Core.CQRS;
@@ -11,9 +12,11 @@ public record ChangeSortingMaterialCommand(
 
 public sealed class ChangeSortingMaterialCommandValidator : AbstractValidator<ChangeSortingMaterialCommand>
 {
-    public ChangeSortingMaterialCommandValidator()
+    public ChangeSortingMaterialCommandValidator(CatalogDbContext dbContext)
     {
-        RuleFor(x => x.Id).GreaterThan(0).WithMessage("Id материала должен быть больше нуля");
+        RuleFor(x => x.Id).Cascade(CascadeMode.Stop)
+            .GreaterThan(0).WithMessage("Id материала должен быть больше нуля")
+            .MustAsync(async (id, ct) => await dbContext.Materials.AsNoTracking().AnyAsync(x => x.Id == id, ct)).WithMessage("Указанный материал не найден.");
         RuleFor(x => x.Direction).IsInEnum().WithMessage("Указано недопустимое направление сортировки");
     }
 }
@@ -25,45 +28,39 @@ public class ChangeSortingMaterialCommandHandler(CatalogDbContext dbContext) : I
 {
     public async Task<ChangeSortingMaterialCommandResult> Handle(ChangeSortingMaterialCommand command, CancellationToken ct)
     {
-        var materialEntity = await dbContext.Materials
-            .Include(x => x.Category)
-            .FirstOrDefaultAsync(x => x.Id == command.Id, ct)
-            ?? throw new BadHttpRequestException($"Материал с id={command.Id} не найден.");
-
-        var materials = await dbContext.Materials
-            .Where(x => x.CategoryId == materialEntity.CategoryId)
-            .OrderBy(x => x.OrderByCol)
-            .ToArrayAsync(ct);
-
-        var materialIndex = Array.FindIndex(materials, x => x.Id == command.Id);
-        if (materialIndex < 0)
-            throw new BadHttpRequestException($"Материал с id={command.Id} не найден.");
-
-        var adjacentMaterialIndex = command.Direction switch
+        return await CatalogOrderTransaction.Run(dbContext, async () =>
         {
-            DirectionSortEnum.UP when materialIndex == 0 => throw new BadHttpRequestException($"Первый элемент списка в коллекции '{materialEntity.Category.Name}'. Выше некуда."),
-            DirectionSortEnum.DOWN when materialIndex == materials.Length - 1 => throw new BadHttpRequestException($"Последний элемент списка в коллекции '{materialEntity.Category.Name}'. Ниже некуда."),
-            DirectionSortEnum.UP => materialIndex - 1,
-            DirectionSortEnum.DOWN => materialIndex + 1,
-            _ => throw new BadHttpRequestException("Недопустимое направление сортировки.")
-        };
+            var materials = await dbContext.Materials.OrderBy(x => x.OrderByCol).ThenBy(x => x.Id).ToArrayAsync(ct);
+            var material = materials.Single(x => x.Id == command.Id);
+            var materialIndex = Array.FindIndex(materials, x => x.Id == material.Id);
 
-        var material = materials[materialIndex];
-        var adjacentMaterial = materials[adjacentMaterialIndex];
-        var materialOrderByCol = material.OrderByCol;
-        var adjacentMaterialOrderByCol = adjacentMaterial.OrderByCol;
+            var adjacentMaterialIndex = command.Direction switch
+            {
+                DirectionSortEnum.UP when materialIndex == 0 => throw new BadHttpRequestException("Первый материал в списке. Выше некуда."),
+                DirectionSortEnum.DOWN when materialIndex == materials.Length - 1 => throw new BadHttpRequestException("Последний материал в списке. Ниже некуда."),
+                DirectionSortEnum.UP => materialIndex - 1,
+                DirectionSortEnum.DOWN => materialIndex + 1,
+                _ => throw new BadHttpRequestException("Недопустимое направление сортировки.")
+            };
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+            var adjacentMaterial = materials[adjacentMaterialIndex];
+            var materialOrderByCol = material.OrderByCol;
+            var adjacentMaterialOrderByCol = adjacentMaterial.OrderByCol;
 
-        material.OrderByCol = int.MinValue + material.Id;
-        await dbContext.SaveChangesAsync(ct);
+            var usedPositions = materials.Select(x => x.OrderByCol).ToHashSet();
+            var temporaryPosition = 0;
+            while (usedPositions.Contains(temporaryPosition))
+                temporaryPosition--;
+            material.OrderByCol = temporaryPosition;
+            await dbContext.SaveChangesAsync(ct);
 
-        adjacentMaterial.OrderByCol = materialOrderByCol;
-        material.OrderByCol = adjacentMaterialOrderByCol;
-        await dbContext.SaveChangesAsync(ct);
+            adjacentMaterial.OrderByCol = materialOrderByCol;
+            await dbContext.SaveChangesAsync(ct);
 
-        await transaction.CommitAsync(ct);
+            material.OrderByCol = adjacentMaterialOrderByCol;
+            await dbContext.SaveChangesAsync(ct);
 
-        return new ChangeSortingMaterialCommandResult(true);
+            return new ChangeSortingMaterialCommandResult(true);
+        }, ct);
     }
 }

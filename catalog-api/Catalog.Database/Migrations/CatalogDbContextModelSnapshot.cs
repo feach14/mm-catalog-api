@@ -110,6 +110,12 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("character varying(250)")
                         .HasColumnName("name");
 
+                    b.Property<int>("OrderByCol")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("order_by_col");
+
                     b.Property<int>("SaleUnitId")
                         .HasColumnType("integer")
                         .HasColumnName("sale_unit_id");
@@ -134,6 +140,9 @@ namespace Catalog.Database.Migrations
 
                     b.HasIndex("ThicknessId")
                         .HasDatabaseName("ix_edges_thickness_id");
+
+                    b.HasIndex("OrderByCol", "Id")
+                        .HasDatabaseName("ix_edges_order_by_col_id");
 
                     b.ToTable("edges", "catalog");
                 });

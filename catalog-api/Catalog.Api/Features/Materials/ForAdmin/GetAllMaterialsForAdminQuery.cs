@@ -16,8 +16,13 @@ public sealed record MaterialsForAdminFiltersDto(
     [property: Description("Категории")] PropertyDto[] Categories,
     [property: Description("Производители")] PropertyDto[] Manufacturers,
     [property: Description("Типы материалов")] PropertyDto[] MaterialTypes,
-    [property: Description("Толщины")] PropertyDto[] Thicknesses,
+    [property: Description("Толщины")] MaterialsForAdminThicknessFilterDto[] Thicknesses,
     [property: Description("Форматы плит")] MaterialsForAdminSheetSizeFilterDto[] SheetSizes);
+
+public sealed record MaterialsForAdminThicknessFilterDto(
+    [property: Description("Id")] int Id,
+    [property: Description("Название")] string Name,
+    [property: Description("Толщина в миллиметрах")] decimal Value);
 
 public sealed record MaterialsForAdminSheetSizeFilterDto(
     [property: Description("Id")] int Id,
@@ -51,8 +56,7 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
     public async Task<GetAllMaterialsForAdminQueryResult> Handle(GetAllMaterialsForAdminQuery query, CancellationToken ct)
     {
         var materials = await dbContext.Materials.AsNoTracking()
-            .OrderBy(x => x.Category.OrderByCol)
-            .ThenBy(x => x.OrderByCol)
+            .OrderBy(x => x.OrderByCol).ThenBy(x => x.Id)
             .Select(x => new GetMaterialsQueryForAdminItemResult(
                 x.Id,
                 x.Name,
@@ -90,7 +94,7 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
 
         var thicknesses = await dbContext.MaterialThicknesses.AsNoTracking()
             .OrderBy(x => x.Value)
-            .Select(x => new PropertyDto(x.Id, x.Name))
+            .Select(x => new MaterialsForAdminThicknessFilterDto(x.Id, x.Name, x.Value))
             .ToArrayAsync(ct);
 
         var sheetSizes = await dbContext.MaterialSheetSizes.AsNoTracking()

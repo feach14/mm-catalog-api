@@ -1,6 +1,8 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using Catalog.Api.Features.Exports.Dto;
 using Catalog.Api.Features.Materials.ForAdmin;
+using Catalog.Api.Infrastructure.Excel;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
@@ -12,6 +14,28 @@ namespace Catalog.Api.Controllers.Materials;
  OpenApiTagOrder(2)]
 public class MaterialsForAdminController : BaseAdministrationApiController
 {
+    [HttpGet("export/columns"),
+     EndpointSummary(nameof(ExportColumns)),
+     EndpointDescription("Поля выгрузки материалов в Excel"),
+     ProducesResponseType(typeof(ExcelExportColumnsResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Поля выгрузки")]
+    public Task<ExcelExportColumnsResult> ExportColumns(
+        [FromServices] IQueryHandler<GetMaterialExportColumnsQuery, ExcelExportColumnsResult> handler) =>
+        handler.Handle(new GetMaterialExportColumnsQuery(), HttpContext.RequestAborted);
+
+    [HttpPost("export"),
+     SkipResponseBodyLogging,
+     EndpointSummary(nameof(Export)),
+     EndpointDescription("Выгрузка материалов в Excel"),
+     ProducesResponseType(typeof(byte[]), StatusCodes.Status200OK, ExcelExportFile.ContentType, Description = "Файл Excel")]
+    public async Task<IActionResult> Export(
+        [FromBody, Description("Параметры выгрузки")] ExportMaterialsForAdminQuery query,
+        [FromServices] IQueryHandler<ExportMaterialsForAdminQuery, ExcelExportFile> handler)
+    {
+        var result = await handler.Handle(query, HttpContext.RequestAborted);
+        Response.Headers.CacheControl = "no-store";
+        return File(result.Content, ExcelExportFile.ContentType, result.FileName);
+    }
+
     [HttpGet,
      EndpointSummary(nameof(Materials)),
      EndpointDescription("Список материалов для административной панели"),
@@ -75,7 +99,7 @@ public class MaterialsForAdminController : BaseAdministrationApiController
 
     [HttpPost("change-order-col"),
      EndpointSummary(nameof(ChangeOrderCol)),
-     EndpointDescription("Изменение порядка сортировки материалов в категории"),
+     EndpointDescription("Изменение общего порядка материалов"),
      ProducesResponseType(typeof(ChangeSortingMaterialCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
     public Task<ChangeSortingMaterialCommandResult> ChangeOrderCol(
         [FromBody, Description("Параметры сортировки")] ChangeSortingMaterialCommand model,

@@ -1,6 +1,8 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Catalog.Api.Features.Edges.ForAdmin;
+using Catalog.Api.Features.Exports.Dto;
+using Catalog.Api.Infrastructure.Excel;
 using Core.Attributes;
 using Core.Controllers;
 using Core.CQRS;
@@ -12,6 +14,37 @@ namespace Catalog.Api.Controllers.Edges;
  OpenApiTagOrder(11)]
 public sealed class EdgesForAdminController : BaseAdministrationApiController
 {
+    [HttpPost("change-order-col"),
+     EndpointSummary(nameof(ChangeOrderCol)),
+     EndpointDescription("Изменение порядка кромок"),
+     ProducesResponseType(typeof(ChangeSortingEdgeCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
+    public Task<ChangeSortingEdgeCommandResult> ChangeOrderCol(
+        [FromBody, Description("Параметры сортировки")] ChangeSortingEdgeCommand command,
+        [FromServices] ICommandHandler<ChangeSortingEdgeCommand, ChangeSortingEdgeCommandResult> handler) =>
+        handler.Handle(command, HttpContext.RequestAborted);
+
+    [HttpGet("export/columns"),
+     EndpointSummary(nameof(ExportColumns)),
+     EndpointDescription("Поля выгрузки кромок в Excel"),
+     ProducesResponseType(typeof(ExcelExportColumnsResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Поля выгрузки")]
+    public Task<ExcelExportColumnsResult> ExportColumns(
+        [FromServices] IQueryHandler<GetEdgeExportColumnsQuery, ExcelExportColumnsResult> handler) =>
+        handler.Handle(new GetEdgeExportColumnsQuery(), HttpContext.RequestAborted);
+
+    [HttpPost("export"),
+     SkipResponseBodyLogging,
+     EndpointSummary(nameof(Export)),
+     EndpointDescription("Выгрузка кромок в Excel"),
+     ProducesResponseType(typeof(byte[]), StatusCodes.Status200OK, ExcelExportFile.ContentType, Description = "Файл Excel")]
+    public async Task<IActionResult> Export(
+        [FromBody, Description("Параметры выгрузки")] ExportEdgesForAdminQuery query,
+        [FromServices] IQueryHandler<ExportEdgesForAdminQuery, ExcelExportFile> handler)
+    {
+        var result = await handler.Handle(query, HttpContext.RequestAborted);
+        Response.Headers.CacheControl = "no-store";
+        return File(result.Content, ExcelExportFile.ContentType, result.FileName);
+    }
+
     [HttpGet("compact"),
      EndpointSummary(nameof(CompactEdges)),
      EndpointDescription("Список кромок для административной панели"),

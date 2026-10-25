@@ -77,7 +77,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddCompactMaterialsResponseCompression();
 
 if (apiDocEnabled)
-    builder.Services.AddOpenApiFromConfig<Program>(builder.Configuration);
+    builder.Services.AddOpenApiFromConfig<Program>(builder.Configuration).AddExcelExportOpenApi();
 
 var app = builder.Build();
 await app.DataProtectionInit();

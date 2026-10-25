@@ -1,4 +1,5 @@
 using Catalog.Api.Features.Edges.ForAdmin.Dto;
+using Catalog.Api.Infrastructure.Ordering;
 using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Entities;
@@ -34,40 +35,45 @@ public sealed class CreateEdgeCommandHandler(CatalogDbContext dbContext, ICatalo
 {
     public async Task<CreateEdgeCommandResult> Handle(CreateEdgeCommand command, CancellationToken ct)
     {
-        var model = command.Model;
-        var edge = new Edge
+        return await CatalogOrderTransaction.Run(dbContext, async () =>
         {
-            Name = model.Name.Trim(),
-            Article = model.Article.Trim(),
-            ManufacturerId = model.ManufacturerId,
-            ThicknessId = model.ThicknessId,
-            SaleUnitId = model.SaleUnitId,
-            IsStockItem = model.IsStockItem,
-            StockQuantity = model.StockQuantity
-        };
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
-        dbContext.Edges.Add(edge);
-        await dbContext.SaveChangesAsync(ct);
-
-        Guid?[] imageGuids = [model.Image, model.Thumbnail240];
-        foreach (var guid in imageGuids.Where(x => x.HasValue))
-        {
-            var cached = await dbContext.EdgeImageCache.SingleAsync(x => x.Guid == guid, ct);
-            dbContext.EdgeImages.Add(new EdgeImage
+            var model = command.Model;
+            var maxOrderByCol = await dbContext.Edges.MaxAsync(x => (int?)x.OrderByCol, ct) ?? 0;
+            if (maxOrderByCol == int.MaxValue)
+                throw new BadHttpRequestException("Достигнут предел порядка кромок. Упорядочьте существующие записи перед добавлением.");
+            var edge = new Edge
             {
-                EdgeId = edge.Id,
-                Guid = cached.Guid,
-                Type = cached.Type,
-                Data = cached.Data,
-                ImageType = cached.ImageType
-            });
-            dbContext.EdgeImageCache.Remove(cached);
-        }
-        historyWriter.Add(
-            CatalogHistoryActionTypeEnum.Create, CatalogHistoryEntityTypeEnum.Edge, edge.Id,
-            $"Создана кромка #{edge.Id} «{edge.Name}»: артикул {edge.Article}, производитель #{edge.ManufacturerId}, толщина #{edge.ThicknessId}, единица продажи #{edge.SaleUnitId}, складская позиция: {edge.IsStockItem}, остаток {edge.StockQuantity?.ToString() ?? "нет"} м, оригинал {model.Image?.ToString() ?? "нет"}, миниатюра {model.Thumbnail240?.ToString() ?? "нет"}.");
-        await dbContext.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-        return new CreateEdgeCommandResult(edge.Id);
+                Name = model.Name.Trim(),
+                Article = model.Article.Trim(),
+                ManufacturerId = model.ManufacturerId,
+                ThicknessId = model.ThicknessId,
+                SaleUnitId = model.SaleUnitId,
+                IsStockItem = model.IsStockItem,
+                StockQuantity = model.StockQuantity,
+                OrderByCol = maxOrderByCol + 1
+            };
+            dbContext.Edges.Add(edge);
+            await dbContext.SaveChangesAsync(ct);
+
+            Guid?[] imageGuids = [model.Image, model.Thumbnail240];
+            foreach (var guid in imageGuids.Where(x => x.HasValue))
+            {
+                var cached = await dbContext.EdgeImageCache.SingleAsync(x => x.Guid == guid, ct);
+                dbContext.EdgeImages.Add(new EdgeImage
+                {
+                    EdgeId = edge.Id,
+                    Guid = cached.Guid,
+                    Type = cached.Type,
+                    Data = cached.Data,
+                    ImageType = cached.ImageType
+                });
+                dbContext.EdgeImageCache.Remove(cached);
+            }
+            historyWriter.Add(
+                CatalogHistoryActionTypeEnum.Create, CatalogHistoryEntityTypeEnum.Edge, edge.Id,
+                $"Создана кромка #{edge.Id} «{edge.Name}»: артикул {edge.Article}, производитель #{edge.ManufacturerId}, толщина #{edge.ThicknessId}, единица продажи #{edge.SaleUnitId}, складская позиция: {edge.IsStockItem}, остаток {edge.StockQuantity?.ToString() ?? "нет"} м, оригинал {model.Image?.ToString() ?? "нет"}, миниатюра {model.Thumbnail240?.ToString() ?? "нет"}.");
+            await dbContext.SaveChangesAsync(ct);
+            return new CreateEdgeCommandResult(edge.Id);
+        }, ct);
     }
 }

@@ -28,17 +28,6 @@ public sealed class UpdateMaterialModelValidator : AbstractValidator<UpdateMater
             .WithMessage("Указанный материал не существует")
             .OverridePropertyName("Id");
 
-        RuleFor(x => x.Name)
-            .MustAsync(async (name, ct) =>
-            {
-                var routeId = httpContextAccessor.HttpContext?.Request.RouteValues["id"]?.ToString();
-                return int.TryParse(routeId, out var id)
-                       && !await dbContext.Materials.AnyAsync(
-                           x => x.Id != id && x.Name == name.Trim(), ct);
-            })
-            .When(x => !string.IsNullOrWhiteSpace(x.Name))
-            .WithMessage("Материал с таким названием уже существует");
-
         RuleFor(x => x.Image)
             .MustAsync(async (imageGuid, ct) => await ImageCanBeUsed(
                 dbContext, httpContextAccessor, imageGuid, MaterialImageTypeEnum.Original, ct))
@@ -148,7 +137,6 @@ public class UpdateMaterialCommandHandler(
             await UpdateImage(material, thumbnail480, command.Material.Thumbnail480, MaterialImageTypeEnum.Thumbnail480, ct)
         ];
 
-        dbContext.Materials.Update(material);
         historyWriter.Add(
             CatalogHistoryActionTypeEnum.Update,
             CatalogHistoryEntityTypeEnum.Material,

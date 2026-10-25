@@ -41,8 +41,7 @@ public sealed class GetMaterialsByIdsForCalculateQueryHandler(CatalogDbContext d
     {
         var items = await dbContext.Materials.AsNoTracking()
             .Where(x => query.MaterialIds.Contains(x.Id))
-            .OrderBy(x => x.Category.OrderByCol)
-            .ThenBy(x => x.OrderByCol)
+            .OrderBy(x => x.OrderByCol).ThenBy(x => x.Id)
             .Select(x => new GetMaterialsByIdsForCalculateQueryItem
             (
                 x.Id,

@@ -16,6 +16,7 @@ public sealed record GetEdgeForAdminQueryResult(
     [property: Description("Id единицы продажи")] int SaleUnitId,
     [property: Description("Складская позиция")] bool IsStockItem,
     [property: Description("Остаток в метрах")] decimal? StockQuantity,
+    [property: Description("Порядок сортировки")] int OrderByCol,
     [property: Description("Оригинал и миниатюра")] EdgeImagesDto Images);
 
 public sealed class GetEdgeForAdminQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetEdgeForAdminQuery, GetEdgeForAdminQueryResult>
@@ -24,7 +25,7 @@ public sealed class GetEdgeForAdminQueryHandler(CatalogDbContext dbContext) : IQ
         await dbContext.Edges.AsNoTracking()
             .Where(x => x.Id == query.Id)
             .Select(x => new GetEdgeForAdminQueryResult(
-                x.Id, x.Name, x.Article, x.ManufacturerId, x.ThicknessId, x.SaleUnitId, x.IsStockItem, x.StockQuantity,
+                x.Id, x.Name, x.Article, x.ManufacturerId, x.ThicknessId, x.SaleUnitId, x.IsStockItem, x.StockQuantity, x.OrderByCol,
                 new EdgeImagesDto(
                     x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Original).Select(image => (Guid?)image.Guid).SingleOrDefault(),
                     x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Original).Select(image => new EdgeImageMetadataDto(image.Type, image.Data.Length)).SingleOrDefault(),

@@ -23,8 +23,7 @@ public sealed class GetMaterialsForCalculateQueryHandler(CatalogDbContext dbCont
     public async Task<GetMaterialsForCalculateQueryResult> Handle(GetMaterialsForCalculateQuery query, CancellationToken ct)
     {
         var items = await dbContext.Materials.AsNoTracking()
-            .OrderBy(x => x.Category.OrderByCol)
-            .ThenBy(x => x.OrderByCol)
+            .OrderBy(x => x.OrderByCol).ThenBy(x => x.Id)
             .Select(x => new GetMaterialsForCalculateQueryItem(x.Id, x.Name, x.Article,
                 new PropertyDto(x.CategoryId, x.Category.Name)))
             .ToArrayAsync(ct);

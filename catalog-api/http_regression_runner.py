@@ -295,7 +295,10 @@ def run_compact_materials_scenario():
         **{name: row[relation]["id"] for name, relation in relations.items()},
         **{name: row[source] for name, source in renamed_fields.items()}
     } for row in ordinary["items"]]
-    equal(compact["items"], expected, "Значения и порядок компактного списка совпадают с обычным")
+    equal([{key: value for key, value in row.items() if key != "im"} for row in compact["items"]], expected,
+          "Значения и порядок компактного списка совпадают с обычным")
+    for row in compact["items"]:
+        assert "im" in row and (row["im"] is None or str(uuid.UUID(row["im"])) == row["im"]), "Превью — GUID либо null"
     equal(compact["filters"], ordinary["filters"], "Одинаковые справочники для фильтров")
     outside_strings = re.sub(r'"(?:\\.|[^"\\])*"', '""', compact_response[2].decode())
     assert not re.search(r"\s", outside_strings), "Компактный JSON не содержит форматирующих пробелов"
@@ -678,7 +681,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
         search_check({"search": marker, **choices, "categoryIds": [cats[0]], "inStock": stock})
     mark("SEARCH-03", "Проверены условия ИЛИ и И, повторяющиеся значения и наличие")
     for sort, expected in (("NameAsc", rows), ("NameDesc", list(reversed(rows))),
-                           ("CatalogOrder", [rows[i] for i in (0, 2, 4, 1, 3)])):
+                           ("CatalogOrder", rows)):
         collected = []
         for page, length in ((1, 2), (2, 2), (3, 1), (4, 0)):
             params = {"search": marker, "sort": sort, "pageSize": 2, "page": page}
@@ -817,6 +820,10 @@ def run_variant_scenarios(prefix, category_id, png):
         for index, card in enumerate(cards + search["items"]):
             equal(card["images"], expected | metadata if index == 1 else expected, "variant projection")
             equal(card["article"], model["article"], "variant article")
+        compact_response = request("GET", "/api/for-admin/materials/compact", auth=True)
+        expect(compact_response[0], 200, "Компактный список с превью")
+        compact_row = next(row for row in json_body(compact_response)["items"] if row["i"] == material_id)
+        equal(compact_row["im"], expected["thumbnail240"] or expected["thumbnail480"], "Приоритет миниатюр compact")
         for guid in expected.values():
             if guid:
                 file_check(guid)
@@ -1255,10 +1262,8 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
             projection = {entity_id: {name: row[name] for name in ("id", "name", "article", "category")}
                           for entity_id, row in expected.items()}
             equal(actual, projection, "Точные материалы и текущие категории Calculate")
-            category_orders = {item["id"]: item["orderByCol"] for item in categories()}
-            keys = [(category_orders[item["category"]["id"]], expected[item["id"]]["orderByCol"])
-                    for item in items]
-            equal(keys, sorted(keys), "Порядок Calculate по категории и материалу")
+            keys = [(expected[item["id"]]["orderByCol"], item["id"]) for item in items]
+            equal(keys, sorted(keys), "Общий порядок материалов Calculate")
             return items
 
         sheet_size_rows = {row["id"]: row for row in sheet_sizes()}
@@ -1528,13 +1533,13 @@ def run_openapi_metadata_scenarios(document):
     equal(set(properties(compact_result)), {"items", "filters"}, "Обёртка компактной выдачи в OpenAPI")
     compact_item = schemas["GetCompactMaterialsForAdminQueryItem"]
     compact_fields = {
-        "i", "n", "a", "s", "m", "t", "th", "c", "q", "o", "p", "h", "hp", "cu", "pv", "en"
+        "i", "n", "a", "s", "m", "t", "th", "c", "q", "o", "p", "h", "hp", "cu", "pv", "en", "im"
     }
-    equal(set(properties(compact_item)), compact_fields, "Ровно 16 полей компактного материала в OpenAPI")
+    equal(set(properties(compact_item)), compact_fields, "Ровно 17 полей компактного материала в OpenAPI")
     equal(required(compact_item), compact_fields, "Обязательные поля компактного материала в OpenAPI")
     equal(properties(compact_item)["i"]["description"], "Id", "Описание идентификатора компактного материала")
     assert all(russian_description(field) for name, field in properties(compact_item).items() if name != "i"), "Русские описания компактных полей"
-    mark("DOC-09", "Отдельный compact endpoint описывает 16 обязательных полей материала и обёртку items/filters без query-параметров")
+    mark("DOC-09", "Отдельный compact endpoint описывает 17 обязательных полей материала и обёртку items/filters без query-параметров")
 
 
 def main():
@@ -1944,20 +1949,32 @@ def main():
     if public_card["category"]["id"] != cat3 or admin_card["price"] != 456.78 or admin_card["countTypeEnum"] != "SHT":
         raise AssertionError("updated material fields not visible")
 
-    expect(request("POST", "/api/for-admin/materials/change-order-col", {"id": m2, "direction": "UP"}, auth=True)[0], 200, "material up")
-    cat1_order = [x["id"] for x in admin_materials() if x["category"]["id"] == cat1]
-    if cat1_order != [m2, m1]:
-        raise AssertionError("material UP sorting incorrect")
-    cat3_before = [x["id"] for x in admin_materials() if x["category"]["id"] == cat3]
-    expect(request("POST", "/api/for-admin/materials/change-order-col", {"id": m2, "direction": "DOWN"}, auth=True)[0], 200, "material down")
-    if [x["id"] for x in admin_materials() if x["category"]["id"] == cat3] != cat3_before:
-        raise AssertionError("sorting affected another category")
-    cat1_rows = [x for x in admin_materials() if x["category"]["id"] == cat1]
-    expect(request("POST", "/api/for-admin/materials/change-order-col", {"id": cat1_rows[0]["id"], "direction": "UP"}, auth=True)[0], 400, "material upper boundary")
-    expect(request("POST", "/api/for-admin/materials/change-order-col", {"id": cat1_rows[-1]["id"], "direction": "DOWN"}, auth=True)[0], 400, "material lower boundary")
+    all_before = [x["id"] for x in admin_materials()]
+    material_index = all_before.index(m2)
+    assert material_index > 0 and all_before[material_index - 1] == m1, "Тестовые материалы соседствуют до перестановки"
+    expected_up = list(all_before)
+    expected_up[material_index - 1], expected_up[material_index] = expected_up[material_index], expected_up[material_index - 1]
+    expect(request("POST", "/api/for-admin/materials/change-order-col", {"id": m2, "direction": "UP"}, auth=True)[0], 200, "Материал выше")
+    equal([x["id"] for x in admin_materials()], expected_up, "Перестановка соседей в общем списке")
+    expect(request("POST", "/api/for-admin/materials/change-order-col", {"id": m2, "direction": "DOWN"}, auth=True)[0], 200, "Материал ниже")
+    equal([x["id"] for x in admin_materials()], all_before, "Остальной порядок сохранён")
+    ordered_rows = admin_materials()
+    cross_index = next(index for index in range(1, len(ordered_rows))
+                       if ordered_rows[index - 1]["id"] in {m1, m2, m3}
+                       and ordered_rows[index]["id"] in {m1, m2, m3}
+                       and ordered_rows[index - 1]["category"]["id"] != ordered_rows[index]["category"]["id"])
+    cross_id = ordered_rows[cross_index]["id"]
+    expected_cross = list(all_before)
+    expected_cross[cross_index - 1], expected_cross[cross_index] = expected_cross[cross_index], expected_cross[cross_index - 1]
+    expect(request("POST", "/api/for-admin/materials/change-order-col", {"id": cross_id, "direction": "UP"}, auth=True)[0], 200, "Перестановка между категориями")
+    equal([x["id"] for x in admin_materials()], expected_cross, "Общий порядок пересекает границы категорий")
+    expect(request("POST", "/api/for-admin/materials/change-order-col", {"id": cross_id, "direction": "DOWN"}, auth=True)[0], 200, "Восстановление порядка тестовых материалов")
+    equal([x["id"] for x in admin_materials()], all_before, "Порядок восстановлен")
+    expect(request("POST", "/api/for-admin/materials/change-order-col", {"id": all_before[0], "direction": "UP"}, auth=True)[0], 400, "Верхняя граница общего списка")
+    expect(request("POST", "/api/for-admin/materials/change-order-col", {"id": all_before[-1], "direction": "DOWN"}, auth=True)[0], 400, "Нижняя граница общего списка")
     expect(request("DELETE", f"/api/for-admin/materials/categories/{cat1}", auth=True)[0], 400, "delete used category")
     mark("CAT-09", "Удаление используемой категории отклонено; связанные сущности сохранены")
-    mark("MAT-01—MAT-08", "Проверены создание, списки, карточки, фильтры, изменение, сортировка, её изоляция и границы")
+    mark("MAT-01—MAT-08", "Проверены создание, списки, карточки, фильтры, изменение, общая сортировка между категориями и границы")
 
     foreign_create_model = material_model(prefix + "-foreign-image-create", cat2, "cutting", images[0][0])
     expect(request("POST", "/api/for-admin/materials", foreign_create_model, auth=True)[0], 400, "create with another material image")
@@ -2029,14 +2046,28 @@ def main():
     bad = copy.deepcopy(base_invalid)
     bad.update({"applicableToCutting": False, "applicableToPvhFacades": False, "applicableToEnamelFacades": False})
     expect(request("POST", "/api/for-admin/materials", bad, auth=True)[0], 400, "no calculator")
-    duplicate = copy.deepcopy(base_invalid); duplicate["name"] = m2_model["name"]
-    expect(request("POST", "/api/for-admin/materials", duplicate, auth=True)[0], 400, "duplicate material name")
+    duplicate = dict(base_invalid, name=m2_model["name"], thicknessId=thickness_ids[16])
+    duplicate_id = create_material(duplicate)
+    equal({x["id"] for x in admin_materials() if x["name"] == duplicate["name"]},
+          {m2, duplicate_id}, "Одинаковые названия сохраняют отдельные материалы")
+    for material_id, expected in ((m2, m2_model), (duplicate_id, duplicate)):
+        card = json_body(request("GET", f"/api/for-admin/materials/{material_id}", auth=True))
+        equal((card["name"], card["article"], card["thickness"]["id"]),
+              (expected["name"], expected["article"], expected["thicknessId"]),
+              "Названия, артикулы и толщины материалов с одинаковым названием")
+    duplicate["name"] = m1_model["name"]
+    expect(request("PUT", f"/api/for-admin/materials/{duplicate_id}", duplicate, auth=True)[0],
+           200, "Обновление материала на уже существующее название")
+    equal({x["id"] for x in admin_materials() if x["name"] == duplicate["name"]},
+          {m1, duplicate_id}, "Существующее название разрешено и при обновлении")
+    expect(delete_material(duplicate_id)[0], 200, "Очистка материала с одинаковым названием")
+    mark("VAL-06", "Создание и обновление допускают одинаковые названия при разных толщинах; записи остаются отдельными")
     expect(request("GET", "/api/materials/2147483000")[0], 400, "missing material")
     expect(request("GET", "/api/for-admin/materials/categories/2147483000", auth=True)[0], 400, "missing category")
     expect(request("POST", "/api/for-admin/materials/change-order-col", {"id": m1, "direction": "SIDEWAYS"}, auth=True)[0], 400, "invalid direction")
     bad = copy.deepcopy(base_invalid); bad["name"] += "-guid"; bad["image"] = str(uuid.uuid4())
     expect(request("POST", "/api/for-admin/materials", bad, auth=True)[0], 400, "missing image GUID")
-    mark("VAL-01—VAL-10", "Все проверенные некорректные модели и отсутствующие id/GUID вернули 400")
+    mark("VAL-01—VAL-05, VAL-07—VAL-10", "Все проверенные некорректные модели и отсутствующие id/GUID вернули 400")
 
     counter_targets = (
         ("/api/for-admin/materials/categories", cat1),

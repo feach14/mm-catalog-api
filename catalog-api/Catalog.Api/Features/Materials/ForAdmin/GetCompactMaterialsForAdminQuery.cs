@@ -1,5 +1,7 @@
 // ReSharper disable NotAccessedPositionalProperty.Global
 
+using Catalog.Database;
+using Catalog.Database.Enums;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.ForAdmin;
@@ -26,15 +28,25 @@ public sealed record GetCompactMaterialsForAdminQueryItem(
     [property: Description("Не показывать цену на сайте")] bool Hp,
     [property: Description("Применим к распилу")] bool Cu,
     [property: Description("Применим к фасадам ПВХ")] bool Pv,
-    [property: Description("Применим к фасадам эмаль")] bool En);
+    [property: Description("Применим к фасадам эмаль")] bool En,
+    [property: Description("GUID миниатюры: 240 пикселей, иначе 480")] Guid? Im);
 
 public sealed class GetCompactMaterialsForAdminQueryHandler(
-    IQueryHandler<GetAllMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult> materialsHandler)
+    IQueryHandler<GetAllMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult> materialsHandler,
+    CatalogDbContext dbContext)
     : IQueryHandler<GetCompactMaterialsForAdminQuery, GetCompactMaterialsForAdminQueryResult>
 {
     public async Task<GetCompactMaterialsForAdminQueryResult> Handle(GetCompactMaterialsForAdminQuery query, CancellationToken ct)
     {
         var materials = await materialsHandler.Handle(new GetAllMaterialsForAdminQuery(), ct);
+        var thumbnails = await dbContext.MaterialImages.AsNoTracking()
+            .Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail240
+                || image.ImageType == MaterialImageTypeEnum.Thumbnail480)
+            .OrderBy(image => image.ImageType == MaterialImageTypeEnum.Thumbnail240 ? 0 : 1)
+            .Select(image => new { image.MaterialId, Guid = (Guid?)image.Guid })
+            .ToArrayAsync(ct);
+        var previewByMaterial = thumbnails.GroupBy(image => image.MaterialId)
+            .ToDictionary(group => group.Key, group => group.First().Guid);
         var items = materials.Items.Select(x => new GetCompactMaterialsForAdminQueryItem(
             x.Id,
             x.Name,
@@ -51,7 +63,8 @@ public sealed class GetCompactMaterialsForAdminQueryHandler(
             x.HidePriceOnSite,
             x.ApplicableToCutting,
             x.ApplicableToPvhFacades,
-            x.ApplicableToEnamelFacades)).ToArray();
+            x.ApplicableToEnamelFacades,
+            previewByMaterial.GetValueOrDefault(x.Id))).ToArray();
 
         return new GetCompactMaterialsForAdminQueryResult(items, materials.Filters);
     }
