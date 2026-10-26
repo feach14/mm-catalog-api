@@ -1168,7 +1168,7 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
             assert re.search("[А-Яа-я]", description) or (name == "id" and description == "Id"), "Русское описание поля " + name
         return schema["properties"]
 
-    def result_schema(operation, result_name, item_name):
+    def result_schema(operation, result_name, item_name, category_schema="PropertyDto"):
         response_schema = operation["responses"]["200"]["content"]["application/json"]["schema"]
         assert "#/components/schemas/" + result_name in json.dumps(response_schema), "Схема ответа Calculate"
         wrapper = schema_fields(result_name, {"items"})
@@ -1179,13 +1179,19 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
         assert id_types == "integer" or (isinstance(id_types, list) and "integer" in id_types), "Тип Id Calculate включает integer"
         for name in ("name", "article"):
             equal(fields[name]["type"], "string", "Тип поля " + name)
-        assert "#/components/schemas/PropertyDto" in json.dumps(fields["category"]), "Категория Calculate использует PropertyDto"
-        schema_fields("PropertyDto", {"id", "name"})
+        assert "#/components/schemas/" + category_schema in json.dumps(fields["category"]), "Схема категории Calculate"
+        category_fields = {"id", "name"}
+        if category_schema == "MaterialCategoryForCalculateDto":
+            category_fields.add("orderByCol")
+        category_properties = schema_fields(category_schema, category_fields)
+        if "orderByCol" in category_properties:
+            order_types = category_properties["orderByCol"]["type"]
+            assert "integer" in (order_types if isinstance(order_types, list) else [order_types]), "Целочисленный порядок категории Calculate"
 
     get_operation = openapi_document["paths"][path]["get"]
     equal(get_operation.get("parameters", []), [], "У полного Calculate-списка нет query-параметров")
-    result_schema(get_operation, "GetMaterialsForCalculateQueryResult", "GetMaterialsForCalculateQueryItem")
-    mark("CALC-01", "OpenAPI полного списка, массив items, обязательные поля и категория PropertyDto")
+    result_schema(get_operation, "GetMaterialsForCalculateQueryResult", "GetMaterialsForCalculateQueryItem", "MaterialCategoryForCalculateDto")
+    mark("CALC-01", "OpenAPI полного списка, массив items и категория MaterialCategoryForCalculateDto с обязательным порядком")
     old_path = "/api/for-calculate/material-categories"
     assert old_path not in openapi_document["paths"], "Старый расчётный endpoint категорий отсутствует в OpenAPI"
     for schema_name in ("GetMaterialCategoriesForCalculateQueryResult", "GetMaterialCategoriesForCalculateQueryItem"):
@@ -1251,7 +1257,7 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
         def expected_rows():
             return {item["id"]: item for item in admin_materials()}
 
-        def check_items(response, expected):
+        def check_items(response, expected, with_category_order=False):
             expect(response[0], 200, "Чтение материалов Calculate")
             body = json_body(response)
             equal(set(body), {"items"}, "Контракт ответа Calculate")
@@ -1261,6 +1267,11 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
             equal(len(actual), len(items), "Id материалов Calculate не повторяются")
             projection = {entity_id: {name: row[name] for name in ("id", "name", "article", "category")}
                           for entity_id, row in expected.items()}
+            if with_category_order:
+                category_orders = {category["id"]: category["orderByCol"] for category in categories()}
+                for row in projection.values():
+                    row["category"] = dict(row["category"], orderByCol=category_orders[row["category"]["id"]])
+                assert all(type(item["category"].get("orderByCol")) is int for item in items), "Порядок категории Calculate — целое число"
             equal(actual, projection, "Точные материалы и текущие категории Calculate")
             keys = [(expected[item["id"]]["orderByCol"], item["id"]) for item in items]
             equal(keys, sorted(keys), "Общий порядок материалов Calculate")
@@ -1280,7 +1291,7 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
             return body
 
         all_rows = expected_rows()
-        check_items(request("GET", path, auth=True), all_rows)
+        check_items(request("GET", path, auth=True), all_rows, with_category_order=True)
         assert set(fixture_materials).issubset(all_rows), "Все тестовые материалы созданы"
         mark("CALC-03", "Полный список содержит скрытые материалы, нулевое количество, материал без распила и скрытую категорию")
 
@@ -1357,9 +1368,9 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
         expect(delete_material(deleted_id)[0], 200, "Физическое удаление материала Calculate")
         fixture_materials.remove(deleted_id)
         all_rows = expected_rows()
-        check_items(request("GET", path, auth=True), all_rows)
+        check_items(request("GET", path, auth=True), all_rows, with_category_order=True)
         assert deleted_id not in all_rows, "Удалённый материал отсутствует в каталоге"
-        mark("CALC-04", "Полный список отсортирован по OrderByCol категорий и материалов; физически удалённый материал отсутствует")
+        mark("CALC-04", "Общий порядок материалов сохранён, передан отдельный порядок категорий; физически удалённый материал отсутствует")
         unknown_id = 2147483647
         assert unknown_id not in all_rows, "Контрольный Id отсутствует в каталоге"
         for invalid_id in (unknown_id, deleted_id, 0, -1):

@@ -1,6 +1,5 @@
 // ReSharper disable NotAccessedPositionalProperty.Global
 
-using Catalog.Api.Features.Materials.Dto;
 using Catalog.Database;
 using Core.CQRS;
 
@@ -15,7 +14,12 @@ public sealed record GetMaterialsForCalculateQueryItem(
     [property: Description("Id")] int Id,
     [property: Description("Название")] string Name,
     [property: Description("Артикул")] string Article,
-    [property: Description("Категория")] PropertyDto Category);
+    [property: Description("Категория")] MaterialCategoryForCalculateDto Category);
+
+public sealed record MaterialCategoryForCalculateDto(
+    [property: Description("Id")] int Id,
+    [property: Description("Название")] string Name,
+    [property: Description("Порядок сортировки")] int OrderByCol);
 
 public sealed class GetMaterialsForCalculateQueryHandler(CatalogDbContext dbContext)
     : IQueryHandler<GetMaterialsForCalculateQuery, GetMaterialsForCalculateQueryResult>
@@ -25,7 +29,7 @@ public sealed class GetMaterialsForCalculateQueryHandler(CatalogDbContext dbCont
         var items = await dbContext.Materials.AsNoTracking()
             .OrderBy(x => x.OrderByCol).ThenBy(x => x.Id)
             .Select(x => new GetMaterialsForCalculateQueryItem(x.Id, x.Name, x.Article,
-                new PropertyDto(x.CategoryId, x.Category.Name)))
+                new MaterialCategoryForCalculateDto(x.CategoryId, x.Category.Name, x.Category.OrderByCol)))
             .ToArrayAsync(ct);
 
         return new GetMaterialsForCalculateQueryResult(items);

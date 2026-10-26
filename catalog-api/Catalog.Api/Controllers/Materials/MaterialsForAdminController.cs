@@ -88,6 +88,25 @@ public class MaterialsForAdminController : BaseAdministrationApiController
         [FromServices] ICommandHandler<UpdateMaterialCommand, UpdateMaterialCommandResult> handler) =>
         handler.Handle(new UpdateMaterialCommand(id, model), HttpContext.RequestAborted);
 
+    [HttpPut("{id:int}/external-link"),
+     EndpointSummary(nameof(UpdateMaterialExternalLink)),
+     EndpointDescription("Изменение внешней ссылки материала"),
+     ProducesResponseType(typeof(UpdateMaterialExternalLinkCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
+    public Task<UpdateMaterialExternalLinkCommandResult> UpdateMaterialExternalLink(
+        [FromRoute, Description("Id материала")] int id,
+        [FromBody, Description("Внешняя ссылка")] UpdateMaterialExternalLinkModel model,
+        [FromServices] ICommandHandler<UpdateMaterialExternalLinkCommand, UpdateMaterialExternalLinkCommandResult> handler) =>
+        handler.Handle(new UpdateMaterialExternalLinkCommand(id, model), HttpContext.RequestAborted);
+
+    [HttpPost("{id:int}/clone"),
+     EndpointSummary(nameof(CloneMaterial)),
+     EndpointDescription("Копирование материала"),
+     ProducesResponseType(typeof(CloneMaterialCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Id копии материала")]
+    public Task<CloneMaterialCommandResult> CloneMaterial(
+        [FromRoute, Description("Id материала")] int id,
+        [FromServices] ICommandHandler<CloneMaterialCommand, CloneMaterialCommandResult> handler) =>
+        handler.Handle(new CloneMaterialCommand(id), HttpContext.RequestAborted);
+
     [HttpDelete("{id:int}"),
      EndpointSummary(nameof(DeleteMaterial)),
      EndpointDescription("Удаление материала"),
