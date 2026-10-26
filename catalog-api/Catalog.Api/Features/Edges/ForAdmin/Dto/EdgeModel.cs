@@ -10,6 +10,9 @@ public record EdgeModel
     [Description("Артикул")]
     public required string Article { get; init; }
 
+    [Description("Стоимость за погонный метр, руб.")]
+    public required decimal Price { get; init; }
+
     [Description("Id производителя")]
     public required int ManufacturerId { get; init; }
 
@@ -44,6 +47,10 @@ public sealed class EdgeModelValidator : AbstractValidator<EdgeModel>
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("Укажите артикул кромки")
             .MaximumLength(100).WithMessage("Артикул не должен быть длиннее 100 символов");
+        RuleFor(x => x.Price)
+            .Cascade(CascadeMode.Stop)
+            .GreaterThanOrEqualTo(0).WithMessage("Стоимость не может быть отрицательной")
+            .PrecisionScale(18, 2, true).WithMessage("Стоимость должна содержать не более 16 цифр до точки и двух после точки");
         RuleFor(x => x.ManufacturerId)
             .Cascade(CascadeMode.Stop)
             .GreaterThan(0).WithMessage("Выберите производителя кромки")

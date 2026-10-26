@@ -1,5 +1,6 @@
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
+using Catalog.Api.Services.Stroydvor;
 using Catalog.Database;
 using Core.BaseEnums;
 
@@ -7,11 +8,38 @@ namespace Catalog.Api.Features.Materials.ForAdmin.Dto;
 
 public class MaterialModelValidator : AbstractValidator<MaterialModel>
 {
-    public MaterialModelValidator(CatalogDbContext dbContext)
+    public MaterialModelValidator(CatalogDbContext dbContext, IHttpContextAccessor httpContextAccessor)
     {
         RuleFor(m => m.Name).NotEmpty().WithMessage("Не указано название материала");
         RuleFor(m => m.Article).NotEmpty().WithMessage("Не указан артикул материала");
         RuleFor(m => m.Price).GreaterThan(0).When(m => m.Count > 0).WithMessage("Стоимость материала должна быть больше 0 при количестве больше 0");
+        RuleFor(m => m.StroydvorProductId).GreaterThan(0)
+            .When(m => m.StroydvorProductId.HasValue)
+            .WithMessage("Id товара Стройдвора должен быть положительным числом");
+        RuleFor(m => m).MustAsync(async (model, ct) =>
+            {
+                if (string.IsNullOrWhiteSpace(model.Name))
+                    return true;
+
+                var productId = model.StroydvorProductId;
+                if (!model.StroydvorProductIdSpecified
+                    && int.TryParse(httpContextAccessor.HttpContext?.Request.RouteValues["id"]?.ToString(), out var materialId))
+                    productId = await dbContext.Materials.AsNoTracking().Where(x => x.Id == materialId)
+                        .Select(x => x.StroydvorProductId).SingleOrDefaultAsync(ct);
+                if (!productId.HasValue)
+                    return true;
+
+                var thickness = await dbContext.MaterialThicknesses.AsNoTracking()
+                    .Where(x => x.Id == model.ThicknessId).Select(x => (decimal?)x.Value).SingleOrDefaultAsync(ct);
+                var size = await dbContext.MaterialSheetSizes.AsNoTracking()
+                    .Where(x => x.Id == model.SheetSizeId).Select(x => new { x.Height, x.Width }).SingleOrDefaultAsync(ct);
+                if (!thickness.HasValue || size is null)
+                    return true;
+
+                return StroydvorMaterialScope.IsEligible(model.CategoryId, model.ManufacturerId, model.MaterialTypeId,
+                    thickness.Value, size.Height, size.Width, model.Name);
+            })
+            .WithMessage("Привязка к Стройдвору разрешена только для ЛДСП 16 мм выбранных производителей и форматов. Для другого материала удалите Id товара Стройдвора.");
         RuleFor(m => m.CategoryId)
             .Cascade(CascadeMode.Stop)
             .GreaterThan(0).WithMessage("Не указана категория(коллекция) материала")
@@ -46,6 +74,21 @@ public class MaterialModelValidator : AbstractValidator<MaterialModel>
 
 public record MaterialModel
 {
+    private int? _stroydvorProductId;
+
+    internal bool StroydvorProductIdSpecified { get; private set; }
+
+    [Description("Id товара Стройдвора; null — удалить привязку")]
+    public int? StroydvorProductId
+    {
+        get => _stroydvorProductId;
+        init
+        {
+            _stroydvorProductId = value;
+            StroydvorProductIdSpecified = true;
+        }
+    }
+
     [Description("Id категории")]
     public required int CategoryId { get; init; }
 

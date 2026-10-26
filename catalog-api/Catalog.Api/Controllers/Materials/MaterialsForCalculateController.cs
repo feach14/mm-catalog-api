@@ -1,3 +1,4 @@
+using Catalog.Api.Features.Edges.ForCalculate;
 using Catalog.Api.Features.Materials.ForCalculate;
 using Core.AccountAuth;
 using Core.Attributes;
@@ -33,6 +34,17 @@ public class MaterialsForCalculateController : BaseApiController
         [FromRoute, Description("Id материала")] int id,
         [FromServices] IQueryHandler<GetMaterialForCalculateQuery, GetMaterialForCalculateQueryResult> handler) =>
         handler.Handle(new GetMaterialForCalculateQuery(id), HttpContext.RequestAborted);
+
+    [HttpGet("edges/price"),
+     AllowAnonymous,
+     EndpointSummary(nameof(EdgePrice)),
+     EndpointDescription("Стоимость кромки для расчёта"),
+     ProducesResponseType(typeof(GetEdgePriceForCalculateQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Стоимость кромки"),
+     ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest, MediaTypeNames.Application.ProblemJson, Description = "Неверные параметры или не найдена единственная подходящая кромка")]
+    public Task<GetEdgePriceForCalculateQueryResult> EdgePrice(
+        [FromQuery] GetEdgePriceForCalculateQuery query,
+        [FromServices] IQueryHandler<GetEdgePriceForCalculateQuery, GetEdgePriceForCalculateQueryResult> handler) =>
+        handler.Handle(query, HttpContext.RequestAborted);
 
     [HttpPost("materials/by-ids"),
      EndpointSummary(nameof(MaterialsByIds)),

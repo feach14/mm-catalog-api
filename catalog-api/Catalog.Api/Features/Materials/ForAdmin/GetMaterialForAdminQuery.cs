@@ -30,8 +30,16 @@ public sealed record GetMaterialForAdminQueryResult(
     [property: Description("Цена за материал у поставщика")] decimal Price,
     [property: Description("Признак: скрыть материал на сайте")] bool HideOnSite,
     [property: Description("Признак: не показывать цену материала на сайте")] bool HidePriceOnSite,
-    [property: Description("Единица измерения"), JsonConverter(typeof(StrictStringEnumConverter))] CountTypeEnum CountTypeEnum
-);
+    [property: Description("Единица измерения"), JsonConverter(typeof(StrictStringEnumConverter))] CountTypeEnum CountTypeEnum,
+    [property: Description("Id товара Стройдвора")] int? StroydvorProductId,
+    [property: Description("Артикул Стройдвора")] string? StroydvorArticle,
+    [property: Description("Цена Стройдвора за лист")] decimal StroydvorPrice,
+    [property: Description("Дата успешной синхронизации со Стройдвором")] DateTimeOffset? StroydvorLastSyncAt,
+    [property: Description("В наличии в Стройдворе")] bool StroydvorInStock)
+{
+    [Description("Техническая ссылка на товар Стройдвора")]
+    public string? StroydvorUrl => StroydvorProductId is { } id ? $"https://stroydvor21.ru/products/{id}" : null;
+}
 
 public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetMaterialForAdminQuery, GetMaterialForAdminQueryResult>
 {
@@ -97,7 +105,12 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
                 x.Price,
                 x.HideOnSite,
                 x.HidePriceOnSite,
-                x.CountTypeEnum))
+                x.CountTypeEnum,
+                x.StroydvorProductId,
+                x.StroydvorArticle,
+                x.StroydvorPrice,
+                x.StroydvorLastSyncAt,
+                x.StroydvorInStock))
             .SingleOrDefaultAsync(ct)
         ?? throw new BadHttpRequestException($"Материал с id={query.Id} не найден");
 }

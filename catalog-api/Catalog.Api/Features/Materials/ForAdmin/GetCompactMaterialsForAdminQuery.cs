@@ -29,7 +29,13 @@ public sealed record GetCompactMaterialsForAdminQueryItem(
     [property: Description("Применим к распилу")] bool Cu,
     [property: Description("Применим к фасадам ПВХ")] bool Pv,
     [property: Description("Применим к фасадам эмаль")] bool En,
-    [property: Description("GUID миниатюры: 240 пикселей, иначе 480")] Guid? Im);
+    [property: Description("GUID миниатюры: 240 пикселей, иначе 480")] Guid? Im,
+    [property: Description("Id товара Стройдвора")] int? Spid,
+    [property: Description("Артикул Стройдвора")] string? Spa,
+    [property: Description("Цена Стройдвора за лист")] decimal Spp,
+    [property: Description("Дата успешной синхронизации со Стройдвором")] DateTimeOffset? Spls,
+    [property: Description("В наличии в Стройдворе")] bool Spis,
+    [property: Description("Техническая ссылка на товар Стройдвора")] string? Spurl);
 
 public sealed class GetCompactMaterialsForAdminQueryHandler(
     IQueryHandler<GetAllMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult> materialsHandler,
@@ -64,7 +70,13 @@ public sealed class GetCompactMaterialsForAdminQueryHandler(
             x.ApplicableToCutting,
             x.ApplicableToPvhFacades,
             x.ApplicableToEnamelFacades,
-            previewByMaterial.GetValueOrDefault(x.Id))).ToArray();
+            previewByMaterial.GetValueOrDefault(x.Id),
+            x.StroydvorProductId,
+            x.StroydvorArticle,
+            x.StroydvorPrice,
+            x.StroydvorLastSyncAt,
+            x.StroydvorInStock,
+            x.StroydvorUrl)).ToArray();
 
         return new GetCompactMaterialsForAdminQueryResult(items, materials.Filters);
     }

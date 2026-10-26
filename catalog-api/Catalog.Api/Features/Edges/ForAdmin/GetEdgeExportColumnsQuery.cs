@@ -11,6 +11,7 @@ public sealed class GetEdgeExportColumnsQueryHandler : IQueryHandler<GetEdgeExpo
     [
         new("article", "Артикул", true),
         new("name", "Название", true),
+        new("price", "Стоимость, руб./м", true),
         new("manufacturer", "Производитель", true),
         new("thickness", "Толщина, мм", true),
         new("saleUnit", "Единица продажи", true),

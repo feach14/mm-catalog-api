@@ -60,6 +60,7 @@ public sealed class UpdateEdgeCommandHandler(CatalogDbContext dbContext, IMemory
         var changes = new List<string>();
         AddChange(changes, "название", edge.Name, name);
         AddChange(changes, "артикул", edge.Article, article);
+        AddChange(changes, "стоимость за погонный метр, руб.", edge.Price, model.Price);
         AddChange(changes, "производитель", edge.ManufacturerId, model.ManufacturerId);
         AddChange(changes, "толщина", edge.ThicknessId, model.ThicknessId);
         AddChange(changes, "единица продажи", edge.SaleUnitId, model.SaleUnitId);
@@ -71,6 +72,7 @@ public sealed class UpdateEdgeCommandHandler(CatalogDbContext dbContext, IMemory
 
         edge.Name = name;
         edge.Article = article;
+        edge.Price = model.Price;
         edge.ManufacturerId = model.ManufacturerId;
         edge.ThicknessId = model.ThicknessId;
         edge.SaleUnitId = model.SaleUnitId;

@@ -16,7 +16,7 @@ public sealed class UpdateMaterialModelValidator : AbstractValidator<UpdateMater
 {
     public UpdateMaterialModelValidator(CatalogDbContext dbContext, IHttpContextAccessor httpContextAccessor)
     {
-        Include(new MaterialModelValidator(dbContext));
+        Include(new MaterialModelValidator(dbContext, httpContextAccessor));
 
         RuleFor(x => x)
             .MustAsync(async (_, ct) =>
@@ -101,6 +101,8 @@ public class UpdateMaterialCommandHandler(
         AddChange(changes, "обязательный комментарий", material.CommentOnMaterialIsRequired, command.Material.CommentOnMaterialIsRequired);
         AddChange(changes, "второй элемент в заказе", material.AllowSecondItemInOrder, command.Material.AllowSecondItemInOrder);
         AddChange(changes, "цена", material.Price, command.Material.Price);
+        if (command.Material.StroydvorProductIdSpecified)
+            AddChange(changes, "Id товара Стройдвора", material.StroydvorProductId, command.Material.StroydvorProductId);
         AddChange(changes, "скрыт на сайте", material.HideOnSite, command.Material.HideOnSite);
         AddChange(changes, "цена скрыта на сайте", material.HidePriceOnSite, command.Material.HidePriceOnSite);
         AddChange(changes, "единица", material.CountTypeEnum, command.Material.CountTypeEnum);
@@ -126,6 +128,14 @@ public class UpdateMaterialCommandHandler(
         material.AllowSecondItemInOrder = command.Material.AllowSecondItemInOrder;
         material.ExternalLink = command.Material.ExternalLink;
         material.Price = command.Material.Price;
+        if (command.Material.StroydvorProductIdSpecified && material.StroydvorProductId != command.Material.StroydvorProductId)
+        {
+            material.StroydvorProductId = command.Material.StroydvorProductId;
+            material.StroydvorArticle = null;
+            material.StroydvorPrice = 0m;
+            material.StroydvorLastSyncAt = null;
+            material.StroydvorInStock = false;
+        }
         material.HideOnSite = command.Material.HideOnSite;
         material.HidePriceOnSite = command.Material.HidePriceOnSite;
         material.CountTypeEnum = command.Material.CountTypeEnum;

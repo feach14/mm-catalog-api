@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Catalog.Api;
 using Catalog.Api.Extensions;
 using Catalog.Api.Services.History;
+using Catalog.Api.Services.Stroydvor;
 using Catalog.Database;
 using Core.AccountAuth;
 using Core.Cors;
@@ -16,6 +17,8 @@ builder.UseSharedDevelopmentHttpsCertificate("catalog-api.debug.feach.ru");
 builder.Services.Configure<AppSettingsConfig>(builder.Configuration.Bind);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ICatalogHistoryWriter, CatalogHistoryWriter>();
+builder.Services.AddHttpClient<StroydvorProductClient>(client => client.Timeout = Timeout.InfiniteTimeSpan)
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new StrictStringEnumConverter()));
 var appSettingsConfig = builder.Configuration.Get<AppSettingsConfig>()

@@ -5,6 +5,7 @@ public sealed record Edge
     public int Id { get; private set; }
     public required string Name { get; set; }
     public required string Article { get; set; }
+    public required decimal Price { get; set; }
 
     public required int ManufacturerId { get; set; }
     public EdgeManufacturer Manufacturer { get; private set; } = null!;

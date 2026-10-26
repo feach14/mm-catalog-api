@@ -15,6 +15,7 @@ public sealed class DeleteEdgeCommandHandler(CatalogDbContext dbContext, IMemory
     : ICommandHandler<DeleteEdgeCommand, DeleteEdgeCommandResult>
 {
     private const string LinkedEdgeMessage = "Кромка связана с материалами. Сначала снимите все связи с материалами.";
+    private const string ArticleReplacementMessage = "У кромки есть замены старых артикулов ВЕК. Сначала удалите записи замены артикулов.";
 
     public async Task<DeleteEdgeCommandResult> Handle(DeleteEdgeCommand command, CancellationToken ct)
     {
@@ -22,6 +23,8 @@ public sealed class DeleteEdgeCommandHandler(CatalogDbContext dbContext, IMemory
             ?? throw new BadHttpRequestException($"Кромка с id={command.Id} не найдена.");
         if (await dbContext.MaterialEdgeLinks.AsNoTracking().AnyAsync(x => x.EdgeId == edge.Id, ct))
             throw new BadHttpRequestException(LinkedEdgeMessage);
+        if (await dbContext.EdgeArticleReplacements.AsNoTracking().AnyAsync(x => x.EdgeId == edge.Id, ct))
+            throw new BadHttpRequestException(ArticleReplacementMessage);
 
         var imageGuids = edge.Images.Select(x => x.Guid).ToArray();
         historyWriter.Add(
@@ -40,6 +43,14 @@ public sealed class DeleteEdgeCommandHandler(CatalogDbContext dbContext, IMemory
         })
         {
             throw new BadHttpRequestException(LinkedEdgeMessage);
+        }
+        catch (DbUpdateException error) when (error.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.ForeignKeyViolation,
+            ConstraintName: "fk_edge_article_replacements_edges_edge_id"
+        })
+        {
+            throw new BadHttpRequestException(ArticleReplacementMessage);
         }
         foreach (var guid in imageGuids) memoryCache.Remove(("edge-image", guid));
         return new DeleteEdgeCommandResult(true);

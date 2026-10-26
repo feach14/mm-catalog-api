@@ -15,9 +15,9 @@ public sealed record CreateMaterialModel : MaterialModel;
 
 public sealed class CreateMaterialModelValidator : AbstractValidator<CreateMaterialModel>
 {
-    public CreateMaterialModelValidator(CatalogDbContext dbContext)
+    public CreateMaterialModelValidator(CatalogDbContext dbContext, IHttpContextAccessor httpContextAccessor)
     {
-        Include(new MaterialModelValidator(dbContext));
+        Include(new MaterialModelValidator(dbContext, httpContextAccessor));
 
         RuleFor(x => x.Image)
             .MustAsync(async (imageGuid, ct) =>
@@ -66,6 +66,7 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
                 AllowSecondItemInOrder = command.Material.AllowSecondItemInOrder,
                 ExternalLink = command.Material.ExternalLink,
                 Price = command.Material.Price,
+                StroydvorProductId = command.Material.StroydvorProductId,
                 HideOnSite = command.Material.HideOnSite,
                 HidePriceOnSite = command.Material.HidePriceOnSite,
                 CountTypeEnum = command.Material.CountTypeEnum,

@@ -48,8 +48,16 @@ public sealed record GetMaterialsQueryForAdminItemResult(
     [property: Description("Признак: не показывать цену материала на сайте")] bool HidePriceOnSite,
     [property: Description("Использование материала в заявке на распил")] bool ApplicableToCutting,
     [property: Description("Использование материала в заявке на фасады ПВХ")] bool ApplicableToPvhFacades,
-    [property: Description("Использование материала в заявке на фасады эмаль")] bool ApplicableToEnamelFacades
-);
+    [property: Description("Использование материала в заявке на фасады эмаль")] bool ApplicableToEnamelFacades,
+    [property: Description("Id товара Стройдвора")] int? StroydvorProductId,
+    [property: Description("Артикул Стройдвора")] string? StroydvorArticle,
+    [property: Description("Цена Стройдвора за лист")] decimal StroydvorPrice,
+    [property: Description("Дата успешной синхронизации со Стройдвором")] DateTimeOffset? StroydvorLastSyncAt,
+    [property: Description("В наличии в Стройдворе")] bool StroydvorInStock)
+{
+    [Description("Техническая ссылка на товар Стройдвора")]
+    public string? StroydvorUrl => StroydvorProductId is { } id ? $"https://stroydvor21.ru/products/{id}" : null;
+}
 
 public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetAllMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult>
 {
@@ -74,7 +82,12 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
                 x.HidePriceOnSite,
                 x.ApplicableToCutting,
                 x.ApplicableToPvhFacades,
-                x.ApplicableToEnamelFacades))
+                x.ApplicableToEnamelFacades,
+                x.StroydvorProductId,
+                x.StroydvorArticle,
+                x.StroydvorPrice,
+                x.StroydvorLastSyncAt,
+                x.StroydvorInStock))
             .ToArrayAsync(ct);
 
         var categories = await dbContext.MaterialCategories.AsNoTracking()

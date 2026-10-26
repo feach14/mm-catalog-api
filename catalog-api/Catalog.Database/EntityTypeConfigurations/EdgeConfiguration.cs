@@ -11,6 +11,7 @@ public sealed class EdgeConfiguration : IEntityTypeConfiguration<Edge>
         eb.HasKey(x => x.Id);
         eb.Property(x => x.Name).IsRequired().HasMaxLength(250);
         eb.Property(x => x.Article).IsRequired().HasMaxLength(100);
+        eb.Property(x => x.Price).HasPrecision(18, 2);
         eb.Property(x => x.StockQuantity).HasPrecision(18, 3);
         eb.Property(x => x.OrderByCol).HasDefaultValue(0);
         eb.HasIndex(x => new { x.OrderByCol, x.Id });

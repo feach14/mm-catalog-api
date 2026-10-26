@@ -116,6 +116,11 @@ namespace Catalog.Database.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("order_by_col");
 
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("price");
+
                     b.Property<int>("SaleUnitId")
                         .HasColumnType("integer")
                         .HasColumnName("sale_unit_id");
@@ -519,6 +524,32 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("price");
 
+                    b.Property<string>("StroydvorArticle")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("stroydvor_article");
+
+                    b.Property<bool>("StroydvorInStock")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("stroydvor_in_stock");
+
+                    b.Property<DateTimeOffset?>("StroydvorLastSyncAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("stroydvor_last_sync_at");
+
+                    b.Property<decimal>("StroydvorPrice")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("stroydvor_price");
+
+                    b.Property<int?>("StroydvorProductId")
+                        .HasColumnType("integer")
+                        .HasColumnName("stroydvor_product_id");
+
                     b.HasKey("Id")
                         .HasName("pk_materials");
 
@@ -540,6 +571,9 @@ namespace Catalog.Database.Migrations
                     b.HasIndex("OrderByCol")
                         .IsUnique()
                         .HasDatabaseName("ix_materials_order_by_col");
+
+                    b.HasIndex("StroydvorProductId")
+                        .HasDatabaseName("ix_materials_stroydvor_product_id");
 
                     b.ToTable("materials", "catalog");
                 });

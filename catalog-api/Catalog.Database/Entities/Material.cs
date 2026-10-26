@@ -32,6 +32,11 @@ public sealed record Material
     public bool CommentOnMaterialIsRequired { get; set; }
     public bool AllowSecondItemInOrder { get; set; }
     public required decimal Price { get; set; }
+    public int? StroydvorProductId { get; set; }
+    public string? StroydvorArticle { get; set; }
+    public decimal StroydvorPrice { get; set; }
+    public DateTimeOffset? StroydvorLastSyncAt { get; set; }
+    public bool StroydvorInStock { get; set; }
     public bool HideOnSite { get; set; }
     public bool HidePriceOnSite { get; set; }
     public required CountTypeEnum CountTypeEnum { get; set; }
