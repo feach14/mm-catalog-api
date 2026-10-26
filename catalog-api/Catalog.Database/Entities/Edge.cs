@@ -19,4 +19,5 @@ public sealed record Edge
     public decimal? StockQuantity { get; set; }
     public int OrderByCol { get; set; }
     public List<EdgeImage> Images { get; private set; } = [];
+    public List<EdgeArticleReplacement> ArticleReplacements { get; private set; } = [];
 }

@@ -17,6 +17,6 @@ public sealed class MaterialEdgeLinkConfiguration : IEntityTypeConfiguration<Mat
         eb.HasOne(x => x.Edge)
             .WithMany()
             .HasForeignKey(x => x.EdgeId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
