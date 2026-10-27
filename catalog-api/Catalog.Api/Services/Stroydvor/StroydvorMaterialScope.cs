@@ -29,7 +29,7 @@ public static class StroydvorMaterialScope
         height == first && width == second || height == second && width == first;
 
     private static bool IsAnotherMaterialType(string name) =>
-        name.Contains("МДФ", StringComparison.OrdinalIgnoreCase)
+        (name.Contains("МДФ", StringComparison.OrdinalIgnoreCase) && !name.Contains("ЛМДФ"))
         || name.Contains("ХДФ", StringComparison.OrdinalIgnoreCase)
         || name.Contains("MDF", StringComparison.OrdinalIgnoreCase)
         || name.Contains("HDF", StringComparison.OrdinalIgnoreCase);
