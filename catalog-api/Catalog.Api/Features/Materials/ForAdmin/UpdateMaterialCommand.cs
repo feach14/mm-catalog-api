@@ -183,7 +183,7 @@ public class UpdateMaterialCommandHandler(
         material.Images.Add(new MaterialImage
         {
             Data = cachedFile.Data,
-            Type = cachedFile.Type,
+            ContentType = cachedFile.ContentType,
             Guid = cachedFile.Guid,
             MaterialId = material.Id,
             ImageType = imageType

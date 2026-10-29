@@ -29,9 +29,9 @@ public sealed class GetEdgeForAdminQueryHandler(CatalogDbContext dbContext) : IQ
                 x.Id, x.Name, x.Article, x.Price, x.ManufacturerId, x.ThicknessId, x.SaleUnitId, x.IsStockItem, x.StockQuantity, x.OrderByCol,
                 new EdgeImagesDto(
                     x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Original).Select(image => (Guid?)image.Guid).SingleOrDefault(),
-                    x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Original).Select(image => new EdgeImageMetadataDto(image.Type, image.Data.Length)).SingleOrDefault(),
+                    x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Original).Select(image => new EdgeImageMetadataDto(image.ContentType, image.Data.Length)).SingleOrDefault(),
                     x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240).Select(image => (Guid?)image.Guid).SingleOrDefault(),
-                    x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240).Select(image => new EdgeImageMetadataDto(image.Type, image.Data.Length)).SingleOrDefault())))
+                    x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240).Select(image => new EdgeImageMetadataDto(image.ContentType, image.Data.Length)).SingleOrDefault())))
             .SingleOrDefaultAsync(ct)
         ?? throw new BadHttpRequestException($"Кромка с id={query.Id} не найдена.");
 }

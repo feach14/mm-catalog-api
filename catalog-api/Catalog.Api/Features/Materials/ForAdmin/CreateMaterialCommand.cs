@@ -85,7 +85,7 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
                     Data = fileFromImgCache.Data,
                     Guid = fileFromImgCache.Guid,
                     MaterialId = material.Id,
-                    Type = fileFromImgCache.Type,
+                    ContentType = fileFromImgCache.ContentType,
                     ImageType = fileFromImgCache.ImageType
                 }, ct);
 

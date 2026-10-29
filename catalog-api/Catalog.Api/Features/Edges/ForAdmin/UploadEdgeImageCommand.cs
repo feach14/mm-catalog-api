@@ -73,7 +73,7 @@ public class UploadEdgeImageCommandHandler(CatalogDbContext dbContext)
         {
             Guid = result.FileGuid,
             FileName = result.FileName,
-            Type = result.ContentType,
+            ContentType = result.ContentType,
             Data = data,
             ImageType = result.ImageType
         }, ct);

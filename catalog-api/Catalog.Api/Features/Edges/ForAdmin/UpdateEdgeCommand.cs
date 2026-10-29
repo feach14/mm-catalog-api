@@ -101,7 +101,7 @@ public sealed class UpdateEdgeCommandHandler(CatalogDbContext dbContext, IMemory
         {
             EdgeId = edge.Id,
             Guid = cached.Guid,
-            Type = cached.Type,
+            ContentType = cached.ContentType,
             Data = cached.Data,
             ImageType = cached.ImageType
         });

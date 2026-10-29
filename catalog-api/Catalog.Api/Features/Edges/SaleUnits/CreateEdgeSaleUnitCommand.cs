@@ -20,7 +20,7 @@ public sealed class CreateEdgeSaleUnitCommandHandler(CatalogDbContext dbContext,
         EdgeSaleUnit saleUnit = new()
         {
             Name = command.Model.Name.Trim(),
-            Type = command.Model.Type,
+            SaleUnitType = command.Model.SaleUnitType,
             Length = command.Model.Length
         };
 

@@ -24,10 +24,10 @@ public sealed class UpdateEdgeSaleUnitCommandHandler(CatalogDbContext dbContext,
         List<string> changes = [];
         if (saleUnit.Name != name)
             changes.Add($"название «{saleUnit.Name}» → «{name}»");
-        if (saleUnit.Type != command.Model.Type)
+        if (saleUnit.SaleUnitType != command.Model.SaleUnitType)
         {
-            string oldType = saleUnit.Type == EdgeSaleUnitTypeEnum.Roll ? "бухта" : "погонный метр";
-            string newType = command.Model.Type == EdgeSaleUnitTypeEnum.Roll ? "бухта" : "погонный метр";
+            string oldType = saleUnit.SaleUnitType == EdgeSaleUnitTypeEnum.Roll ? "бухта" : "погонный метр";
+            string newType = command.Model.SaleUnitType == EdgeSaleUnitTypeEnum.Roll ? "бухта" : "погонный метр";
             changes.Add($"тип «{oldType}» → «{newType}»");
         }
         if (saleUnit.Length != command.Model.Length)
@@ -37,7 +37,7 @@ public sealed class UpdateEdgeSaleUnitCommandHandler(CatalogDbContext dbContext,
             return new UpdateEdgeSaleUnitCommandResult(true);
 
         saleUnit.Name = name;
-        saleUnit.Type = command.Model.Type;
+        saleUnit.SaleUnitType = command.Model.SaleUnitType;
         saleUnit.Length = command.Model.Length;
         historyWriter.Add(
             CatalogHistoryActionTypeEnum.Update,

@@ -193,6 +193,12 @@ namespace Catalog.Database.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("content_type");
+
                     b.Property<byte[]>("Data")
                         .IsRequired()
                         .HasColumnType("bytea")
@@ -211,12 +217,6 @@ namespace Catalog.Database.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
                         .HasColumnName("image_type");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("type");
 
                     b.HasKey("Id")
                         .HasName("pk_edge_images");
@@ -239,6 +239,12 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("guid");
 
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("content_type");
+
                     b.Property<byte[]>("Data")
                         .IsRequired()
                         .HasColumnType("bytea")
@@ -255,12 +261,6 @@ namespace Catalog.Database.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
                         .HasColumnName("image_type");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("type");
 
                     b.HasKey("Guid")
                         .HasName("pk_edge_image_cache");
@@ -329,11 +329,11 @@ namespace Catalog.Database.Migrations
                         .HasColumnName("normalized_name")
                         .HasComputedColumnSql("lower(btrim(name))", true);
 
-                    b.Property<string>("Type")
+                    b.Property<string>("SaleUnitType")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
-                        .HasColumnName("type");
+                        .HasColumnName("sale_unit_type");
 
                     b.HasKey("Id")
                         .HasName("pk_edge_sale_units");
@@ -342,9 +342,9 @@ namespace Catalog.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_edge_sale_units_normalized_name");
 
-                    b.HasIndex("Type", "Length")
+                    b.HasIndex("SaleUnitType", "Length")
                         .IsUnique()
-                        .HasDatabaseName("ix_edge_sale_units_type_length");
+                        .HasDatabaseName("ix_edge_sale_units_sale_unit_type_length");
 
                     b.ToTable("edge_sale_units", "catalog");
                 });
@@ -398,6 +398,12 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("guid");
 
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("content_type");
+
                     b.Property<byte[]>("Data")
                         .IsRequired()
                         .HasColumnType("bytea")
@@ -416,12 +422,6 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("character varying(30)")
                         .HasDefaultValue("Original")
                         .HasColumnName("image_type");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("type");
 
                     b.HasKey("Guid")
                         .HasName("pk_image_cache");
@@ -675,6 +675,12 @@ namespace Catalog.Database.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("content_type");
+
                     b.Property<byte[]>("Data")
                         .IsRequired()
                         .HasColumnType("bytea")
@@ -695,12 +701,6 @@ namespace Catalog.Database.Migrations
                     b.Property<int>("MaterialId")
                         .HasColumnType("integer")
                         .HasColumnName("material_id");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("type");
 
                     b.HasKey("Id")
                         .HasName("pk_material_images");

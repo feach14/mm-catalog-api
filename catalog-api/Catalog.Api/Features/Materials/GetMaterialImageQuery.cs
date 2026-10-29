@@ -15,7 +15,7 @@ public class GetMaterialImageQueryHandler(CatalogDbContext dbContext, IMemoryCac
     {
         var imageFromMemory = memoryCache.Get<ImageCache>(query.FileGuid);
         if (imageFromMemory is not null)
-            return new GetMaterialImageQueryResult(imageFromMemory.Data, imageFromMemory.Type);
+            return new GetMaterialImageQueryResult(imageFromMemory.Data, imageFromMemory.ContentType);
 
         var cachedFile = await dbContext.ImageCache
             .Where(x => x.Guid == query.FileGuid)
@@ -23,7 +23,7 @@ public class GetMaterialImageQueryHandler(CatalogDbContext dbContext, IMemoryCac
         if (cachedFile is not null)
         {
             memoryCache.Set(query.FileGuid, cachedFile);
-            return new GetMaterialImageQueryResult(cachedFile.Data, cachedFile.Type);
+            return new GetMaterialImageQueryResult(cachedFile.Data, cachedFile.ContentType);
         }
 
         var image = await dbContext.MaterialImages
@@ -37,11 +37,11 @@ public class GetMaterialImageQueryHandler(CatalogDbContext dbContext, IMemoryCac
         {
             Data = image.Data,
             Guid = image.Guid,
-            Type = image.Type,
+            ContentType = image.ContentType,
             FileName = image.Guid.ToString(),
             ImageType = image.ImageType
         });
 
-        return new GetMaterialImageQueryResult(image.Data, image.Type);
+        return new GetMaterialImageQueryResult(image.Data, image.ContentType);
     }
 }

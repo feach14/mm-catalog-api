@@ -12,7 +12,7 @@ public sealed class ImageCacheConfiguration : IEntityTypeConfiguration<ImageCach
         eb.ToTable("image_cache");
         eb.HasKey(x => x.Guid);
         eb.Property(x => x.FileName).HasMaxLength(255);
-        eb.Property(x => x.Type).HasMaxLength(30);
+        eb.Property(x => x.ContentType).HasMaxLength(30);
         eb.Property(x => x.ImageType)
             .HasConversion<string>()
             .HasMaxLength(30)

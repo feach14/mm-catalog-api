@@ -52,7 +52,7 @@ public sealed class ExportEdgesForAdminQueryHandler(CatalogDbContext dbContext)
                 ThicknessName = x.Thickness.Name,
                 SaleUnit = x.SaleUnit.Name,
                 SaleUnitLength = x.SaleUnit.Length,
-                SaleUnitType = x.SaleUnit.Type,
+                SaleUnitType = x.SaleUnit.SaleUnitType,
                 x.IsStockItem,
                 x.StockQuantity,
                 x.OrderByCol

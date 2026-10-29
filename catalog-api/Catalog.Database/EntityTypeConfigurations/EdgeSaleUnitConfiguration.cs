@@ -12,9 +12,9 @@ public sealed class EdgeSaleUnitConfiguration : IEntityTypeConfiguration<EdgeSal
         eb.Property(x => x.Name).IsRequired().HasMaxLength(100);
         eb.Property<string>("NormalizedName").IsRequired().HasMaxLength(100)
             .HasComputedColumnSql("lower(btrim(name))", stored: true);
-        eb.Property(x => x.Type).HasConversion<string>().HasMaxLength(30).IsRequired();
+        eb.Property(x => x.SaleUnitType).HasConversion<string>().HasMaxLength(30).IsRequired();
         eb.Property(x => x.Length).HasPrecision(18, 3);
         eb.HasIndex("NormalizedName").IsUnique();
-        eb.HasIndex(x => new { x.Type, x.Length }).IsUnique();
+        eb.HasIndex(x => new { x.SaleUnitType, x.Length }).IsUnique();
     }
 }

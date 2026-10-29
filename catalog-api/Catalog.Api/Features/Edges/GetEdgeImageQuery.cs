@@ -19,7 +19,7 @@ public class GetEdgeImageQueryHandler(CatalogDbContext dbContext, IMemoryCache m
     {
         var cacheKey = ("edge-image", query.FileGuid);
         if (memoryCache.TryGetValue(cacheKey, out var cached) && cached is EdgeImageCache imageFromMemory)
-            return new GetEdgeImageQueryResult(imageFromMemory.Data, imageFromMemory.Type);
+            return new GetEdgeImageQueryResult(imageFromMemory.Data, imageFromMemory.ContentType);
 
         var cachedFile = await dbContext.EdgeImageCache
             .AsNoTracking()
@@ -27,7 +27,7 @@ public class GetEdgeImageQueryHandler(CatalogDbContext dbContext, IMemoryCache m
         if (cachedFile is not null)
         {
             memoryCache.Set(cacheKey, cachedFile);
-            return new GetEdgeImageQueryResult(cachedFile.Data, cachedFile.Type);
+            return new GetEdgeImageQueryResult(cachedFile.Data, cachedFile.ContentType);
         }
 
         var image = await dbContext.EdgeImages
@@ -40,11 +40,11 @@ public class GetEdgeImageQueryHandler(CatalogDbContext dbContext, IMemoryCache m
         {
             Guid = image.Guid,
             FileName = image.Guid.ToString(),
-            Type = image.Type,
+            ContentType = image.ContentType,
             Data = image.Data,
             ImageType = image.ImageType
         });
 
-        return new GetEdgeImageQueryResult(image.Data, image.Type);
+        return new GetEdgeImageQueryResult(image.Data, image.ContentType);
     }
 }

@@ -10,7 +10,7 @@ public class MaterialImageConfiguration : IEntityTypeConfiguration<MaterialImage
     public void Configure(EntityTypeBuilder<MaterialImage> eb)
     {
         eb.HasKey(x => x.Id);
-        eb.Property(x => x.Type).HasMaxLength(30);
+        eb.Property(x => x.ContentType).HasMaxLength(30);
         eb.Property(x => x.ImageType)
             .HasConversion<string>()
             .HasMaxLength(30)

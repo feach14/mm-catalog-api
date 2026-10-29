@@ -8,7 +8,7 @@ public sealed record EdgeImage
     public required int EdgeId { get; init; }
     public Edge Edge { get; private set; } = null!;
     public required Guid Guid { get; init; }
-    public required string Type { get; init; }
+    public required string ContentType { get; init; }
     public required byte[] Data { get; init; }
     public required EdgeImageTypeEnum ImageType { get; init; }
 }

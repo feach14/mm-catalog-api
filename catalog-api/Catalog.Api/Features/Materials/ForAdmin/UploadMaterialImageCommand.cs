@@ -77,7 +77,7 @@ public class UploadMaterialImageCommandHandler(CatalogDbContext dbContext)
         {
             Guid = cachedFile.FileGuid,
             FileName = cachedFile.FileName,
-            Type = cachedFile.ContentType,
+            ContentType = cachedFile.ContentType,
             Data = data,
             ImageType = cachedFile.ImageType
         }, ct);

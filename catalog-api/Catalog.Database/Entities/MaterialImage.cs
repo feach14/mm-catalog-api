@@ -14,7 +14,7 @@ public sealed record MaterialImage
     public Material Material { get; private set; }
 
     public required Guid Guid { get; init; }
-    public required string Type { get; init; }
+    public required string ContentType { get; init; }
     public required byte[] Data { get; init; }
     public required MaterialImageTypeEnum ImageType { get; init; }
 }

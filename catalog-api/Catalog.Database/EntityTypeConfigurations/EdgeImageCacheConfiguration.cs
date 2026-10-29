@@ -11,7 +11,7 @@ public sealed class EdgeImageCacheConfiguration : IEntityTypeConfiguration<EdgeI
         eb.ToTable("edge_image_cache");
         eb.HasKey(x => x.Guid);
         eb.Property(x => x.FileName).IsRequired().HasMaxLength(255);
-        eb.Property(x => x.Type).IsRequired().HasMaxLength(30);
+        eb.Property(x => x.ContentType).IsRequired().HasMaxLength(30);
         eb.Property(x => x.Data).IsRequired();
         eb.Property(x => x.ImageType).HasConversion<string>().HasMaxLength(30).IsRequired();
     }

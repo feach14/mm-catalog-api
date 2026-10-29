@@ -65,7 +65,7 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
                         .Where(image => image.ImageType == MaterialImageTypeEnum.Original)
                         .Select(image => new MaterialImageMetadataDto
                         {
-                            ContentType = image.Type,
+                            ContentType = image.ContentType,
                             Size = image.Data.Length
                         })
                         .SingleOrDefault(),
@@ -77,7 +77,7 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
                         .Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail240)
                         .Select(image => new MaterialImageMetadataDto
                         {
-                            ContentType = image.Type,
+                            ContentType = image.ContentType,
                             Size = image.Data.Length
                         })
                         .SingleOrDefault(),
@@ -89,7 +89,7 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
                         .Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail480)
                         .Select(image => new MaterialImageMetadataDto
                         {
-                            ContentType = image.Type,
+                            ContentType = image.ContentType,
                             Size = image.Data.Length
                         })
                         .SingleOrDefault()

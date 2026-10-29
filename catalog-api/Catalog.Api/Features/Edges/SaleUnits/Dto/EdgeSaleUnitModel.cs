@@ -6,7 +6,7 @@ namespace Catalog.Api.Features.Edges.SaleUnits.Dto;
 [Description("Параметры единицы продажи кромок")]
 public sealed record EdgeSaleUnitModel(
     [property: Description("Название")] string Name,
-    [property: Description("Тип: Meter — погонный метр, Roll — бухта"), JsonConverter(typeof(StrictStringEnumConverter))] EdgeSaleUnitTypeEnum Type,
+    [property: Description("Тип: Meter — погонный метр, Roll — бухта"), JsonConverter(typeof(StrictStringEnumConverter))] EdgeSaleUnitTypeEnum SaleUnitType,
     [property: Description("Длина бухты или кратность отреза в метрах")] decimal Length);
 
 public sealed class EdgeSaleUnitModelValidator : AbstractValidator<EdgeSaleUnitModel>
@@ -26,7 +26,7 @@ public sealed class EdgeSaleUnitModelValidator : AbstractValidator<EdgeSaleUnitM
                     x => x.Id != id && EF.Property<string>(x, "NormalizedName") == normalizedName, ct);
             }).WithMessage("Запись с таким названием уже существует.");
 
-        RuleFor(x => x.Type)
+        RuleFor(x => x.SaleUnitType)
             .IsInEnum().WithMessage("Выберите тип единицы продажи: Meter или Roll");
 
         RuleFor(x => x.Length)
@@ -38,7 +38,7 @@ public sealed class EdgeSaleUnitModelValidator : AbstractValidator<EdgeSaleUnitM
                 string? routeId = httpContextAccessor.HttpContext?.Request.RouteValues["id"]?.ToString();
                 _ = int.TryParse(routeId, out int id);
                 return !await dbContext.EdgeSaleUnits.AsNoTracking().AnyAsync(
-                    x => x.Id != id && x.Type == model.Type && x.Length == length, ct);
-            }).When(x => Enum.IsDefined(x.Type), ApplyConditionTo.CurrentValidator).WithMessage("Единица продажи с таким типом и длиной уже существует.");
+                    x => x.Id != id && x.SaleUnitType == model.SaleUnitType && x.Length == length, ct);
+            }).When(x => Enum.IsDefined(x.SaleUnitType), ApplyConditionTo.CurrentValidator).WithMessage("Единица продажи с таким типом и длиной уже существует.");
     }
 }

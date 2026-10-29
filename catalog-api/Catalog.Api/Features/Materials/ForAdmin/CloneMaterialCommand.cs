@@ -96,7 +96,7 @@ public sealed class CloneMaterialCommandHandler(CatalogDbContext dbContext, ICat
                 {
                     MaterialId = clone.Id,
                     Guid = Guid.NewGuid(),
-                    Type = image.Type,
+                    ContentType = image.ContentType,
                     Data = [.. image.Data],
                     ImageType = image.ImageType
                 });
