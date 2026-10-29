@@ -38,6 +38,8 @@ Catalog API использует общий development-сертификат и�
 
 Настраиваемая выгрузка материалов и кромок в `.xlsx`: [контракт экспорта](catalog-api/docs/EXCEL_EXPORT_API.md).
 
+`GET /api/for-vek-lk/materials` для авторизованного пользователя ЛК возвращает `{ "items": [{ "id", "name", "article", "categoryId", "count", "image" }], "categories": [{ "id", "name" }] }` для выбора материала в раскрое. Включаются все материалы с `applicableToCutting` независимо от `hideOnSite` материала и категории; категории без материалов для раскроя отсутствуют. Материалы с нулевым остатком остаются в выдаче. Категории упорядочены по `orderByCol`, затем `id`; материалы — в порядке категорий, внутри категории по собственным `orderByCol` и `id`. `image` содержит GUID миниатюры 240 px, при её отсутствии — 480 px, иначе null; изображение доступно через `GET /api/materials/images/{guid}`. Все Id принадлежат Catalog API. В профиле Vek запрос требует cookie `VekExpressCookie`; фронт передаёт её через `credentials: "include"`. Без действительной cookie возвращается 401. Изменения схемы БД не требуются.
+
 `GET /api/for-admin/materials/compact` возвращает в поле `im` GUID миниатюры 240 px, при её отсутствии — 480 px, иначе null. Оригинал не подставляется. Список читает только GUID; файл можно лениво получить через публичный `GET /api/materials/images/{guid}` с годовым HTTP-кешем и ETag по GUID.
 
 Поле `el` компактного списка содержит внешнюю ссылку материала или null. `PUT /api/for-admin/materials/{id}/external-link` с `{ "externalLink": "https://example.com/material" }` меняет только эту ссылку; null или пустая строка удаляют её. Разрешены полные HTTP(S)-ссылки до 250 символов. Ответ — `{ "success": true }`.

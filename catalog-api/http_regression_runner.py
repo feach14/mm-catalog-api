@@ -1625,6 +1625,7 @@ def main():
         "MaterialTypes",
         "MaterialTypesForAdmin",
         "CatalogHistoryForAdmin",
+        "MaterialsForVekLk",
     ]
     equal([tag["name"] for tag in openapi_document.get("tags", [])], expected_tag_names,
           "Порядок групп контроллеров в Scalar")
