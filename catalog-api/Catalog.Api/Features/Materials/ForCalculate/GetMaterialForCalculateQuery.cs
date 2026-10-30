@@ -1,3 +1,4 @@
+using Catalog.Api.Features.Materials.Helpers;
 using Catalog.Database;
 using Core.CQRS;
 
@@ -17,10 +18,16 @@ public sealed class GetMaterialForCalculateQueryHandler(CatalogDbContext dbConte
     : IQueryHandler<GetMaterialForCalculateQuery, GetMaterialForCalculateQueryResult>
 {
     public async Task<GetMaterialForCalculateQueryResult> Handle(GetMaterialForCalculateQuery query, CancellationToken ct)
-        => await dbContext.Materials.AsNoTracking()
-               .Where(x => x.Id == query.Id)
-               .Select(x => new GetMaterialForCalculateQueryResult(
-                   x.Id, x.MaterialSheetSize.Width, x.MaterialSheetSize.Height, x.Price, x.Name, x.Article))
-               .SingleOrDefaultAsync(ct)
-           ?? throw new BadHttpRequestException($"Материал с id={query.Id} не найден");
+    {
+        var material = await dbContext.Materials.AsNoTracking()
+            .Include(x => x.MaterialType)
+            .Include(x => x.MaterialThickness)
+            .Include(x => x.MaterialSheetSize)
+            .Include(x => x.MaterialManufacturer)
+            .SingleOrDefaultAsync(x => x.Id == query.Id, ct)
+            ?? throw new BadHttpRequestException($"Материал с id={query.Id} не найден");
+
+        return new GetMaterialForCalculateQueryResult(material.Id, material.MaterialSheetSize.Width,
+            material.MaterialSheetSize.Height, material.Price, MaterialNameHelper.GetFullName(material), material.Article);
+    }
 }

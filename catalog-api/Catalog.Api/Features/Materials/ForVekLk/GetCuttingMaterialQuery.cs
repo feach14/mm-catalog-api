@@ -1,3 +1,4 @@
+using Catalog.Api.Features.Materials.Helpers;
 using Catalog.Database;
 using Core.CQRS;
 
@@ -15,21 +16,14 @@ public sealed class GetCuttingMaterialQueryHandler(CatalogDbContext dbContext)
     public async Task<GetCuttingMaterialQueryResult> Handle(GetCuttingMaterialQuery query, CancellationToken ct)
     {
         var material = await dbContext.Materials.AsNoTracking()
+            .Include(x => x.MaterialType)
+            .Include(x => x.MaterialThickness)
+            .Include(x => x.MaterialSheetSize)
+            .Include(x => x.MaterialManufacturer)
             .Where(x => x.Id == query.Id && !x.HideInLk && !x.Category.HideInLk)
-            .Select(x => new
-            {
-                x.Id,
-                x.Name,
-                MaterialTypeName = x.MaterialType.Name,
-                Thickness = x.MaterialThickness.Value,
-                x.MaterialSheetSize.Height,
-                x.MaterialSheetSize.Width,
-                ManufacturerName = x.MaterialManufacturer.Name
-            })
             .SingleOrDefaultAsync(ct)
             ?? throw new BadHttpRequestException("Материал не найден.");
 
-        return new GetCuttingMaterialQueryResult(material.Id,
-            VekLkMaterialName.Format(material.MaterialTypeName, material.Name, material.Thickness, material.Height, material.Width, material.ManufacturerName));
+        return new GetCuttingMaterialQueryResult(material.Id, MaterialNameHelper.GetFullName(material));
     }
 }

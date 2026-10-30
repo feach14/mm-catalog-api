@@ -1,5 +1,6 @@
 // ReSharper disable NotAccessedPositionalProperty.Global
 
+using Catalog.Api.Features.Materials.Helpers;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;
@@ -30,18 +31,17 @@ public sealed class GetCuttingMaterialCatalogQueryHandler(CatalogDbContext dbCon
     public async Task<GetCuttingMaterialCatalogQueryResult> Handle(GetCuttingMaterialCatalogQuery query, CancellationToken ct)
     {
         var materials = await dbContext.Materials.AsNoTracking()
+            .Include(x => x.MaterialType)
+            .Include(x => x.MaterialThickness)
+            .Include(x => x.MaterialSheetSize)
+            .Include(x => x.MaterialManufacturer)
             .Where(x => !x.HideInLk && !x.Category.HideInLk)
             .OrderBy(x => x.Category.OrderByCol).ThenBy(x => x.CategoryId)
             .ThenBy(x => x.OrderByCol).ThenBy(x => x.Id)
             .Select(x => new
             {
                 x.Id,
-                x.Name,
-                MaterialTypeName = x.MaterialType.Name,
-                Thickness = x.MaterialThickness.Value,
-                x.MaterialSheetSize.Height,
-                x.MaterialSheetSize.Width,
-                ManufacturerName = x.MaterialManufacturer.Name,
+                Material = x,
                 x.Article,
                 x.CategoryId,
                 CategoryName = x.Category.Name,
@@ -58,7 +58,7 @@ public sealed class GetCuttingMaterialCatalogQueryHandler(CatalogDbContext dbCon
             .ToArrayAsync(ct);
         var items = materials.Select(x => new CuttingMaterialCatalogItemDto(
             x.Id,
-            VekLkMaterialName.Format(x.MaterialTypeName, x.Name, x.Thickness, x.Height, x.Width, x.ManufacturerName),
+            MaterialNameHelper.GetFullName(x.Material),
             x.Article, x.CategoryId, x.Count, x.Image)).ToArray();
         var categories = materials
             .GroupBy(x => new { x.CategoryId, x.CategoryName, x.CategoryOrderByCol })
