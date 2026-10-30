@@ -1,6 +1,5 @@
 // ReSharper disable NotAccessedPositionalProperty.Global
 
-using System.Globalization;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;
@@ -57,10 +56,9 @@ public sealed class GetCuttingMaterialCatalogQueryHandler(CatalogDbContext dbCon
                     .FirstOrDefault()
             })
             .ToArrayAsync(ct);
-        var culture = CultureInfo.GetCultureInfo("ru-RU");
         var items = materials.Select(x => new CuttingMaterialCatalogItemDto(
             x.Id,
-            $"{x.MaterialTypeName.Trim()} {x.Name.Trim()} {x.Thickness.ToString("0.###", culture)} мм {x.Height}×{x.Width} {x.ManufacturerName.Trim()}",
+            VekLkMaterialName.Format(x.MaterialTypeName, x.Name, x.Thickness, x.Height, x.Width, x.ManufacturerName),
             x.Article, x.CategoryId, x.Count, x.Image)).ToArray();
         var categories = materials
             .GroupBy(x => new { x.CategoryId, x.CategoryName, x.CategoryOrderByCol })

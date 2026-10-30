@@ -19,4 +19,15 @@ public sealed class MaterialsForVekLkController : BaseApiController
     public Task<GetCuttingMaterialCatalogQueryResult> Materials(
         [FromServices] IQueryHandler<GetCuttingMaterialCatalogQuery, GetCuttingMaterialCatalogQueryResult> handler) =>
         handler.Handle(new GetCuttingMaterialCatalogQuery(), HttpContext.RequestAborted);
+
+    [HttpGet("materials/{id:int}"),
+     EndpointSummary(nameof(Material)),
+     EndpointDescription("Материал для раскроя"),
+     ProducesResponseType(typeof(GetCuttingMaterialQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Материал"),
+     ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest, MediaTypeNames.Application.ProblemJson, Description = "Материал не найден"),
+     ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Необходима авторизация")]
+    public Task<GetCuttingMaterialQueryResult> Material(
+        [FromRoute, Description("Id материала")] int id,
+        [FromServices] IQueryHandler<GetCuttingMaterialQuery, GetCuttingMaterialQueryResult> handler) =>
+        handler.Handle(new GetCuttingMaterialQuery(id), HttpContext.RequestAborted);
 }
