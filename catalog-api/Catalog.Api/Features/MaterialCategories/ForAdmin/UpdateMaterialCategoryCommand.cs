@@ -24,7 +24,9 @@ public class UpdateMaterialCategoryCommandHandler(CatalogDbContext dbContext, IC
         if (materialCategory.ExternalLink != command.Category.ExternalLink)
             changes.Add($"источник «{materialCategory.ExternalLink}» → «{command.Category.ExternalLink}»");
         if (materialCategory.HideOnSite != command.Category.HideOnSite)
-            changes.Add($"скрыта на сайте {materialCategory.HideOnSite} → {command.Category.HideOnSite}");
+            changes.Add($"скрыт на сайте {materialCategory.HideOnSite} → {command.Category.HideOnSite}");
+        if (materialCategory.HideInLk != command.Category.HideInLk)
+            changes.Add($"скрыт в ЛК {materialCategory.HideInLk} → {command.Category.HideInLk}");
 
         if (changes.Count == 0)
             return new UpdateMaterialCategoryCommandResult(true);
@@ -32,6 +34,7 @@ public class UpdateMaterialCategoryCommandHandler(CatalogDbContext dbContext, IC
         materialCategory.Name = command.Category.Name;
         materialCategory.ExternalLink = command.Category.ExternalLink;
         materialCategory.HideOnSite = command.Category.HideOnSite;
+        materialCategory.HideInLk = command.Category.HideInLk;
         dbContext.MaterialCategories.Update(materialCategory);
         historyWriter.Add(
             CatalogHistoryActionTypeEnum.Update,

@@ -59,14 +59,12 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
                 Name = command.Material.Name,
                 MaterialThicknessId = command.Material.ThicknessId,
                 Count = command.Material.Count,
-                ApplicableToCutting = command.Material.ApplicableToCutting,
-                ApplicableToPvhFacades = command.Material.ApplicableToPvhFacades,
-                ApplicableToEnamelFacades = command.Material.ApplicableToEnamelFacades,
                 CommentOnMaterialIsRequired = command.Material.CommentOnMaterialIsRequired,
                 AllowSecondItemInOrder = command.Material.AllowSecondItemInOrder,
                 ExternalLink = command.Material.ExternalLink,
                 Price = command.Material.Price,
                 StroydvorProductId = command.Material.StroydvorProductId,
+                HideInLk = command.Material.HideInLk,
                 HideOnSite = command.Material.HideOnSite,
                 HidePriceOnSite = command.Material.HidePriceOnSite,
                 CountTypeEnum = command.Material.CountTypeEnum,
@@ -104,6 +102,7 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
                 + $"толщина #{material.MaterialThicknessId}, "
                 + $"количество {material.Count}, "
                 + $"цена {material.Price}, "
+                + $"скрыт в ЛК: {material.HideInLk}, "
                 + $"скрыт на сайте: {material.HideOnSite}, цена скрыта на сайте: {material.HidePriceOnSite}, "
                 + $"изображения {string.Join(';', images.Select(x => $"{(x?.ToString() ?? "нет")}"))}.");
 

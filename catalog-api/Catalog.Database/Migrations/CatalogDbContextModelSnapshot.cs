@@ -445,18 +445,6 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("allow_second_item_in_order");
 
-                    b.Property<bool>("ApplicableToCutting")
-                        .HasColumnType("boolean")
-                        .HasColumnName("applicable_to_cutting");
-
-                    b.Property<bool>("ApplicableToEnamelFacades")
-                        .HasColumnType("boolean")
-                        .HasColumnName("applicable_to_enamel_facades");
-
-                    b.Property<bool>("ApplicableToPvhFacades")
-                        .HasColumnType("boolean")
-                        .HasColumnName("applicable_to_pvh_facades");
-
                     b.Property<string>("Article")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -483,6 +471,12 @@ namespace Catalog.Database.Migrations
                         .HasMaxLength(250)
                         .HasColumnType("character varying(250)")
                         .HasColumnName("external_link");
+
+                    b.Property<bool>("HideInLk")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("hide_in_lk");
 
                     b.Property<bool>("HideOnSite")
                         .HasColumnType("boolean")
@@ -592,6 +586,12 @@ namespace Catalog.Database.Migrations
                         .HasMaxLength(250)
                         .HasColumnType("character varying(250)")
                         .HasColumnName("external_link");
+
+                    b.Property<bool>("HideInLk")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("hide_in_lk");
 
                     b.Property<bool>("HideOnSite")
                         .HasColumnType("boolean")

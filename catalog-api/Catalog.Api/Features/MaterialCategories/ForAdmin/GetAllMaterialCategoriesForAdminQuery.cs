@@ -16,6 +16,7 @@ public record GetAllMaterialCategoriesForAdminQueryItem(
     [property: Description("Ссылка на внешний источник")] string ExternalLink,
     [property: Description("Порядковый номер для сортировки")] int OrderByCol,
     [property: Description("Признак: скрыть категорию на сайте")] bool HideOnSite,
+    [property: Description("Скрыть в ЛК")] bool HideInLk,
     [property: Description("Количество материалов в наличии у текущей категории")] int MaterialsAnyCount,
     [property: Description("Количество материалов не в наличии у текущей категории")] int MaterialsNotAnyCount
 );
@@ -24,7 +25,7 @@ public class GetAllMaterialCategoriesQueryHandler(CatalogDbContext dbContext) : 
 {
     public async Task<GetAllMaterialCategoriesForAdminQueryResult> Handle(GetAllMaterialCategoriesForAdminQuery query, CancellationToken ct)
     {
-        var items = await dbContext.MaterialCategories
+        var items = await dbContext.MaterialCategories.AsNoTracking()
             .OrderBy(x => x.OrderByCol)
             .Select(x => new GetAllMaterialCategoriesForAdminQueryItem
             (
@@ -33,6 +34,7 @@ public class GetAllMaterialCategoriesQueryHandler(CatalogDbContext dbContext) : 
                 ExternalLink: x.ExternalLink,
                 OrderByCol: x.OrderByCol,
                 HideOnSite: x.HideOnSite,
+                HideInLk: x.HideInLk,
                 MaterialsAnyCount: x.Materials.Count(y => y.Count > 0),
                 MaterialsNotAnyCount: x.Materials.Count(y => y.Count < 1)
             ))

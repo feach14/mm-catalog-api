@@ -10,6 +10,9 @@ public sealed record MaterialCategoryModel
 
     [Description("Признак: скрыть категорию на сайте")]
     public bool HideOnSite { get; init; }
+
+    [Description("Скрыть в ЛК")]
+    public bool HideInLk { get; init; }
 }
 
 public class MaterialCategoryModelValidator : AbstractValidator<MaterialCategoryModel>

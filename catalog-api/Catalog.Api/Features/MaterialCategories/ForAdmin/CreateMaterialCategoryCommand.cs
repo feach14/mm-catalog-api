@@ -23,6 +23,7 @@ public class CreateMaterialCategoryCommandHandler(CatalogDbContext dbContext, IC
             Name = command.Category.Name,
             ExternalLink = command.Category.ExternalLink,
             HideOnSite = command.Category.HideOnSite,
+            HideInLk = command.Category.HideInLk,
             OrderByCol = maxOrderByCol + 1
         };
 
@@ -33,7 +34,7 @@ public class CreateMaterialCategoryCommandHandler(CatalogDbContext dbContext, IC
             CatalogHistoryActionTypeEnum.Create,
             CatalogHistoryEntityTypeEnum.Category,
             materialCategory.Id,
-            $"Создана категория материалов #{materialCategory.Id} «{materialCategory.Name}»: источник {materialCategory.ExternalLink}, скрыта на сайте: {materialCategory.HideOnSite}.");
+            $"Создана категория материалов #{materialCategory.Id} «{materialCategory.Name}»: источник {materialCategory.ExternalLink}, скрыт на сайте: {materialCategory.HideOnSite}, скрыт в ЛК: {materialCategory.HideInLk}.");
         await dbContext.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 

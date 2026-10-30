@@ -10,19 +10,21 @@ public record GetMaterialCategoryQueryResult(
     [property: Description("Название категории")] string Name,
     [property: Description("Ссылка на внешний источник")] string ExternalLink,
     [property: Description("Порядковый номер для сортировки")] int OrderByCol,
-    [property: Description("Признак: скрыть категорию на сайте")] bool HideOnSite);
+    [property: Description("Признак: скрыть категорию на сайте")] bool HideOnSite,
+    [property: Description("Скрыть в ЛК")] bool HideInLk);
 
 public class GetMaterialCategoryQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetMaterialCategoryQuery, GetMaterialCategoryQueryResult>
 {
     public async Task<GetMaterialCategoryQueryResult> Handle(GetMaterialCategoryQuery query, CancellationToken ct) =>
-        await dbContext.MaterialCategories
+        await dbContext.MaterialCategories.AsNoTracking()
             .Where(x => x.Id == query.Id)
             .Select(x => new GetMaterialCategoryQueryResult(
                 Id: x.Id,
                 Name: x.Name,
                 ExternalLink: x.ExternalLink,
                 OrderByCol: x.OrderByCol,
-                HideOnSite: x.HideOnSite
+                HideOnSite: x.HideOnSite,
+                HideInLk: x.HideInLk
             ))
             .SingleOrDefaultAsync(ct)
         ?? throw new BadHttpRequestException($"Категория материалов с id={query.Id} не найдена");

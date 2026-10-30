@@ -65,10 +65,6 @@ public class MaterialModelValidator : AbstractValidator<MaterialModel>
             .GreaterThan(0).WithMessage("Не указана толщина материала")
             .MustAsync(async (id, ct) => await dbContext.MaterialThicknesses.AsNoTracking().AnyAsync(x => x.Id == id, ct))
             .WithMessage("Указанная толщина материала не найдена");
-        RuleFor(m => m.ApplicableToCutting)
-            .Must((model, applicableToCutting) =>
-                applicableToCutting || model.ApplicableToPvhFacades || model.ApplicableToEnamelFacades)
-            .WithMessage("Необходимо выбрать хотя бы один вариант использования материала");
     }
 }
 
@@ -122,15 +118,6 @@ public record MaterialModel
     [Description("Id толщины материала")]
     public required int ThicknessId { get; init; }
 
-    [Description("Использование материала в заявке на распил")]
-    public required bool ApplicableToCutting { get; init; }
-
-    [Description("Использование материала в заявке на фасады ПВХ")]
-    public required bool ApplicableToPvhFacades { get; init; }
-
-    [Description("Использование материала в заявке на фасады эмаль")]
-    public required bool ApplicableToEnamelFacades { get; init; }
-
     [Description("Признак: Комментарий к материалу обязателен при оформлении заявки(расчета)")]
     public bool CommentOnMaterialIsRequired { get; init; }
 
@@ -142,6 +129,9 @@ public record MaterialModel
 
     [Description("Цена материала у поставщика")]
     public required decimal Price { get; init; }
+
+    [Description("Скрыть в ЛК")]
+    public bool HideInLk { get; init; }
 
     [Description("Признак: скрыть материал на сайте")]
     public bool HideOnSite { get; init; }

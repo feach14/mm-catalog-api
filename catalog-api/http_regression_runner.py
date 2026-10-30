@@ -282,8 +282,9 @@ def run_compact_materials_scenario():
                  "th": "thickness", "c": "category"}
     renamed_fields = {"i": "id", "n": "name", "a": "article", "q": "count", "p": "price",
                       "o": "orderByCol", "h": "hideOnSite", "hp": "hidePriceOnSite",
-                      "cu": "applicableToCutting", "pv": "applicableToPvhFacades",
-                      "en": "applicableToEnamelFacades"}
+                      "hideInLk": "hideInLk", "el": "externalLink",
+                      "spid": "stroydvorProductId", "spa": "stroydvorArticle", "spp": "stroydvorPrice",
+                      "spls": "stroydvorLastSyncAt", "spis": "stroydvorInStock", "spurl": "stroydvorUrl"}
     ordinary_response = request("GET", "/api/for-admin/materials", auth=True)
     compact_response = request("GET", path, auth=True)
     expect(ordinary_response[0], 200, "Обычный административный список")
@@ -341,7 +342,7 @@ def create_manufacturer(name):
     return manufacturer_id
 
 
-def material_model(name, category_id, flag, image=None):
+def material_model(name, category_id, image=None):
     return {
         "categoryId": category_id,
         "sheetSizeId": primary_sheet_size_id,
@@ -352,9 +353,6 @@ def material_model(name, category_id, flag, image=None):
         "image": image,
         "count": 2,
         "thicknessId": thickness_ids[18],
-        "applicableToCutting": flag == "cutting",
-        "applicableToPvhFacades": flag == "pvhFacades",
-        "applicableToEnamelFacades": flag == "enamelFacades",
         "commentOnMaterialIsRequired": False,
         "allowSecondItemInOrder": True,
         "externalLink": "https://example.test/material",
@@ -445,7 +443,7 @@ def run_history_scenarios(history_prefix, dimension_base, manager_cookie, tester
     created_manufacturers.append(manufacturer_id)
 
     material_name = history_prefix + "-material"
-    material = material_model(material_name, category_id, "cutting")
+    material = material_model(material_name, category_id)
     material.update({"sheetSizeId": size_id, "manufacturerId": manufacturer_id})
     response = request("POST", "/api/for-admin/materials", material, auth_cookie=manager_cookie)
     expect(response[0], 200, "history material create")
@@ -633,7 +631,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
         }, auth=True)[0], 200, "configure facet size")
     rows = []
     for i, letter in enumerate("ABCDE"):
-        model = material_model(marker + "-" + letter, cats[i % 2], "cutting" if i % 2 == 0 else "pvhFacades")
+        model = material_model(marker + "-" + letter, cats[i % 2])
         model.update(manufacturerId=makers[(i // 2) % 2], sheetSizeId=sizes[i % 2],
                      thicknessId=thickness_ids[16 + 2 * (i % 2)], count=i % 2, article=marker + f"-article-{i}")
         rows.append(dict(model, depth=16 + 2 * (i % 2), id=create_material(model)))
@@ -648,8 +646,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
         if excluded != "inStock" and "inStock" in params:
             if (row["count"] > 0) != (params["inStock"] == "true"):
                 return False
-        flags = {"Cutting": "applicableToCutting", "PvhFacades": "applicableToPvhFacades"}
-        return not params.get("calculators") or any(row[flags[c]] for c in params["calculators"])
+        return True
 
     def search_check(params):
         body = public_query("search", params)
@@ -664,9 +661,9 @@ def run_search_facet_scenarios(prefix, dimension_base):
         search_check({"search": "  " + term.upper() + "  "})
     mark("SEARCH-01", "Проверены поиск по названию и артикулу, независимость от регистра и удаление пробелов по краям")
     for symbol in ("%", "_", "\\"):
-        model = material_model(prefix + "-literal-" + symbol, cats[0], "cutting")
+        model = material_model(prefix + "-literal-" + symbol, cats[0])
         material_id = create_material(model)
-        control = material_model(prefix + "-literal-X" + str(ord(symbol)), cats[0], "cutting")
+        control = material_model(prefix + "-literal-X" + str(ord(symbol)), cats[0])
         control_id = create_material(control)
         body = public_query("search", {"search": model["name"]})
         equal([r["id"] for r in body["items"]], [material_id], "literal search")
@@ -674,7 +671,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
         expect(delete_material(control_id)[0], 200, "literal control cleanup")
     mark("SEARCH-02", "Спецсимволы шаблонов LIKE обрабатываются буквально")
     choices = {"categoryIds": cats[:2], "manufacturerIds": makers[:2], "sheetSizeIds": sizes[:2],
-               "depths": [16, 18], "thicknessIds": [thickness_ids[16], thickness_ids[18]], "calculators": ["Cutting", "PvhFacades"]}
+               "depths": [16, 18], "thicknessIds": [thickness_ids[16], thickness_ids[18]]}
     for key, values in choices.items():
         search_check({"search": marker, key: values + values})
     for stock in ("true", "false"):
@@ -710,7 +707,6 @@ def run_search_facet_scenarios(prefix, dimension_base):
         for key in ("categoryIds", "manufacturerIds", "sheetSizeIds", "thicknessIds"):
             invalid.extend({key: value} for value in (0, 2147483647))
         invalid.extend({"depths": value} for value in (0, -1, "NaN", "Infinity"))
-        invalid.append({"calculators": "Unknown"})
         if endpoint == "search":
             invalid.append({"sort": "Unknown"})
         for params in invalid:
@@ -746,7 +742,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
         facets_check({"search": marker, field: [choices[field][0]]})
     mark("FACET-01", "При расчёте каждой группы исключается её собственный фильтр")
     facets_check({"search": marker, "categoryIds": [cats[0]], "manufacturerIds": [makers[0]],
-                  "sheetSizeIds": [sizes[0]], "depths": [16], "calculators": ["Cutting"], "inStock": "false"})
+                  "sheetSizeIds": [sizes[0]], "depths": [16], "inStock": "false"})
     mark("FACET-02", "Счётчики при совместных ограничениях сверены с исходными тестовыми данными")
     facets_check({"search": marker, "categoryIds": [cats[2]], "manufacturerIds": [makers[2]],
                   "sheetSizeIds": [sizes[2]], "depths": [99]})
@@ -781,7 +777,7 @@ def run_variant_scenarios(prefix, category_id, png):
     fields = {"image": ("Original", "original"), "thumbnail240": ("Thumbnail240", "thumbnail240"),
               "thumbnail480": ("Thumbnail480", "thumbnail480")}
     uploaded = {}
-    model = material_model(prefix + "-variants-A", category_id, "cutting")
+    model = material_model(prefix + "-variants-A", category_id)
     material_id = None
 
     def new_image(field):
@@ -860,7 +856,7 @@ def run_variant_scenarios(prefix, category_id, png):
             update()
             problem(request("GET", "/api/materials/images/" + old), "replaced thumbnail")
         mark("VAR-04", "Замена отдельной миниатюры делает прежний GUID недоступным, включая кеш")
-        other = material_model(prefix + "-variants-B", category_id, "cutting")
+        other = material_model(prefix + "-variants-B", category_id)
         other.update({field: new_image(field) for field in fields})
         other_id = create_material(other)
         for field in ("thumbnail240", "thumbnail480"):
@@ -910,7 +906,7 @@ def run_variant_scenarios(prefix, category_id, png):
                     guid in snapshots(entity_id)[1]["images"].values()
                     for entity_id in created_materials)
                 if not attached:
-                    temporary = material_model(prefix + "-drain-" + guid, category_id, "cutting")
+                    temporary = material_model(prefix + "-drain-" + guid, category_id)
                     temporary[field] = guid
                     temporary_id = create_material(temporary)
                     expect(delete_material(temporary_id)[0], 200, "unused upload cleanup")
@@ -974,7 +970,7 @@ def run_thickness_scenarios(prefix, dimension_base, user_cookie, tester_cookie, 
     category = create_category(prefix + "-thickness-cat")
     maker = create_manufacturer(prefix + "-thickness-maker")
     size = create_sheet_size(prefix + "-thickness-size", dimension_base + 200, dimension_base + 201)
-    material = material_model(prefix + "-thickness-material", category, "cutting")
+    material = material_model(prefix + "-thickness-material", category)
     material.update(manufacturerId=maker, sheetSizeId=size, thicknessId=entity_id)
     material_id = create_material(material)
     nested_expected = {"id": entity_id, "name": expected["name"]}
@@ -1033,7 +1029,7 @@ def run_decimal_scenarios(prefix, dimension_base, user_cookie, tester_cookie, ma
     category = create_category(prefix + "-decimal-category")
     maker = create_manufacturer(prefix + "-decimal-maker")
     size = create_sheet_size(prefix + "-decimal-size", dimension_base + 300, dimension_base + 301)
-    model = material_model(prefix + "-decimal-material", category, "cutting")
+    model = material_model(prefix + "-decimal-material", category)
     model.update(manufacturerId=maker, sheetSizeId=size)
     material_id = create_material(model)
     for value in (dimension_base, dimension_base + .1, dimension_base + .12, dimension_base + .123):
@@ -1100,7 +1096,7 @@ def run_material_type_scenarios(prefix, user_cookie, openapi_document):
         problem(request("POST", path + "/change-order-col", {"id": entity, "direction": direction}, auth=True), "Граница порядка")
     mark("MT-03", "Перестановка UP/DOWN и обе границы")
     category = create_category(prefix + "-type-category")
-    model = dict(material_model(prefix + "-typed", category, "cutting"), materialTypeId=a)
+    model = dict(material_model(prefix + "-typed", category), materialTypeId=a)
     material_id = create_material(model)
     for value in (None, 0, 2147483647):
         invalid = dict(model, materialTypeId=value)
@@ -1238,11 +1234,11 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
         fixture_categories.append(category_a)
         category_b = create_category(prefix + "-calculate-hidden", hide_on_site=True)
         fixture_categories.append(category_b)
-        models = [material_model(prefix + "-calculate-" + suffix, category, flag)
-                  for suffix, category, flag in (("visible", category_a, "cutting"),
-                                                 ("hidden", category_a, "cutting"),
-                                                 ("zero", category_a, "pvhFacades"),
-                                                 ("hidden-category", category_b, "pvhFacades"))]
+        models = [material_model(prefix + "-calculate-" + suffix, category)
+                  for suffix, category in (("visible", category_a),
+                                            ("hidden", category_a),
+                                            ("zero", category_a),
+                                            ("hidden-category", category_b))]
         models[1]["hideOnSite"] = True
         models[2]["count"] = 0
         for model in models:
@@ -1453,9 +1449,60 @@ def run_visibility_scenarios(prefix, hidden_material_id, hidden_material_model,
     mark("VIS-04", "Видимость материала и категории восстановлена перед остальной регрессией")
 
 
+    def lk_catalog():
+        response = request("GET", "/api/for-vek-lk/materials", auth=True)
+        expect(response[0], 200, "Каталог ВЕК ЛК")
+        return json_body(response)
+
+    material_card = json_body(request("GET", f"/api/for-admin/materials/{hidden_material_id}", auth=True))
+    category_card = json_body(request("GET", f"/api/for-admin/materials/categories/{category_id}", auth=True))
+    assert material_card["hideInLk"] is False and category_card["hideInLk"] is False
+    mark("VIS-05", "Новые материал и категория по умолчанию показываются в ЛК")
+
+    hidden_in_lk = dict(hidden_material_model, hideInLk=True)
+    expect(request("PUT", f"/api/for-admin/materials/{hidden_material_id}", hidden_in_lk, auth=True)[0],
+           200, "Скрытие материала в ЛК")
+    material_card = json_body(request("GET", f"/api/for-admin/materials/{hidden_material_id}", auth=True))
+    assert material_card["hideInLk"] is True
+    assert hidden_material_id not in {item["id"] for item in lk_catalog()["items"]}
+    expect(request("GET", f"/api/materials/{hidden_material_id}")[0], 200, "Видимость материала на сайте не изменилась")
+    mark("VIS-06", "hideInLk=true сохраняется в карточке и исключает материал только из выдачи ЛК")
+
+    visible_in_lk = dict(hidden_material_model, hideInLk=False, hideOnSite=True)
+    expect(request("PUT", f"/api/for-admin/materials/{hidden_material_id}", visible_in_lk, auth=True)[0],
+           200, "Включение материала в ЛК при скрытии на сайте")
+    assert hidden_material_id in {item["id"] for item in lk_catalog()["items"]}
+    expect(request("GET", f"/api/materials/{hidden_material_id}")[0], 400, "Материал скрыт только на сайте")
+    expect(request("PUT", f"/api/for-admin/materials/{hidden_material_id}",
+                   dict(hidden_material_model, hideInLk=False), auth=True)[0], 200, "Восстановление материала")
+
+    hidden_category_in_lk = dict(category_model, hideOnSite=False, hideInLk=True)
+    expect(request("PUT", f"/api/for-admin/materials/categories/{category_id}", hidden_category_in_lk, auth=True)[0],
+           200, "Скрытие категории в ЛК")
+    category_card = json_body(request("GET", f"/api/for-admin/materials/categories/{category_id}", auth=True))
+    assert category_card["hideInLk"] is True
+    catalog = lk_catalog()
+    assert category_id not in {item["id"] for item in catalog["categories"]}
+    assert not any(item["categoryId"] == category_id for item in catalog["items"])
+    expect(request("GET", f"/api/materials/{category_material_id}")[0], 200, "Категория остаётся видимой на сайте")
+    mark("VIS-07", "hideInLk=true категории исключает её и все её материалы из каталога ЛК")
+
+    visible_category_in_lk = dict(category_model, hideOnSite=True, hideInLk=False)
+    expect(request("PUT", f"/api/for-admin/materials/categories/{category_id}", visible_category_in_lk, auth=True)[0],
+           200, "Включение категории в ЛК при скрытии на сайте")
+    catalog = lk_catalog()
+    assert category_id in {item["id"] for item in catalog["categories"]}
+    assert category_material_id in {item["id"] for item in catalog["items"]}
+    expect(request("GET", f"/api/materials/{category_material_id}")[0], 400, "Категория скрыта только на сайте")
+    expect(request("PUT", f"/api/for-admin/materials/categories/{category_id}",
+                   dict(category_model, hideOnSite=False, hideInLk=False), auth=True)[0], 200, "Восстановление категории")
+    mark("VIS-08", "Видимость сайта и ЛК независима для материала и категории; исходная видимость восстановлена")
+
+
 def run_openapi_metadata_scenarios(document):
     """DOC-07/08/09: проверка готового документа без HTTP, авторизации и изменения БД."""
     schemas = document["components"]["schemas"]
+    assert "MaterialCalculatorEnum" not in schemas, "Удалённый тип калькулятора отсутствует в OpenAPI"
 
     def nodes(schema):
         yield schema
@@ -1544,13 +1591,14 @@ def run_openapi_metadata_scenarios(document):
     equal(set(properties(compact_result)), {"items", "filters"}, "Обёртка компактной выдачи в OpenAPI")
     compact_item = schemas["GetCompactMaterialsForAdminQueryItem"]
     compact_fields = {
-        "i", "n", "a", "s", "m", "t", "th", "c", "q", "o", "p", "h", "hp", "cu", "pv", "en", "im"
+        "i", "n", "a", "s", "m", "t", "th", "c", "q", "o", "p", "hideInLk", "h", "hp", "im", "el",
+        "spid", "spa", "spp", "spls", "spis", "spurl"
     }
-    equal(set(properties(compact_item)), compact_fields, "Ровно 17 полей компактного материала в OpenAPI")
+    equal(set(properties(compact_item)), compact_fields, "Поля компактного материала в OpenAPI")
     equal(required(compact_item), compact_fields, "Обязательные поля компактного материала в OpenAPI")
     equal(properties(compact_item)["i"]["description"], "Id", "Описание идентификатора компактного материала")
     assert all(russian_description(field) for name, field in properties(compact_item).items() if name != "i"), "Русские описания компактных полей"
-    mark("DOC-09", "Отдельный compact endpoint описывает 17 обязательных полей материала и обёртку items/filters без query-параметров")
+    mark("DOC-09", "Отдельный compact endpoint описывает актуальные обязательные поля материала и обёртку items/filters без query-параметров")
 
 
 def main():
@@ -1589,13 +1637,13 @@ def main():
         assert "depth" not in properties and "thicknessId" not in properties, schema_name
         assert "PropertyDto" in json.dumps(properties["thickness"]), schema_name
     mark("DOC-03", "В пяти ответах материала вложенный PropertyDto с обязательными id/name")
-    for endpoint, count in (("search", 12), ("filters", 9)):
+    for endpoint, count in (("search", 11), ("filters", 8)):
         parameters = openapi_document["paths"]["/api/materials/" + endpoint]["get"]["parameters"]
         equal(len(parameters), count, "Количество query-параметров")
         parameter_names = {parameter["name"][0].lower() + parameter["name"][1:] for parameter in parameters}
-        equal(parameter_names & {"categoryIds", "manufacturerIds", "materialTypeIds", "sheetSizeIds", "thicknessIds", "depths", "calculators"},
-              {"categoryIds", "manufacturerIds", "materialTypeIds", "sheetSizeIds", "thicknessIds", "depths", "calculators"}, "Имена параметров множественного выбора")
-        assert not parameter_names & {"categoryId", "manufacturerId", "sheetSizeId", "thicknessId", "depth", "calculator"}, "Старые имена массивов ID в OpenAPI"
+        equal(parameter_names & {"categoryIds", "manufacturerIds", "materialTypeIds", "sheetSizeIds", "thicknessIds", "depths"},
+              {"categoryIds", "manufacturerIds", "materialTypeIds", "sheetSizeIds", "thicknessIds", "depths"}, "Имена параметров множественного выбора")
+        assert not parameter_names & {"categoryId", "manufacturerId", "sheetSizeId", "thicknessId", "depth", "calculator", "calculators"}, "Старые имена массивов ID в OpenAPI"
         for parameter in parameters:
             assert not parameter.get("required", False), parameter["name"]
             assert re.search("[А-Яа-я]", parameter.get("description", "")), parameter["name"]
@@ -1871,14 +1919,14 @@ def main():
         raise AssertionError("PNG changed after restart")
     mark("IMG-05", "Загруженный PNG доступен после перезапуска")
 
-    m1_model = material_model(prefix + "-mat-cutting", cat1, "cutting", images[0][0])
-    m2_model = material_model(prefix + "-mat-pvh", cat1, "pvhFacades")
-    m3_model = material_model(prefix + "-mat-enamel", cat2, "enamelFacades")
+    m1_model = material_model(prefix + "-mat-a", cat1, images[0][0])
+    m2_model = material_model(prefix + "-mat-b", cat1)
+    m3_model = material_model(prefix + "-mat-c", cat2)
     m1, m2, m3 = [create_material(x) for x in (m1_model, m2_model, m3_model)]
-    invalid_manufacturer_model = material_model(prefix + "-invalid-manufacturer", cat1, "cutting")
+    invalid_manufacturer_model = material_model(prefix + "-invalid-manufacturer", cat1)
     invalid_manufacturer_model["manufacturerId"] = 2147483647
     expect(request("POST", "/api/for-admin/materials", invalid_manufacturer_model, auth=True)[0], 400, "invalid manufacturer id")
-    zero_manufacturer_model = material_model(prefix + "-zero-manufacturer", cat1, "cutting")
+    zero_manufacturer_model = material_model(prefix + "-zero-manufacturer", cat1)
     zero_manufacturer_model["manufacturerId"] = 0
     expect(request("POST", "/api/for-admin/materials", zero_manufacturer_model, auth=True)[0], 400, "zero manufacturer id")
     expect(request("GET", f"/api/materials/{m1}")[0], 200, "public material card")
@@ -1921,18 +1969,11 @@ def main():
         },
         m3)
 
-    for calculator, expected_id in (("Cutting", m1), ("PvhFacades", m2), ("EnamelFacades", m3)):
-        ids = {x["id"] for x in public_query("search", {"search": prefix, "calculators": [calculator], "pageSize": 96})["items"]}
-        if expected_id not in ids:
-            raise AssertionError(f"filter {calculator} omitted expected material")
-        wrong_test_ids = ({m1, m2, m3} - {expected_id}) & ids
-        if wrong_test_ids:
-            raise AssertionError(f"filter {calculator} returned inapplicable test material")
-
-    combined_ids = {x["id"] for x in public_query("search", {"search": prefix, "calculators": ["Cutting", "PvhFacades"], "pageSize": 96})["items"]}
-    if not {m1, m2}.issubset(combined_ids) or m3 in combined_ids:
-        raise AssertionError("combined calculator filter returned incorrect test materials")
-    expect(request("GET", "/api/materials/search?calculators=Unknown")[0], 400, "invalid calculator")
+    removed_fields = {"applicableToCutting", "applicableToPvhFacades", "applicableToEnamelFacades"}
+    for material_id in (m1, m2, m3):
+        card = json_body(request("GET", f"/api/for-admin/materials/{material_id}", auth=True))
+        assert not removed_fields.intersection(card), "Удалённые признаки отсутствуют в карточке"
+    mark("MAT-03", "Материалы создаются без признаков применимости; удалённые признаки отсутствуют в карточках")
 
     all_rows = [x for x in public_materials() if prefix in x["name"]]
     for stock in (True, False):
@@ -1941,17 +1982,16 @@ def main():
               "Точное множество наличия в поиске")
     for endpoint, auth in (("/api/materials", False), ("/api/for-admin/materials", True)):
         baseline = json_body(request("GET", endpoint, auth=auth))
-        response = request("GET", endpoint + "?calculators=Unknown&inStock=invalid&thicknessIds=-1", auth=auth)
+        response = request("GET", endpoint + "?inStock=invalid&thicknessIds=-1", auth=auth)
         expect(response[0], 200, "Полный список не привязывает параметры фильтрации")
         equal(json_body(response), baseline, "Query-параметры не меняют полный список")
     mark("MAT-03C", "Наличие фильтруется в поиске; публичный и административный списки не принимают фильтры")
 
     m3_updated = copy.deepcopy(m3_model)
     m3_updated.update({
-        "categoryId": cat3, "name": prefix + "-mat-enamel-updated", "article": "UPDATED",
+        "categoryId": cat3, "name": prefix + "-mat-c-updated", "article": "UPDATED",
         "count": 7, "sheetSizeId": secondary_sheet_size_id, "thicknessId": thickness_ids[16],
         "price": 456.78, "countTypeEnum": "SHT",
-        "applicableToCutting": True, "applicableToEnamelFacades": False,
         "commentOnMaterialIsRequired": True, "allowSecondItemInOrder": False
     })
     expect(request("PUT", f"/api/for-admin/materials/{m3}", m3_updated, auth=True)[0], 200, "update material")
@@ -1988,7 +2028,7 @@ def main():
     mark("CAT-09", "Удаление используемой категории отклонено; связанные сущности сохранены")
     mark("MAT-01—MAT-08", "Проверены создание, списки, карточки, фильтры, изменение, общая сортировка между категориями и границы")
 
-    foreign_create_model = material_model(prefix + "-foreign-image-create", cat2, "cutting", images[0][0])
+    foreign_create_model = material_model(prefix + "-foreign-image-create", cat2, images[0][0])
     expect(request("POST", "/api/for-admin/materials", foreign_create_model, auth=True)[0], 400, "create with another material image")
     foreign_update_model = copy.deepcopy(m2_model)
     foreign_update_model["image"] = images[0][0]
@@ -2045,7 +2085,7 @@ def main():
             raise AssertionError("WebP changed after restart")
     mark("IMG-12", "После перезапуска WebP дважды получен с исходными байтами")
 
-    base_invalid = material_model(prefix + "-validation", cat2, "cutting")
+    base_invalid = material_model(prefix + "-validation", cat2)
     expect(request("POST", "/api/for-admin/materials", {}, auth=True)[0], 400, "empty required fields")
     for bad_category in (0, 2147483000):
         bad = copy.deepcopy(base_invalid); bad["categoryId"] = bad_category; bad["name"] += str(bad_category)
@@ -2055,9 +2095,6 @@ def main():
         expect(request("POST", "/api/for-admin/materials", bad, auth=True)[0], 400, "bad dimensions")
     bad = copy.deepcopy(base_invalid); bad["price"] = 0
     expect(request("POST", "/api/for-admin/materials", bad, auth=True)[0], 400, "bad price")
-    bad = copy.deepcopy(base_invalid)
-    bad.update({"applicableToCutting": False, "applicableToPvhFacades": False, "applicableToEnamelFacades": False})
-    expect(request("POST", "/api/for-admin/materials", bad, auth=True)[0], 400, "no calculator")
     duplicate = dict(base_invalid, name=m2_model["name"], thicknessId=thickness_ids[16])
     duplicate_id = create_material(duplicate)
     equal({x["id"] for x in admin_materials() if x["name"] == duplicate["name"]},
@@ -2086,7 +2123,7 @@ def main():
         ("/api/for-admin/materials/sheet-sizes", primary_sheet_size_id),
         ("/api/for-admin/materials/manufacturers", primary_manufacturer_id)
     )
-    no_stock_model = material_model(prefix + "-counter-no-stock", cat1, "cutting")
+    no_stock_model = material_model(prefix + "-counter-no-stock", cat1)
     no_stock_model["count"] = 0
     no_stock_id = create_material(no_stock_model)
     counters_before_delete = [relation_counts(path, relation_id) for path, relation_id in counter_targets]

@@ -15,6 +15,7 @@ public class MaterialConfiguration : IEntityTypeConfiguration<Material>
         eb.Property(x => x.StroydvorArticle).HasMaxLength(100);
         eb.Property(x => x.StroydvorPrice).HasPrecision(18, 2).HasDefaultValue(0m);
         eb.Property(x => x.StroydvorInStock).HasDefaultValue(false);
+        eb.Property(x => x.HideInLk).HasDefaultValue(false);
         eb.HasIndex(x => x.StroydvorProductId);
         eb.Property(x => x.OrderByCol).IsRequired().HasDefaultValue(0);
         eb.HasOne(a => a.Category)

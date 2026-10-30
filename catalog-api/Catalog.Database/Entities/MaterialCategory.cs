@@ -15,4 +15,5 @@ public sealed record MaterialCategory
 
     public required string ExternalLink { get; set; }
     public bool HideOnSite { get; set; }
+    public bool HideInLk { get; set; }
 }

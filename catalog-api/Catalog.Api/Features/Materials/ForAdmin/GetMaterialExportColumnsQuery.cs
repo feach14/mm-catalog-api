@@ -30,11 +30,9 @@ public sealed class GetMaterialExportColumnsQueryHandler : IQueryHandler<GetMate
         new("stroydvorLastSyncAt", "Синхронизация со Стройдвором, UTC", false),
         new("stroydvorInStock", "В наличии в Стройдворе", false),
         new("stroydvorUrl", "Техническая ссылка Стройдвора", false),
+        new("hideInLk", "Скрыт в ЛК", false),
         new("hideOnSite", "Скрыт на сайте", false),
         new("hidePriceOnSite", "Цена скрыта на сайте", false),
-        new("applicableToCutting", "Доступен для распила", false),
-        new("applicableToPvhFacades", "Доступен для фасадов ПВХ", false),
-        new("applicableToEnamelFacades", "Доступен для фасадов эмаль", false),
         new("commentOnMaterialIsRequired", "Комментарий обязателен", false),
         new("allowSecondItemInOrder", "Разрешён повторный элемент в заявке", false),
         new("orderByCol", "Порядок сортировки", false)

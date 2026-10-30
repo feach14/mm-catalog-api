@@ -80,13 +80,11 @@ public sealed class CloneMaterialCommandHandler(CatalogDbContext dbContext, ICat
                 StroydvorPrice = source.StroydvorPrice,
                 StroydvorLastSyncAt = source.StroydvorLastSyncAt,
                 StroydvorInStock = source.StroydvorInStock,
+                HideInLk = source.HideInLk,
                 HideOnSite = source.HideOnSite,
                 HidePriceOnSite = source.HidePriceOnSite,
                 CountTypeEnum = source.CountTypeEnum,
-                OrderByCol = clonePosition,
-                ApplicableToCutting = source.ApplicableToCutting,
-                ApplicableToPvhFacades = source.ApplicableToPvhFacades,
-                ApplicableToEnamelFacades = source.ApplicableToEnamelFacades
+                OrderByCol = clonePosition
             };
             dbContext.Materials.Add(clone);
             await dbContext.SaveChangesAsync(ct);

@@ -38,13 +38,10 @@ public sealed record Material
     public DateTimeOffset? StroydvorLastSyncAt { get; set; }
     public bool StroydvorInStock { get; set; }
     public bool HideOnSite { get; set; }
+    public bool HideInLk { get; set; }
     public bool HidePriceOnSite { get; set; }
     public required CountTypeEnum CountTypeEnum { get; set; }
     public required int OrderByCol { get; set; }
-
-    public required bool ApplicableToCutting { get; set; }
-    public required bool ApplicableToPvhFacades { get; set; }
-    public required bool ApplicableToEnamelFacades { get; set; }
 
     public List<MaterialImage> Images { get; private set; }
 }

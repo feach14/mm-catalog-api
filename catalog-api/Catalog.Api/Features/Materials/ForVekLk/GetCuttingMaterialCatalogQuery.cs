@@ -1,5 +1,6 @@
 // ReSharper disable NotAccessedPositionalProperty.Global
 
+using System.Globalization;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;
@@ -30,13 +31,18 @@ public sealed class GetCuttingMaterialCatalogQueryHandler(CatalogDbContext dbCon
     public async Task<GetCuttingMaterialCatalogQueryResult> Handle(GetCuttingMaterialCatalogQuery query, CancellationToken ct)
     {
         var materials = await dbContext.Materials.AsNoTracking()
-            .Where(x => x.ApplicableToCutting)
+            .Where(x => !x.HideInLk && !x.Category.HideInLk)
             .OrderBy(x => x.Category.OrderByCol).ThenBy(x => x.CategoryId)
             .ThenBy(x => x.OrderByCol).ThenBy(x => x.Id)
             .Select(x => new
             {
                 x.Id,
                 x.Name,
+                MaterialTypeName = x.MaterialType.Name,
+                Thickness = x.MaterialThickness.Value,
+                x.MaterialSheetSize.Height,
+                x.MaterialSheetSize.Width,
+                ManufacturerName = x.MaterialManufacturer.Name,
                 x.Article,
                 x.CategoryId,
                 CategoryName = x.Category.Name,
@@ -51,8 +57,11 @@ public sealed class GetCuttingMaterialCatalogQueryHandler(CatalogDbContext dbCon
                     .FirstOrDefault()
             })
             .ToArrayAsync(ct);
+        var culture = CultureInfo.GetCultureInfo("ru-RU");
         var items = materials.Select(x => new CuttingMaterialCatalogItemDto(
-            x.Id, x.Name, x.Article, x.CategoryId, x.Count, x.Image)).ToArray();
+            x.Id,
+            $"{x.MaterialTypeName.Trim()} {x.Name.Trim()} {x.Thickness.ToString("0.###", culture)} мм {x.Height}×{x.Width} {x.ManufacturerName.Trim()}",
+            x.Article, x.CategoryId, x.Count, x.Image)).ToArray();
         var categories = materials
             .GroupBy(x => new { x.CategoryId, x.CategoryName, x.CategoryOrderByCol })
             .OrderBy(x => x.Key.CategoryOrderByCol).ThenBy(x => x.Key.CategoryId)

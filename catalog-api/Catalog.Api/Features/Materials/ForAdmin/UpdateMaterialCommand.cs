@@ -95,14 +95,12 @@ public class UpdateMaterialCommandHandler(
         AddChange(changes, "толщина", material.MaterialThicknessId, command.Material.ThicknessId);
         AddChange(changes, "количество", material.Count, command.Material.Count);
         AddChange(changes, "ссылка", material.ExternalLink, command.Material.ExternalLink, true);
-        AddChange(changes, "использование в заявке на распил", material.ApplicableToCutting, command.Material.ApplicableToCutting);
-        AddChange(changes, "использование в заявке на фасады ПВХ", material.ApplicableToPvhFacades, command.Material.ApplicableToPvhFacades);
-        AddChange(changes, "использование в заявке на фасады эмаль", material.ApplicableToEnamelFacades, command.Material.ApplicableToEnamelFacades);
         AddChange(changes, "обязательный комментарий", material.CommentOnMaterialIsRequired, command.Material.CommentOnMaterialIsRequired);
         AddChange(changes, "второй элемент в заказе", material.AllowSecondItemInOrder, command.Material.AllowSecondItemInOrder);
         AddChange(changes, "цена", material.Price, command.Material.Price);
         if (command.Material.StroydvorProductIdSpecified)
             AddChange(changes, "Id товара Стройдвора", material.StroydvorProductId, command.Material.StroydvorProductId);
+        AddChange(changes, "скрыт в ЛК", material.HideInLk, command.Material.HideInLk);
         AddChange(changes, "скрыт на сайте", material.HideOnSite, command.Material.HideOnSite);
         AddChange(changes, "цена скрыта на сайте", material.HidePriceOnSite, command.Material.HidePriceOnSite);
         AddChange(changes, "единица", material.CountTypeEnum, command.Material.CountTypeEnum);
@@ -121,9 +119,6 @@ public class UpdateMaterialCommandHandler(
         material.Name = command.Material.Name;
         material.MaterialThicknessId = command.Material.ThicknessId;
         material.Count = command.Material.Count;
-        material.ApplicableToCutting = command.Material.ApplicableToCutting;
-        material.ApplicableToPvhFacades = command.Material.ApplicableToPvhFacades;
-        material.ApplicableToEnamelFacades = command.Material.ApplicableToEnamelFacades;
         material.CommentOnMaterialIsRequired = command.Material.CommentOnMaterialIsRequired;
         material.AllowSecondItemInOrder = command.Material.AllowSecondItemInOrder;
         material.ExternalLink = command.Material.ExternalLink;
@@ -136,6 +131,7 @@ public class UpdateMaterialCommandHandler(
             material.StroydvorLastSyncAt = null;
             material.StroydvorInStock = false;
         }
+        material.HideInLk = command.Material.HideInLk;
         material.HideOnSite = command.Material.HideOnSite;
         material.HidePriceOnSite = command.Material.HidePriceOnSite;
         material.CountTypeEnum = command.Material.CountTypeEnum;
