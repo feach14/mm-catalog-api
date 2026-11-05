@@ -301,6 +301,9 @@ def run_compact_materials_scenario():
     for row in compact["items"]:
         assert "im" in row and (row["im"] is None or str(uuid.UUID(row["im"])) == row["im"]), "Превью — GUID либо null"
     equal(compact["filters"], ordinary["filters"], "Одинаковые справочники для фильтров")
+    category_fields = ("id", "name", "hideOnSite", "hideInLk")
+    expected_categories = [{field: row[field] for field in category_fields} for row in categories()]
+    equal(compact["filters"]["categories"], expected_categories, "Категории включают собственные признаки видимости")
     outside_strings = re.sub(r'"(?:\\.|[^"\\])*"', '""', compact_response[2].decode())
     assert not re.search(r"\s", outside_strings), "Компактный JSON не содержит форматирующих пробелов"
     mark("MAT-03D", "Compact сохраняет значения, порядок и фильтры обычной выдачи; JSON не содержит форматирующих пробелов")
@@ -1133,6 +1136,26 @@ def run_material_type_scenarios(prefix, user_cookie, openapi_document):
     facets = public_query("filters", {"search": model["name"], "materialTypeIds": [empty]})
     equal({x["id"]: x["count"] for x in facets["materialTypes"]}, {b: 1, empty: 0}, "Фасета типов")
     mark("MT-07", "Собственный фильтр исключён, выбранный пустой тип сохранён")
+    type_model = json_body(request("GET", f"{path}/{b}", auth=True))
+    equal(type_model["hideOnSite"], False, "Новый тип по умолчанию виден на сайте")
+    expect(request("PUT", f"{path}/{b}", {"name": type_model["name"], "hideOnSite": True}, auth=True)[0], 200, "Скрытие типа без переименования")
+    equal(json_body(request("GET", f"{path}/{b}", auth=True))["hideOnSite"], True, "Флаг в карточке типа")
+    equal(next(x for x in json_body(request("GET", path, auth=True))["items"] if x["id"] == b)["hideOnSite"], True, "Скрытый тип остаётся в административном списке")
+    public_types = json_body(request("GET", "/api/materials/material-types"))["items"]
+    assert b not in {item["id"] for item in public_types}, "Скрытый тип отсутствует в меню"
+    assert empty in {item["id"] for item in public_types}, "Видимый тип без материалов остаётся в меню"
+    assert material_id not in {item["id"] for item in json_body(request("GET", "/api/materials"))["items"]}, "Материал скрытого типа отсутствует в публичном списке"
+    problem(request("GET", f"/api/materials/{material_id}"), "Карточка материала скрытого типа недоступна")
+    equal(public_query("search", {"search": model["name"]})["totalCount"], 0, "Материал скрытого типа исключён из поиска")
+    hidden_facets = public_query("filters", {"search": model["name"]})
+    equal(hidden_facets["materialTypes"], [], "Скрытый тип исключён из фасет")
+    equal(sum(item["count"] for item in hidden_facets["availability"]), 0, "Счётчики исключают материалы скрытого типа")
+    for endpoint in ("search", "filters"):
+        problem(request("GET", f"/api/materials/{endpoint}?materialTypeIds={b}"), "Скрытый тип нельзя выбрать в публичном фильтре")
+    equal(json_body(request("GET", f"/api/for-admin/materials/{material_id}", auth=True))["hideOnSite"], model["hideOnSite"], "Скрытие типа не меняет собственный флаг материала")
+    expect(request("PUT", f"{path}/{b}", {"name": type_model["name"], "hideOnSite": False}, auth=True)[0], 200, "Возврат типа на сайт")
+    equal(public_query("search", {"search": model["name"]})["totalCount"], 1, "После снятия скрытия материал снова доступен")
+    mark("MT-11", "Видимость типа сохраняется и управляет меню, списком, карточкой, поиском и фасетами")
     for auth_cookie, status in ((None, 401), (user_cookie, 403)):
         for method, url, body in (("GET", path, None), ("POST", path, {"name": renamed}), ("PUT", f"{path}/{a}", {"name": renamed}), ("DELETE", f"{path}/{a}", None), ("POST", path + "/change-order-col", {"id": b, "direction": "UP"})):
             expect(request(method, url, body, auth_cookie=auth_cookie)[0], status, "Авторизация типов")
@@ -1628,6 +1651,12 @@ def main():
         equal(openapi_document["paths"][endpoint]["get"].get("parameters", []), [],
               "Полный список не имеет query-параметров в OpenAPI")
     schemas = openapi_document["components"]["schemas"]
+    category_filter_schema = schemas["MaterialsForAdminCategoryFilterDto"]
+    category_filter_fields = {"id", "name", "hideOnSite", "hideInLk"}
+    equal(set(category_filter_schema["properties"]), category_filter_fields, "Поля категории в фильтрах материалов")
+    equal(set(category_filter_schema["required"]), category_filter_fields, "Обязательные поля категории в фильтрах материалов")
+    for visibility_field in ("hideOnSite", "hideInLk"):
+        equal(category_filter_schema["properties"][visibility_field]["type"], "boolean", "Булевый признак видимости категории")
     thickness_schema = schemas["PropertyDto"]
     equal(set(thickness_schema["properties"]), {"id", "name"}, "Поля DTO толщины")
     equal(set(thickness_schema["required"]), {"id", "name"}, "Обязательные поля DTO толщины")
@@ -1674,7 +1703,6 @@ def main():
         "MaterialTypesForAdmin",
         "CatalogHistoryForAdmin",
         "MaterialsForVekLk",
-        "EdgesForVekLk",
     ]
     equal([tag["name"] for tag in openapi_document.get("tags", [])], expected_tag_names,
           "Порядок групп контроллеров в Scalar")

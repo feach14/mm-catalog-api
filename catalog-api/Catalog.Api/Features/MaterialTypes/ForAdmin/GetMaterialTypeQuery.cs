@@ -10,7 +10,8 @@ public sealed record GetMaterialTypeQuery(int Id) : IQuery<GetMaterialTypeQueryR
 public sealed record GetMaterialTypeQueryResult(
     [property: Description("Id типа материала")] int Id,
     [property: Description("Название типа материала")] string Name,
-    [property: Description("Порядковый номер записи (для сортировки)")] int OrderByCol);
+    [property: Description("Порядковый номер записи (для сортировки)")] int OrderByCol,
+    [property: Description("Признак: скрыть тип материала на сайте")] bool HideOnSite);
 
 public sealed class GetMaterialTypeQueryHandler(CatalogDbContext dbContext)
     : IQueryHandler<GetMaterialTypeQuery, GetMaterialTypeQueryResult>
@@ -21,7 +22,8 @@ public sealed class GetMaterialTypeQueryHandler(CatalogDbContext dbContext)
             .Select(x => new GetMaterialTypeQueryResult(
                 x.Id,
                 x.Name,
-                x.OrderByCol
+                x.OrderByCol,
+                x.HideOnSite
             ))
             .SingleOrDefaultAsync(ct)
         ?? throw new BadHttpRequestException($"Тип материала с id={query.Id} не найден.");

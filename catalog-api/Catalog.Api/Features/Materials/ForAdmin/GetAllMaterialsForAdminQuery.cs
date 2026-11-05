@@ -13,11 +13,17 @@ public sealed record GetAllMaterialsForAdminQueryResult(
     [property: Description("Справочники для фильтров и редактора")] MaterialsForAdminFiltersDto Filters);
 
 public sealed record MaterialsForAdminFiltersDto(
-    [property: Description("Категории")] PropertyDto[] Categories,
+    [property: Description("Категории")] MaterialsForAdminCategoryFilterDto[] Categories,
     [property: Description("Производители")] PropertyDto[] Manufacturers,
     [property: Description("Типы материалов")] PropertyDto[] MaterialTypes,
     [property: Description("Толщины")] MaterialsForAdminThicknessFilterDto[] Thicknesses,
     [property: Description("Форматы плит")] MaterialsForAdminSheetSizeFilterDto[] SheetSizes);
+
+public sealed record MaterialsForAdminCategoryFilterDto(
+    [property: Description("Id")] int Id,
+    [property: Description("Название")] string Name,
+    [property: Description("Скрыть на сайте")] bool HideOnSite,
+    [property: Description("Скрыть в ЛК")] bool HideInLk);
 
 public sealed record MaterialsForAdminThicknessFilterDto(
     [property: Description("Id")] int Id,
@@ -88,7 +94,7 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
 
         var categories = await dbContext.MaterialCategories.AsNoTracking()
             .OrderBy(x => x.OrderByCol)
-            .Select(x => new PropertyDto(x.Id, x.Name))
+            .Select(x => new MaterialsForAdminCategoryFilterDto(x.Id, x.Name, x.HideOnSite, x.HideInLk))
             .ToArrayAsync(ct);
 
         var manufacturers = await dbContext.MaterialManufacturers.AsNoTracking()

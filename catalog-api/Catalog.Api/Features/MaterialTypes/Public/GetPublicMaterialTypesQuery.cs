@@ -8,7 +8,7 @@ namespace Catalog.Api.Features.MaterialTypes.Public;
 public sealed record GetPublicMaterialTypesQuery : IQuery<GetPublicMaterialTypesQueryResult>;
 
 public sealed record GetPublicMaterialTypesQueryResult(
-    [property: Description("Полный список типов материалов в порядке каталога")] PublicMaterialTypeListItem[] Items);
+    [property: Description("Список типов материалов в порядке каталога")] PublicMaterialTypeListItem[] Items);
 
 public sealed record PublicMaterialTypeListItem(
     [property: Description("Id типа материала")] int Id,
@@ -21,6 +21,7 @@ public sealed class GetPublicMaterialTypesQueryHandler(CatalogDbContext dbContex
     public async Task<GetPublicMaterialTypesQueryResult> Handle(GetPublicMaterialTypesQuery query, CancellationToken ct)
     {
         var items = await dbContext.MaterialTypes.AsNoTracking()
+            .Where(x => !x.HideOnSite)
             .OrderBy(x => x.OrderByCol)
             .Select(x => new PublicMaterialTypeListItem(x.Id, x.Name, x.OrderByCol))
             .ToArrayAsync(ct);

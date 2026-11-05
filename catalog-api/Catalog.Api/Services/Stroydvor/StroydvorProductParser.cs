@@ -9,6 +9,7 @@ public sealed record StroydvorProductData(
     string? Article,
     bool InStock,
     string Name,
+    StroydvorMaterialTypeEnum MaterialType,
     decimal? ThicknessMm,
     int? Height,
     int? Width);
@@ -27,7 +28,7 @@ public static class StroydvorProductParser
 
     private static readonly Regex Spaces = new(@"\s+", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
     private static readonly Regex Size = new(@"(?<h>\d{3,4})\s*[xх×]\s*(?<w>\d{3,4})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
-    private static readonly Regex Thickness = new(@"(?<t>\d{1,2}(?:[.,]\d+)?)\s*мм\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+    private static readonly Regex Thickness = new(@"(?<t>\d+(?:[.,]\d+)?)\s*мм\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
     private static readonly HashSet<string> VoidTags = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -43,10 +44,10 @@ public static class StroydvorProductParser
         var main = First(root, node => node.HasClass("pdp-main"))
                    ?? throw new InvalidDataException("Не найдена основная карточка товара Стройдвора.");
         var name = Text(First(main, node => node.Tag == "h1" && !node.IsRelated));
-        if (string.IsNullOrWhiteSpace(name) || !name.StartsWith("ЛДСП", StringComparison.OrdinalIgnoreCase)
-                                            || name.Contains("МДФ", StringComparison.OrdinalIgnoreCase)
-                                            || name.Contains("ХДФ", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("Карточка Стройдвора не относится к ЛДСП.");
+        var materialType = StroydvorMaterialScope.GetMaterialType(
+            name?.Split((char[]?)null, 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault());
+        if (string.IsNullOrWhiteSpace(name) || materialType is null)
+            throw new InvalidDataException("Карточка Стройдвора не относится к ЛДСП или ЛМДФ.");
 
         var priceMeta = First(main, node => node.Tag == "meta" && node.HasItemProp("price") && !node.IsRelated);
         var cart = First(main, node => node.Attribute("product_id") == productId.ToString(CultureInfo.InvariantCulture)
@@ -82,7 +83,7 @@ public static class StroydvorProductParser
         if (titleThickness is not null && propertyThickness is not null && titleThickness != propertyThickness)
             throw new InvalidDataException("В карточке Стройдвора расходится толщина в названии и характеристиках.");
 
-        return new StroydvorProductData(price.Value, article, InStock(main), name,
+        return new StroydvorProductData(price.Value, article, InStock(main), name, materialType.Value,
             propertyThickness ?? titleThickness, size?.Height, size?.Width);
     }
 

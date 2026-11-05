@@ -18,9 +18,6 @@ public class MaterialModelValidator : AbstractValidator<MaterialModel>
             .WithMessage("Id товара Стройдвора должен быть положительным числом");
         RuleFor(m => m).MustAsync(async (model, ct) =>
             {
-                if (string.IsNullOrWhiteSpace(model.Name))
-                    return true;
-
                 var productId = model.StroydvorProductId;
                 if (!model.StroydvorProductIdSpecified
                     && int.TryParse(httpContextAccessor.HttpContext?.Request.RouteValues["id"]?.ToString(), out var materialId))
@@ -29,17 +26,16 @@ public class MaterialModelValidator : AbstractValidator<MaterialModel>
                 if (!productId.HasValue)
                     return true;
 
-                var thickness = await dbContext.MaterialThicknesses.AsNoTracking()
-                    .Where(x => x.Id == model.ThicknessId).Select(x => (decimal?)x.Value).SingleOrDefaultAsync(ct);
+                var materialTypeName = await dbContext.MaterialTypes.AsNoTracking()
+                    .Where(x => x.Id == model.MaterialTypeId).Select(x => x.Name).SingleOrDefaultAsync(ct);
                 var size = await dbContext.MaterialSheetSizes.AsNoTracking()
                     .Where(x => x.Id == model.SheetSizeId).Select(x => new { x.Height, x.Width }).SingleOrDefaultAsync(ct);
-                if (!thickness.HasValue || size is null)
+                if (materialTypeName is null || size is null)
                     return true;
 
-                return StroydvorMaterialScope.IsEligible(model.CategoryId, model.ManufacturerId, model.MaterialTypeId,
-                    thickness.Value, size.Height, size.Width, model.Name);
+                return StroydvorMaterialScope.IsEligible(model.ManufacturerId, materialTypeName, size.Height, size.Width);
             })
-            .WithMessage("Привязка к Стройдвору разрешена только для ЛДСП 16 мм выбранных производителей и форматов. Для другого материала удалите Id товара Стройдвора.");
+            .WithMessage("Привязка к Стройдвору разрешена только для ЛДСП и ЛМДФ выбранных производителей и форматов. Для другого материала удалите Id товара Стройдвора.");
         RuleFor(m => m.CategoryId)
             .Cascade(CascadeMode.Stop)
             .GreaterThan(0).WithMessage("Не указана категория(коллекция) материала")

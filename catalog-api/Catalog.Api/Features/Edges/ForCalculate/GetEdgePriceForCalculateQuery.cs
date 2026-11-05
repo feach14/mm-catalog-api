@@ -6,7 +6,8 @@ namespace Catalog.Api.Features.Edges.ForCalculate;
 [Description("Параметры стоимости кромки")]
 public sealed record GetEdgePriceForCalculateQuery(
     [property: Description("Id материала")] int MaterialId,
-    [property: Description("Толщина кромки, мм")] decimal Thickness)
+    [property: Description("Толщина кромки, мм")] decimal Thickness,
+    [property: Description("Подбор с маркировкой «Век ЛК»")] bool ForVek = false)
     : IQuery<GetEdgePriceForCalculateQueryResult>;
 
 public sealed class GetEdgePriceForCalculateQueryValidator : AbstractValidator<GetEdgePriceForCalculateQuery>
@@ -36,15 +37,16 @@ public sealed class GetEdgePriceForCalculateQueryHandler(CatalogDbContext dbCont
         var prices = await dbContext.MaterialEdgeLinks.AsNoTracking()
             .Where(link => link.MaterialId == query.MaterialId
                            && link.Edge.Thickness.Value == query.Thickness
-                           && link.Markings.Any(marking => marking.Marking.Name == CalculateMarkingName))
+                           && (!query.ForVek || link.Markings.Any(marking => marking.Marking.Name == CalculateMarkingName)))
             .Select(link => new GetEdgePriceForCalculateQueryResult(link.Edge.Price, link.Edge.Article))
             .Take(2)
             .ToArrayAsync(ct);
 
+        var markingDescription = query.ForVek ? $" с маркировкой «{CalculateMarkingName}»" : string.Empty;
         if (prices.Length == 0)
-            throw new BadHttpRequestException($"Для материала с id={query.MaterialId} не найдена кромка толщиной {query.Thickness} мм с маркировкой «{CalculateMarkingName}»");
+            throw new BadHttpRequestException($"Для материала с id={query.MaterialId} не найдена кромка толщиной {query.Thickness} мм{markingDescription}");
         if (prices.Length > 1)
-            throw new BadHttpRequestException($"Для материала с id={query.MaterialId} найдено несколько кромок толщиной {query.Thickness} мм с маркировкой «{CalculateMarkingName}». Оставьте одну подходящую связь");
+            throw new BadHttpRequestException($"Для материала с id={query.MaterialId} найдено несколько кромок толщиной {query.Thickness} мм{markingDescription}. Оставьте одну подходящую связь");
 
         return prices[0];
     }

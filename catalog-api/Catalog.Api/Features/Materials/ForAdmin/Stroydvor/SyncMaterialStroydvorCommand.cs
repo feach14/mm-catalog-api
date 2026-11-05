@@ -12,6 +12,9 @@ public sealed class SyncMaterialStroydvorCommandHandler(
     public async Task<MaterialStroydvorSyncDto> Handle(SyncMaterialStroydvorCommand command, CancellationToken ct)
     {
         var result = await batchHandler.Handle(new SyncMaterialsStroydvorCommand([command.Id]), ct);
-        return result.Items[0];
+        var item = result.Items[0];
+        if (!item.Success)
+            throw new BadHttpRequestException(item.Error ?? "Не удалось синхронизировать материал со Стройдвором.");
+        return item;
     }
 }

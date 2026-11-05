@@ -20,17 +20,23 @@ public sealed class UpdateMaterialTypeCommandHandler(CatalogDbContext dbContext,
                            ?? throw new BadHttpRequestException("Указанный тип материала не найден");
 
         var newName = command.Model.Name.Trim();
-        if (materialType.Name == newName)
+        var changes = new List<string>();
+        if (materialType.Name != newName)
+            changes.Add($"название «{materialType.Name}» → «{newName}»");
+        if (materialType.HideOnSite != command.Model.HideOnSite)
+            changes.Add($"скрыт на сайте {materialType.HideOnSite} → {command.Model.HideOnSite}");
+
+        if (changes.Count == 0)
             return new UpdateMaterialTypeCommandResult(true);
 
-        var oldName = materialType.Name;
         materialType.Name = newName;
+        materialType.HideOnSite = command.Model.HideOnSite;
 
         historyWriter.Add(
             CatalogHistoryActionTypeEnum.Update,
             CatalogHistoryEntityTypeEnum.MaterialType,
             materialType.Id,
-            $"Тип материала #{materialType.Id} изменён: название «{oldName}» → «{newName}».");
+            $"Тип материала #{materialType.Id} изменён: {string.Join(", ", changes)}.");
 
         await dbContext.SaveChangesAsync(ct);
 

@@ -1,4 +1,3 @@
-using Catalog.Api.Features.Edges.ArticleReplacements.Dto;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;
@@ -22,8 +21,7 @@ public sealed record GetCompactEdgesForAdminQueryItem(
     [property: Description("Складская позиция")] bool IsStockItem,
     [property: Description("Остаток в метрах")] decimal? StockQuantity,
     [property: Description("Порядок сортировки")] int OrderByCol,
-    [property: Description("GUID миниатюры")] Guid? Thumbnail240,
-    [property: Description("Старые артикулы ВЕК")] EdgeOldArticleDto[] OldArticles);
+    [property: Description("GUID миниатюры")] Guid? Thumbnail240);
 
 public sealed record EdgesForAdminFiltersDto(
     [property: Description("Производители")] EdgeFilterItemDto[] Manufacturers,
@@ -50,9 +48,7 @@ public sealed class GetCompactEdgesForAdminQueryHandler(CatalogDbContext dbConte
                 x.Id, x.Name, x.Article, x.Price, x.ManufacturerId, x.ThicknessId, x.SaleUnitId,
                 x.IsStockItem, x.StockQuantity, x.OrderByCol,
                 x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240)
-                    .Select(image => (Guid?)image.Guid).SingleOrDefault(),
-                x.ArticleReplacements.OrderBy(replacement => replacement.OldArticle).ThenBy(replacement => replacement.Id)
-                    .Select(replacement => new EdgeOldArticleDto(replacement.Id, replacement.OldArticle)).ToArray()))
+                    .Select(image => (Guid?)image.Guid).SingleOrDefault()))
             .ToArrayAsync(ct);
         var manufacturers = await dbContext.EdgeManufacturers.AsNoTracking()
             .OrderBy(x => x.Name).ThenBy(x => x.Id)

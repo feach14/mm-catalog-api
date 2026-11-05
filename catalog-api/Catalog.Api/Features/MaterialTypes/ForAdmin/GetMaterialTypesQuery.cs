@@ -15,7 +15,8 @@ public sealed record GetMaterialTypesQueryItem(
     [property: Description("Название типа материала")] string Name,
     [property: Description("Порядковый номер записи (для сортировки)")] int OrderByCol,
     [property: Description("Количество материалов в наличии")] int MaterialsAnyCount,
-    [property: Description("Количество материалов не в наличии")] int MaterialsNotAnyCount);
+    [property: Description("Количество материалов не в наличии")] int MaterialsNotAnyCount,
+    [property: Description("Признак: скрыть тип материала на сайте")] bool HideOnSite);
 
 public sealed class GetMaterialTypesQueryHandler(CatalogDbContext dbContext)
     : IQueryHandler<GetMaterialTypesQuery, GetMaterialTypesQueryResult>
@@ -29,7 +30,8 @@ public sealed class GetMaterialTypesQueryHandler(CatalogDbContext dbContext)
                 x.Name,
                 x.OrderByCol,
                 x.Materials.Count(material => material.Count > 0),
-                x.Materials.Count(material => material.Count < 1)))
+                x.Materials.Count(material => material.Count < 1),
+                x.HideOnSite))
             .ToArrayAsync(ct);
         return new GetMaterialTypesQueryResult(items);
     }

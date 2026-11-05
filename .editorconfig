@@ -243,6 +243,9 @@ dotnet_naming_rule.parameters_should_be_camelcase.style = camelcase
 # Rider/ReSharper: allow both camelCase and _camelCase parameters.
 resharper_csharp_naming_rule.parameters = aaBb, _+aaBb
 
+# Rider/ReSharper: allow PascalCase and UPPER_CASE enum members.
+resharper_csharp_naming_rule.enum_member = AaBb, AA_BB
+
 dotnet_naming_rule.public_fields_should_be_pascalcase.severity = suggestion
 dotnet_naming_rule.public_fields_should_be_pascalcase.symbols = public_fields
 dotnet_naming_rule.public_fields_should_be_pascalcase.style = pascalcase

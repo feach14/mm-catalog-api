@@ -12,7 +12,7 @@ public sealed class MaterialTypesController : BaseApiController
 {
     [HttpGet,
      EndpointSummary(nameof(MaterialTypes)),
-     EndpointDescription("Полный публичный список типов материалов, включая типы без материалов"),
+     EndpointDescription("Публичный список типов материалов"),
      ProducesResponseType(typeof(GetPublicMaterialTypesQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Список типов материалов в порядке каталога")]
     public Task<GetPublicMaterialTypesQueryResult> MaterialTypes(
         [FromServices] IQueryHandler<GetPublicMaterialTypesQuery, GetPublicMaterialTypesQueryResult> handler) =>

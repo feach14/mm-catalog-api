@@ -39,6 +39,7 @@ public sealed class SyncMaterialsStroydvorCommandHandler(
         var materials = await dbContext.Materials.AsNoTracking()
             .Include(x => x.MaterialThickness)
             .Include(x => x.MaterialSheetSize)
+            .Include(x => x.MaterialType)
             .Where(x => command.Ids.Contains(x.Id))
             .ToArrayAsync(ct);
         if (materials.Length != command.Ids.Length)
@@ -47,10 +48,9 @@ public sealed class SyncMaterialsStroydvorCommandHandler(
         {
             if (material.StroydvorProductId is not > 0)
                 throw new BadHttpRequestException($"У материала #{material.Id} нет привязки к Стройдвору.");
-            if (!StroydvorMaterialScope.IsEligible(material.CategoryId, material.MaterialManufacturerId,
-                    material.MaterialTypeId, material.MaterialThickness.Value,
-                    material.MaterialSheetSize.Height, material.MaterialSheetSize.Width, material.Name))
-                throw new BadHttpRequestException($"Материал #{material.Id} не входит в выбранные категории ЛДСП 16 мм для Стройдвора.");
+            if (!StroydvorMaterialScope.IsEligible(material.MaterialManufacturerId, material.MaterialType.Name,
+                    material.MaterialSheetSize.Height, material.MaterialSheetSize.Width))
+                throw new BadHttpRequestException($"Материал #{material.Id} не относится к ЛДСП или ЛМДФ выбранных производителей и форматов для Стройдвора.");
         }
 
         var reads = new ConcurrentDictionary<int, StroydvorProductReadResult>();
@@ -78,6 +78,7 @@ public sealed class SyncMaterialsStroydvorCommandHandler(
                                       && x.CategoryId == material.CategoryId
                                       && x.MaterialManufacturerId == material.MaterialManufacturerId
                                       && x.MaterialTypeId == material.MaterialTypeId
+                                      && x.MaterialType.Name == material.MaterialType.Name
                                       && x.MaterialThicknessId == material.MaterialThicknessId
                                       && x.MaterialSheetSizeId == material.MaterialSheetSizeId
                                       && x.Name == material.Name && x.Article == material.Article
@@ -114,6 +115,9 @@ public sealed class SyncMaterialsStroydvorCommandHandler(
     {
         var product = read.Product;
         if (product is null) return read;
+        if (product.MaterialType != StroydvorMaterialScope.GetMaterialType(material.MaterialType.Name))
+            return new StroydvorProductReadResult(null,
+                $"Тип материала на карточке Стройдвора — «{StroydvorMaterialScope.GetMaterialTypeName(product.MaterialType)}», у нашего материала — «{material.MaterialType.Name}». Проверьте привязку.");
         if (product.ThicknessMm is not null && product.ThicknessMm != material.MaterialThickness.Value)
             return new StroydvorProductReadResult(null, "Толщина на карточке Стройдвора отличается от толщины нашего материала. Проверьте привязку.");
         if (product.Height is not null && product.Width is not null)

@@ -22,7 +22,8 @@ public sealed class CreateMaterialTypeCommandHandler(CatalogDbContext dbContext,
         var materialType = new MaterialType
         {
             Name = command.Model.Name.Trim(),
-            OrderByCol = maxOrderByCol + 1
+            OrderByCol = maxOrderByCol + 1,
+            HideOnSite = command.Model.HideOnSite
         };
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
@@ -34,7 +35,7 @@ public sealed class CreateMaterialTypeCommandHandler(CatalogDbContext dbContext,
             CatalogHistoryActionTypeEnum.Create,
             CatalogHistoryEntityTypeEnum.MaterialType,
             materialType.Id,
-            $"Создан тип материала #{materialType.Id} «{materialType.Name}».");
+            $"Создан тип материала #{materialType.Id} «{materialType.Name}»: скрыт на сайте: {materialType.HideOnSite}.");
         await dbContext.SaveChangesAsync(ct);
 
         await transaction.CommitAsync(ct);

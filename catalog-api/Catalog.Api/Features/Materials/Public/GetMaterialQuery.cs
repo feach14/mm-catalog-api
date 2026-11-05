@@ -25,7 +25,7 @@ public class GetMaterialQueryHandler(CatalogDbContext dbContext) : IQueryHandler
 {
     public async Task<GetMaterialQueryResult> Handle(GetMaterialQuery query, CancellationToken ct)
         => await dbContext.Materials.AsNoTracking()
-               .Where(x => x.Id == query.Id && !x.HideOnSite && !x.Category.HideOnSite)
+               .Where(x => x.Id == query.Id && !x.HideOnSite && !x.Category.HideOnSite && !x.MaterialType.HideOnSite)
                .Select(x => new GetMaterialQueryResult(
                    x.Id,
                    x.Name,

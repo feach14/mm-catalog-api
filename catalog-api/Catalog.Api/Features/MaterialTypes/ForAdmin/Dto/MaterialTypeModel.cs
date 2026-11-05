@@ -4,6 +4,9 @@ public sealed record MaterialTypeModel
 {
     [Description("Название типа материала")]
     public required string Name { get; init; }
+
+    [Description("Признак: скрыть тип материала на сайте")]
+    public bool HideOnSite { get; init; }
 }
 
 public sealed class MaterialTypeModelValidator : AbstractValidator<MaterialTypeModel>

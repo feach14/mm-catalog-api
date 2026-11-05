@@ -41,7 +41,7 @@ public sealed class GetMaterialFiltersQueryValidator : AbstractValidator<GetMate
             .Cascade(CascadeMode.Stop)
             .Must(values => values is null || values.Length <= 100).WithMessage("Нельзя передать более 100 значений типов материалов")
             .Must(values => values is null || values.All(value => value > 0)).WithMessage("Id типов материалов должны быть положительными числами")
-            .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialTypes.Select(x => x.Id), ct))
+            .MustAsync(async (ids, ct) => await AllIdsExist(ids, dbContext.MaterialTypes.Where(x => !x.HideOnSite).Select(x => x.Id), ct))
             .WithMessage("Один или несколько типов материалов не найдены");
         RuleFor(x => x.SheetSizeIds)
             .Cascade(CascadeMode.Stop)
@@ -159,9 +159,9 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
         var selectedMaterialTypeIds = (query.MaterialTypeIds ?? []).Distinct().ToArray();
         var materialTypes = await dbContext.MaterialTypes
             .AsNoTracking()
-            .Where(materialType =>
-                materialTypesBase.Any(material => material.MaterialTypeId == materialType.Id)
-                || selectedMaterialTypeIds.Contains(materialType.Id))
+            .Where(materialType => !materialType.HideOnSite
+                && (materialTypesBase.Any(material => material.MaterialTypeId == materialType.Id)
+                    || selectedMaterialTypeIds.Contains(materialType.Id)))
             .OrderBy(materialType => materialType.OrderByCol)
             .ThenBy(materialType => materialType.Id)
             .Select(materialType => new MaterialTypeFilterDto(
@@ -233,7 +233,7 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
         GetMaterialFiltersQuery query,
         ExcludedFilterEnum excluded)
     {
-        materials = materials.Where(x => !x.HideOnSite && !x.Category.HideOnSite);
+        materials = materials.Where(x => !x.HideOnSite && !x.Category.HideOnSite && !x.MaterialType.HideOnSite);
         var search = query.Search?.Trim();
         if (!string.IsNullOrEmpty(search))
         {

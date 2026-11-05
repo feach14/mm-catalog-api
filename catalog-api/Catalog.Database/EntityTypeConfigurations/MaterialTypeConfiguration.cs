@@ -11,6 +11,7 @@ public sealed class MaterialTypeConfiguration : IEntityTypeConfiguration<Materia
         eb.HasKey(x => x.Id);
         eb.Property(x => x.Name).IsRequired().HasMaxLength(100);
         eb.Property(x => x.OrderByCol).IsRequired().HasDefaultValue(0);
+        eb.Property(x => x.HideOnSite).HasDefaultValue(false);
         eb.HasIndex(x => x.OrderByCol).IsUnique();
     }
 }

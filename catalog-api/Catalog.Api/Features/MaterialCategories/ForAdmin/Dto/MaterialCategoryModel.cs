@@ -23,6 +23,6 @@ public class MaterialCategoryModelValidator : AbstractValidator<MaterialCategory
             .NotEmpty().WithMessage("Не указано название категории");
 
         RuleFor(m => m.ExternalLink)
-            .NotEmpty().WithMessage("Нет ссылки на источник. Для коллекций данное поле обязательно для заполнения.");
+            .NotEmpty().WithMessage("Нет ссылки на источник. Для категорий данное поле обязательно для заполнения.");
     }
 }

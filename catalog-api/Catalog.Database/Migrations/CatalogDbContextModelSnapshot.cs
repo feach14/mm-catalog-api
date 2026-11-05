@@ -152,38 +152,6 @@ namespace Catalog.Database.Migrations
                     b.ToTable("edges", "catalog");
                 });
 
-            modelBuilder.Entity("Catalog.Database.Entities.EdgeArticleReplacement", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("EdgeId")
-                        .HasColumnType("integer")
-                        .HasColumnName("edge_id");
-
-                    b.Property<string>("OldArticle")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("old_article");
-
-                    b.HasKey("Id")
-                        .HasName("pk_edge_article_replacements");
-
-                    b.HasIndex("EdgeId")
-                        .HasDatabaseName("ix_edge_article_replacements_edge_id");
-
-                    b.HasIndex("OldArticle")
-                        .IsUnique()
-                        .HasDatabaseName("ix_edge_article_replacements_old_article");
-
-                    b.ToTable("edge_article_replacements", "catalog");
-                });
-
             modelBuilder.Entity("Catalog.Database.Entities.EdgeImage", b =>
                 {
                     b.Property<int>("Id")
@@ -834,6 +802,12 @@ namespace Catalog.Database.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("HideOnSite")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("hide_on_site");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -926,18 +900,6 @@ namespace Catalog.Database.Migrations
                     b.Navigation("SaleUnit");
 
                     b.Navigation("Thickness");
-                });
-
-            modelBuilder.Entity("Catalog.Database.Entities.EdgeArticleReplacement", b =>
-                {
-                    b.HasOne("Catalog.Database.Entities.Edge", "Edge")
-                        .WithMany("ArticleReplacements")
-                        .HasForeignKey("EdgeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_edge_article_replacements_edges_edge_id");
-
-                    b.Navigation("Edge");
                 });
 
             modelBuilder.Entity("Catalog.Database.Entities.EdgeImage", b =>
@@ -1056,8 +1018,6 @@ namespace Catalog.Database.Migrations
 
             modelBuilder.Entity("Catalog.Database.Entities.Edge", b =>
                 {
-                    b.Navigation("ArticleReplacements");
-
                     b.Navigation("Images");
                 });
 
