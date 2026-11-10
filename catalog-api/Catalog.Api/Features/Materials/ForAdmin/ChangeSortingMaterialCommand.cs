@@ -16,7 +16,9 @@ public sealed class ChangeSortingMaterialCommandValidator : AbstractValidator<Ch
     {
         RuleFor(x => x.Id).Cascade(CascadeMode.Stop)
             .GreaterThan(0).WithMessage("Id материала должен быть больше нуля")
-            .MustAsync(async (id, ct) => await dbContext.Materials.AsNoTracking().AnyAsync(x => x.Id == id, ct)).WithMessage("Указанный материал не найден.");
+            .MustAsync(async (id, ct) => (await dbContext.Materials.AsNoTracking().Where(x => x.Id == id).Select(x => x.Id)
+                .Concat(dbContext.ArchivedMaterials.AsNoTracking().Where(x => x.Id == id).Select(x => x.Id))
+                .AnyAsync(ct))).WithMessage("Указанный материал не найден.");
         RuleFor(x => x.Direction).IsInEnum().WithMessage("Указано недопустимое направление сортировки");
     }
 }
@@ -24,12 +26,15 @@ public sealed class ChangeSortingMaterialCommandValidator : AbstractValidator<Ch
 public record ChangeSortingMaterialCommandResult(
     [property: Description("Успех операции")] bool Success);
 
-public class ChangeSortingMaterialCommandHandler(CatalogDbContext dbContext) : ICommandHandler<ChangeSortingMaterialCommand, ChangeSortingMaterialCommandResult>
+public class ChangeSortingMaterialCommandHandler(CatalogDbContext dbContext,
+    ICommandHandler<ChangeSortingArchivedMaterialCommand, ChangeSortingMaterialCommandResult> archivedHandler) : ICommandHandler<ChangeSortingMaterialCommand, ChangeSortingMaterialCommandResult>
 {
     public async Task<ChangeSortingMaterialCommandResult> Handle(ChangeSortingMaterialCommand command, CancellationToken ct)
     {
         return await CatalogOrderTransaction.Run(dbContext, async () =>
         {
+            if (!await dbContext.Materials.AsNoTracking().AnyAsync(x => x.Id == command.Id, ct))
+                return await archivedHandler.Handle(new ChangeSortingArchivedMaterialCommand(command.Id, command.Direction), ct);
             var materials = await dbContext.Materials.OrderBy(x => x.OrderByCol).ThenBy(x => x.Id).ToArrayAsync(ct);
             var material = materials.Single(x => x.Id == command.Id);
             var materialIndex = Array.FindIndex(materials, x => x.Id == material.Id);

@@ -22,14 +22,14 @@ public sealed class GetManufacturersQueryHandler(CatalogDbContext dbContext)
 {
     public async Task<GetManufacturersQueryResult> Handle(GetManufacturersQuery query, CancellationToken ct)
     {
-        var items = await dbContext.MaterialManufacturers
+        var items = await dbContext.MaterialManufacturers.AsNoTracking()
             .OrderBy(x => x.OrderByCol)
             .Select(x => new GetManufacturersQueryItem(
                 x.Id,
                 x.Name,
                 x.OrderByCol,
-                x.Materials.Count(material => material.Count > 0),
-                x.Materials.Count(material => material.Count < 1)))
+                x.Materials.Count(material => material.Count > 0) + dbContext.ArchivedMaterials.Count(material => material.MaterialManufacturerId == x.Id && material.Count > 0),
+                x.Materials.Count(material => material.Count < 1) + dbContext.ArchivedMaterials.Count(material => material.MaterialManufacturerId == x.Id && material.Count < 1)))
             .ToArrayAsync(ct);
         return new GetManufacturersQueryResult(items);
     }

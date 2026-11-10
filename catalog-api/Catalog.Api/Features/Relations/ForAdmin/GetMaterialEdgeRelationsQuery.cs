@@ -15,16 +15,18 @@ public sealed class GetMaterialEdgeRelationsQueryHandler(CatalogDbContext dbCont
 {
     public async Task<GetMaterialEdgeRelationsQueryResult> Handle(GetMaterialEdgeRelationsQuery query, CancellationToken ct)
     {
-        if (!await dbContext.Materials.AsNoTracking().AnyAsync(material => material.Id == query.MaterialId, ct))
+        if (!await dbContext.Materials.AsNoTracking().Where(material => material.Id == query.MaterialId).Select(material => material.Id)
+            .Concat(dbContext.ArchivedMaterials.AsNoTracking().Where(material => material.Id == query.MaterialId).Select(material => material.Id))
+            .AnyAsync(ct))
             throw new BadHttpRequestException($"Материал с id={query.MaterialId} не найден.");
 
         var items = await dbContext.MaterialEdgeLinks.AsNoTracking()
-            .Where(link => link.MaterialId == query.MaterialId)
-            .OrderBy(link => link.MaterialId)
+            .Where(link => link.OwnerMaterialId == query.MaterialId)
+            .OrderBy(link => link.OwnerMaterialId)
             .ThenBy(link => link.Priority)
             .ThenBy(link => link.EdgeId)
             .Select(link => new MaterialEdgeRelationDto(
-                link.MaterialId, link.EdgeId, link.Priority,
+                link.OwnerMaterialId, link.EdgeId, link.Priority,
                 link.Markings.OrderBy(marking => marking.MarkingId).Select(marking => marking.MarkingId).ToArray()))
             .ToArrayAsync(ct);
 

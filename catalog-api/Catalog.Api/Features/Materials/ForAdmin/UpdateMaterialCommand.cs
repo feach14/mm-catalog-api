@@ -23,7 +23,9 @@ public sealed class UpdateMaterialModelValidator : AbstractValidator<UpdateMater
             {
                 var routeId = httpContextAccessor.HttpContext?.Request.RouteValues["id"]?.ToString();
                 return int.TryParse(routeId, out var id)
-                       && await dbContext.Materials.AnyAsync(x => x.Id == id, ct);
+                       && await dbContext.Materials.AsNoTracking().Where(x => x.Id == id).Select(x => x.Id)
+                           .Concat(dbContext.ArchivedMaterials.AsNoTracking().Where(x => x.Id == id).Select(x => x.Id))
+                           .AnyAsync(ct);
             })
             .WithMessage("Указанный материал не существует")
             .OverridePropertyName("Id");
@@ -61,7 +63,7 @@ public sealed class UpdateMaterialModelValidator : AbstractValidator<UpdateMater
                    || await dbContext.MaterialImages.AnyAsync(
                        x => x.Guid == imageGuid
                             && x.ImageType == imageType
-                            && x.MaterialId == materialId,
+                            && (x.MaterialId == materialId || x.ArchivedMaterialId == materialId),
                        ct));
     }
 }
@@ -72,14 +74,17 @@ public sealed record UpdateMaterialCommandResult(
 public class UpdateMaterialCommandHandler(
     CatalogDbContext dbContext,
     IMemoryCache memoryCache,
-    ICatalogHistoryWriter historyWriter) : ICommandHandler<UpdateMaterialCommand, UpdateMaterialCommandResult>
+    ICatalogHistoryWriter historyWriter,
+    ICommandHandler<UpdateArchivedMaterialCommand, UpdateMaterialCommandResult> archivedHandler) : ICommandHandler<UpdateMaterialCommand, UpdateMaterialCommandResult>
 {
     public async Task<UpdateMaterialCommandResult> Handle(UpdateMaterialCommand command, CancellationToken ct)
     {
         var material = await dbContext.Materials
             .Include(x => x.Category)
             .Include(x => x.Images)
-            .SingleAsync(x => x.Id == command.Id, ct);
+            .SingleOrDefaultAsync(x => x.Id == command.Id, ct);
+        if (material is null)
+            return await archivedHandler.Handle(new UpdateArchivedMaterialCommand(command.Id, command.Material), ct);
 
         var original = material.Images.SingleOrDefault(x => x.ImageType == MaterialImageTypeEnum.Original);
         var thumbnail240 = material.Images.SingleOrDefault(x => x.ImageType == MaterialImageTypeEnum.Thumbnail240);
@@ -168,7 +173,10 @@ public class UpdateMaterialCommandHandler(
             return null;
 
         if (currentImage is not null)
+        {
             material.Images.Remove(currentImage);
+            dbContext.MaterialImages.Remove(currentImage);
+        }
 
         if (requestedGuid is null)
             return currentImage?.Guid;

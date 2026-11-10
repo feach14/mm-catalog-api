@@ -60,6 +60,48 @@ public class MaterialsForAdminController : BaseAdministrationApiController
         });
     }
 
+    [HttpGet("archive"),
+     EndpointSummary(nameof(ArchivedMaterials)),
+     EndpointDescription("Архив материалов"),
+     ProducesResponseType(typeof(GetAllMaterialsForAdminQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Архив материалов")]
+    public Task<GetAllMaterialsForAdminQueryResult> ArchivedMaterials(
+        [FromServices] IQueryHandler<GetArchivedMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult> handler) =>
+        handler.Handle(new GetArchivedMaterialsForAdminQuery(), HttpContext.RequestAborted);
+
+    [HttpGet("archive/compact"),
+     EndpointSummary(nameof(CompactArchivedMaterials)),
+     EndpointDescription("Компактный архив материалов"),
+     ProducesResponseType(typeof(GetCompactMaterialsForAdminQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Компактный архив материалов")]
+    public async Task<JsonResult> CompactArchivedMaterials(
+        [FromServices] IQueryHandler<GetCompactArchivedMaterialsForAdminQuery, GetCompactMaterialsForAdminQueryResult> handler,
+        [FromServices] IOptions<JsonOptions> jsonOptions)
+    {
+        var result = await handler.Handle(new GetCompactArchivedMaterialsForAdminQuery(), HttpContext.RequestAborted);
+        return new JsonResult(result, new JsonSerializerOptions(jsonOptions.Value.JsonSerializerOptions)
+        {
+            WriteIndented = false,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        });
+    }
+
+    [HttpPost("{id:int}/archive"),
+     EndpointSummary(nameof(ArchiveMaterial)),
+     EndpointDescription("Перенос материала в архив"),
+     ProducesResponseType(typeof(ArchiveMaterialCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
+    public Task<ArchiveMaterialCommandResult> ArchiveMaterial(
+        [FromRoute, Description("Id материала")] int id,
+        [FromServices] ICommandHandler<ArchiveMaterialCommand, ArchiveMaterialCommandResult> handler) =>
+        handler.Handle(new ArchiveMaterialCommand(id), HttpContext.RequestAborted);
+
+    [HttpPost("{id:int}/restore"),
+     EndpointSummary(nameof(RestoreMaterial)),
+     EndpointDescription("Возврат материала из архива"),
+     ProducesResponseType(typeof(RestoreMaterialCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
+    public Task<RestoreMaterialCommandResult> RestoreMaterial(
+        [FromRoute, Description("Id материала")] int id,
+        [FromServices] ICommandHandler<RestoreMaterialCommand, RestoreMaterialCommandResult> handler) =>
+        handler.Handle(new RestoreMaterialCommand(id), HttpContext.RequestAborted);
+
     [HttpGet("{id:int}"),
      EndpointSummary(nameof(Material)),
      EndpointDescription("Информация о материале для административной панели"),

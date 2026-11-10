@@ -23,6 +23,151 @@ namespace Catalog.Database.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Catalog.Database.Entities.ArchivedMaterial", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AllowSecondItemInOrder")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_second_item_in_order");
+
+                    b.Property<string>("Article")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("article");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("category_id");
+
+                    b.Property<bool>("CommentOnMaterialIsRequired")
+                        .HasColumnType("boolean")
+                        .HasColumnName("comment_on_material_is_required");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer")
+                        .HasColumnName("count");
+
+                    b.Property<int>("CountTypeEnum")
+                        .HasColumnType("integer")
+                        .HasColumnName("count_type_enum");
+
+                    b.Property<string>("ExternalLink")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)")
+                        .HasColumnName("external_link");
+
+                    b.Property<bool>("HideInLk")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("hide_in_lk");
+
+                    b.Property<bool>("HideOnSite")
+                        .HasColumnType("boolean")
+                        .HasColumnName("hide_on_site");
+
+                    b.Property<bool>("HidePriceOnSite")
+                        .HasColumnType("boolean")
+                        .HasColumnName("hide_price_on_site");
+
+                    b.Property<int>("MaterialManufacturerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("material_manufacturer_id");
+
+                    b.Property<int>("MaterialSheetSizeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("material_sheet_size_id");
+
+                    b.Property<int>("MaterialThicknessId")
+                        .HasColumnType("integer")
+                        .HasColumnName("material_thickness_id");
+
+                    b.Property<int>("MaterialTypeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("material_type_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("OrderByCol")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("order_by_col");
+
+                    b.Property<int>("OriginalMaterialId")
+                        .HasColumnType("integer")
+                        .HasColumnName("original_material_id");
+
+                    b.Property<int>("OriginalOrderByCol")
+                        .HasColumnType("integer")
+                        .HasColumnName("original_order_by_col");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("numeric")
+                        .HasColumnName("price");
+
+                    b.Property<string>("StroydvorArticle")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("stroydvor_article");
+
+                    b.Property<bool>("StroydvorInStock")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("stroydvor_in_stock");
+
+                    b.Property<DateTimeOffset?>("StroydvorLastSyncAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("stroydvor_last_sync_at");
+
+                    b.Property<decimal>("StroydvorPrice")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("stroydvor_price");
+
+                    b.Property<int?>("StroydvorProductId")
+                        .HasColumnType("integer")
+                        .HasColumnName("stroydvor_product_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_archive_materials");
+
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_archive_materials_category_id");
+
+                    b.HasIndex("MaterialManufacturerId")
+                        .HasDatabaseName("ix_archive_materials_material_manufacturer_id");
+
+                    b.HasIndex("MaterialSheetSizeId")
+                        .HasDatabaseName("ix_archive_materials_material_sheet_size_id");
+
+                    b.HasIndex("MaterialThicknessId")
+                        .HasDatabaseName("ix_archive_materials_material_thickness_id");
+
+                    b.HasIndex("MaterialTypeId")
+                        .HasDatabaseName("ix_archive_materials_material_type_id");
+
+                    b.HasIndex("OrderByCol")
+                        .IsUnique()
+                        .HasDatabaseName("ix_archive_materials_order_by_col");
+
+                    b.HasIndex("StroydvorProductId")
+                        .HasDatabaseName("ix_archive_materials_stroydvor_product_id");
+
+                    b.ToTable("archive_materials", "catalog");
+                });
+
             modelBuilder.Entity("Catalog.Database.Entities.CatalogChangeHistory", b =>
                 {
                     b.Property<long>("Id")
@@ -587,23 +732,54 @@ namespace Catalog.Database.Migrations
 
             modelBuilder.Entity("Catalog.Database.Entities.MaterialEdgeLink", b =>
                 {
-                    b.Property<int>("MaterialId")
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasColumnName("material_id");
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ArchivedMaterialId")
+                        .HasColumnType("integer")
+                        .HasColumnName("archived_material_id");
 
                     b.Property<int>("EdgeId")
                         .HasColumnType("integer")
                         .HasColumnName("edge_id");
 
+                    b.Property<int?>("MaterialId")
+                        .HasColumnType("integer")
+                        .HasColumnName("material_id");
+
+                    b.Property<int>("OwnerMaterialId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("owner_material_id")
+                        .HasComputedColumnSql("COALESCE(material_id, archived_material_id)", true);
+
                     b.Property<int>("Priority")
                         .HasColumnType("integer")
                         .HasColumnName("priority");
 
-                    b.HasKey("MaterialId", "EdgeId")
+                    b.HasKey("Id")
                         .HasName("pk_material_edge_links");
+
+                    b.HasAlternateKey("OwnerMaterialId", "EdgeId")
+                        .HasName("ak_material_edge_links_owner_material_id_edge_id");
 
                     b.HasIndex("EdgeId")
                         .HasDatabaseName("ix_material_edge_links_edge_id");
+
+                    b.HasIndex("ArchivedMaterialId", "EdgeId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_material_edge_links_archived_material_id_edge_id");
+
+                    b.HasIndex("ArchivedMaterialId", "Priority")
+                        .HasDatabaseName("ix_material_edge_links_archived_material_id_priority");
+
+                    b.HasIndex("MaterialId", "EdgeId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_material_edge_links_material_id_edge_id");
 
                     b.HasIndex("MaterialId", "Priority")
                         .HasDatabaseName("ix_material_edge_links_material_id_priority");
@@ -613,9 +789,12 @@ namespace Catalog.Database.Migrations
 
             modelBuilder.Entity("Catalog.Database.Entities.MaterialEdgeLinkMarking", b =>
                 {
-                    b.Property<int>("MaterialId")
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasColumnName("material_id");
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int>("EdgeId")
                         .HasColumnType("integer")
@@ -625,11 +804,19 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("marking_id");
 
-                    b.HasKey("MaterialId", "EdgeId", "MarkingId")
+                    b.Property<int>("MaterialId")
+                        .HasColumnType("integer")
+                        .HasColumnName("material_id");
+
+                    b.HasKey("Id")
                         .HasName("pk_material_edge_link_markings");
 
                     b.HasIndex("MarkingId")
                         .HasDatabaseName("ix_material_edge_link_markings_marking_id");
+
+                    b.HasIndex("MaterialId", "EdgeId", "MarkingId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_material_edge_link_markings_material_id_edge_id_marking_id");
 
                     b.ToTable("material_edge_link_markings", "catalog");
                 });
@@ -642,6 +829,10 @@ namespace Catalog.Database.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ArchivedMaterialId")
+                        .HasColumnType("integer")
+                        .HasColumnName("archived_material_id");
 
                     b.Property<string>("ContentType")
                         .IsRequired()
@@ -666,7 +857,7 @@ namespace Catalog.Database.Migrations
                         .HasDefaultValue("Original")
                         .HasColumnName("image_type");
 
-                    b.Property<int>("MaterialId")
+                    b.Property<int?>("MaterialId")
                         .HasColumnType("integer")
                         .HasColumnName("material_id");
 
@@ -675,6 +866,10 @@ namespace Catalog.Database.Migrations
 
                     b.HasIndex("ImageType")
                         .HasDatabaseName("ix_material_images_image_type");
+
+                    b.HasIndex("ArchivedMaterialId", "ImageType")
+                        .IsUnique()
+                        .HasDatabaseName("ix_material_images_archived_material_id_image_type");
 
                     b.HasIndex("MaterialId", "ImageType")
                         .IsUnique()
@@ -839,6 +1034,11 @@ namespace Catalog.Database.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("description");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -870,6 +1070,54 @@ namespace Catalog.Database.Migrations
                         .HasDatabaseName("ix_relation_markings_order_by_col_id");
 
                     b.ToTable("relation_markings", "catalog");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.ArchivedMaterial", b =>
+                {
+                    b.HasOne("Catalog.Database.Entities.MaterialCategory", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_archive_materials_material_categories_category_id");
+
+                    b.HasOne("Catalog.Database.Entities.MaterialManufacturer", "MaterialManufacturer")
+                        .WithMany()
+                        .HasForeignKey("MaterialManufacturerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_archive_materials_material_manufacturers_material_manufactu");
+
+                    b.HasOne("Catalog.Database.Entities.MaterialSheetSize", "MaterialSheetSize")
+                        .WithMany()
+                        .HasForeignKey("MaterialSheetSizeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_archive_materials_material_sheet_sizes_material_sheet_size_");
+
+                    b.HasOne("Catalog.Database.Entities.MaterialThickness", "MaterialThickness")
+                        .WithMany()
+                        .HasForeignKey("MaterialThicknessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_archive_materials_material_thicknesses_material_thickness_id");
+
+                    b.HasOne("Catalog.Database.Entities.MaterialType", "MaterialType")
+                        .WithMany()
+                        .HasForeignKey("MaterialTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_archive_materials_material_types_material_type_id");
+
+                    b.Navigation("Category");
+
+                    b.Navigation("MaterialManufacturer");
+
+                    b.Navigation("MaterialSheetSize");
+
+                    b.Navigation("MaterialThickness");
+
+                    b.Navigation("MaterialType");
                 });
 
             modelBuilder.Entity("Catalog.Database.Entities.Edge", b =>
@@ -964,6 +1212,12 @@ namespace Catalog.Database.Migrations
 
             modelBuilder.Entity("Catalog.Database.Entities.MaterialEdgeLink", b =>
                 {
+                    b.HasOne("Catalog.Database.Entities.ArchivedMaterial", "ArchivedMaterial")
+                        .WithMany()
+                        .HasForeignKey("ArchivedMaterialId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_material_edge_links_archived_materials_archived_material_id");
+
                     b.HasOne("Catalog.Database.Entities.Edge", "Edge")
                         .WithMany()
                         .HasForeignKey("EdgeId")
@@ -975,8 +1229,9 @@ namespace Catalog.Database.Migrations
                         .WithMany()
                         .HasForeignKey("MaterialId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
                         .HasConstraintName("fk_material_edge_links_materials_material_id");
+
+                    b.Navigation("ArchivedMaterial");
 
                     b.Navigation("Edge");
 
@@ -995,6 +1250,7 @@ namespace Catalog.Database.Migrations
                     b.HasOne("Catalog.Database.Entities.MaterialEdgeLink", "Link")
                         .WithMany("Markings")
                         .HasForeignKey("MaterialId", "EdgeId")
+                        .HasPrincipalKey("OwnerMaterialId", "EdgeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_material_edge_link_markings_material_edge_links_material_id");
@@ -1006,14 +1262,26 @@ namespace Catalog.Database.Migrations
 
             modelBuilder.Entity("Catalog.Database.Entities.MaterialImage", b =>
                 {
+                    b.HasOne("Catalog.Database.Entities.ArchivedMaterial", "ArchivedMaterial")
+                        .WithMany("Images")
+                        .HasForeignKey("ArchivedMaterialId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_material_images_archived_materials_archived_material_id");
+
                     b.HasOne("Catalog.Database.Entities.Material", "Material")
                         .WithMany("Images")
                         .HasForeignKey("MaterialId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
                         .HasConstraintName("fk_material_images_materials_material_id");
 
+                    b.Navigation("ArchivedMaterial");
+
                     b.Navigation("Material");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.ArchivedMaterial", b =>
+                {
+                    b.Navigation("Images");
                 });
 
             modelBuilder.Entity("Catalog.Database.Entities.Edge", b =>

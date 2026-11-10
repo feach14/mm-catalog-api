@@ -28,13 +28,15 @@ public sealed record UpdateMaterialExternalLinkCommand(int Id, UpdateMaterialExt
 public sealed record UpdateMaterialExternalLinkCommandResult(
     [property: Description("Успех операции")] bool Success);
 
-public sealed class UpdateMaterialExternalLinkCommandHandler(CatalogDbContext dbContext, ICatalogHistoryWriter historyWriter)
+public sealed class UpdateMaterialExternalLinkCommandHandler(CatalogDbContext dbContext, ICatalogHistoryWriter historyWriter,
+    ICommandHandler<UpdateArchivedMaterialExternalLinkCommand, UpdateMaterialExternalLinkCommandResult> archivedHandler)
     : ICommandHandler<UpdateMaterialExternalLinkCommand, UpdateMaterialExternalLinkCommandResult>
 {
     public async Task<UpdateMaterialExternalLinkCommandResult> Handle(UpdateMaterialExternalLinkCommand command, CancellationToken ct)
     {
-        var material = await dbContext.Materials.SingleOrDefaultAsync(material => material.Id == command.Id, ct)
-            ?? throw new BadHttpRequestException("Материал не найден.");
+        var material = await dbContext.Materials.SingleOrDefaultAsync(material => material.Id == command.Id, ct);
+        if (material is null)
+            return await archivedHandler.Handle(new UpdateArchivedMaterialExternalLinkCommand(command.Id, command.Model), ct);
         var externalLink = string.IsNullOrWhiteSpace(command.Model.ExternalLink) ? null : command.Model.ExternalLink.Trim();
         if (material.ExternalLink == externalLink)
             return new UpdateMaterialExternalLinkCommandResult(true);

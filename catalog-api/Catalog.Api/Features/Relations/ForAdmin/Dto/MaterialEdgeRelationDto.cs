@@ -12,4 +12,5 @@ public sealed record MaterialEdgeRelationFiltersDto(
 public sealed record RelationMarkingOptionDto(
     [property: Description("Id")] int Id,
     [property: Description("Название")] string Name,
+    [property: Description("Описание")] string? Description,
     [property: Description("Порядок сортировки")] int OrderByCol);

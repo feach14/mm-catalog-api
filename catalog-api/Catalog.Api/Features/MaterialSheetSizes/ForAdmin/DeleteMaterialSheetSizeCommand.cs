@@ -18,7 +18,9 @@ public sealed class DeleteMaterialSheetSizeCommandHandler(CatalogDbContext dbCon
         var size = await dbContext.MaterialSheetSizes.FirstOrDefaultAsync(x => x.Id == command.Id, ct)
                    ?? throw new BadHttpRequestException($"Размер материала с id={command.Id} не найден.");
 
-        if (await dbContext.Materials.AnyAsync(x => x.MaterialSheetSizeId == command.Id, ct))
+        if (await dbContext.Materials.AsNoTracking().Where(x => x.MaterialSheetSizeId == command.Id).Select(x => x.Id)
+            .Concat(dbContext.ArchivedMaterials.AsNoTracking().Where(x => x.MaterialSheetSizeId == command.Id).Select(x => x.Id))
+            .AnyAsync(ct))
             throw new BadHttpRequestException("Нельзя удалить размер, используемый материалами.");
 
         dbContext.MaterialSheetSizes.Remove(size);

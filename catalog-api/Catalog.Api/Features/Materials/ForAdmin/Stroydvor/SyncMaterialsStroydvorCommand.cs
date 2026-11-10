@@ -43,7 +43,7 @@ public sealed class SyncMaterialsStroydvorCommandHandler(
             .Where(x => command.Ids.Contains(x.Id))
             .ToArrayAsync(ct);
         if (materials.Length != command.Ids.Length)
-            throw new BadHttpRequestException("Один из указанных материалов не найден.");
+            throw new BadHttpRequestException("Один из указанных актуальных материалов не найден.");
         foreach (var material in materials)
         {
             if (material.StroydvorProductId is not > 0)

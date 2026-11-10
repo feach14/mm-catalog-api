@@ -16,6 +16,7 @@ public sealed class GetRelationMarkingQueryHandler(CatalogDbContext dbContext)
             .Select(x => new RelationMarkingDto(
                 x.Id,
                 x.Name,
+                x.Description,
                 x.Links.Count(),
                 x.OrderByCol))
             .SingleOrDefaultAsync(ct)

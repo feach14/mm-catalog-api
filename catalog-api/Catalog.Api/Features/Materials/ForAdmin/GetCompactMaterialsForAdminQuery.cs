@@ -45,10 +45,11 @@ public sealed class GetCompactMaterialsForAdminQueryHandler(
     {
         var materials = await materialsHandler.Handle(new GetAllMaterialsForAdminQuery(), ct);
         var thumbnails = await dbContext.MaterialImages.AsNoTracking()
-            .Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail240
-                || image.ImageType == MaterialImageTypeEnum.Thumbnail480)
+            .Where(image => image.MaterialId.HasValue
+                && (image.ImageType == MaterialImageTypeEnum.Thumbnail240
+                    || image.ImageType == MaterialImageTypeEnum.Thumbnail480))
             .OrderBy(image => image.ImageType == MaterialImageTypeEnum.Thumbnail240 ? 0 : 1)
-            .Select(image => new { image.MaterialId, Guid = (Guid?)image.Guid })
+            .Select(image => new { MaterialId = image.MaterialId.GetValueOrDefault(), Guid = (Guid?)image.Guid })
             .ToArrayAsync(ct);
         var previewByMaterial = thumbnails.GroupBy(image => image.MaterialId)
             .ToDictionary(group => group.Key, group => group.First().Guid);

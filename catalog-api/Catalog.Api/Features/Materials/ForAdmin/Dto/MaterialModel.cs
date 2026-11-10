@@ -22,7 +22,9 @@ public class MaterialModelValidator : AbstractValidator<MaterialModel>
                 if (!model.StroydvorProductIdSpecified
                     && int.TryParse(httpContextAccessor.HttpContext?.Request.RouteValues["id"]?.ToString(), out var materialId))
                     productId = await dbContext.Materials.AsNoTracking().Where(x => x.Id == materialId)
-                        .Select(x => x.StroydvorProductId).SingleOrDefaultAsync(ct);
+                        .Select(x => x.StroydvorProductId)
+                        .Concat(dbContext.ArchivedMaterials.AsNoTracking().Where(x => x.Id == materialId).Select(x => x.StroydvorProductId))
+                        .SingleOrDefaultAsync(ct);
                 if (!productId.HasValue)
                     return true;
 

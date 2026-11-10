@@ -16,7 +16,9 @@ public sealed class DeleteMaterialThicknessCommandHandler(CatalogDbContext dbCon
     {
         var thickness = await dbContext.MaterialThicknesses.SingleOrDefaultAsync(x => x.Id == command.Id, ct)
                         ?? throw new BadHttpRequestException($"Толщина материала с id={command.Id} не найдена.");
-        if (await dbContext.Materials.AsNoTracking().AnyAsync(x => x.MaterialThicknessId == command.Id, ct))
+        if (await dbContext.Materials.AsNoTracking().Where(x => x.MaterialThicknessId == command.Id).Select(x => x.Id)
+            .Concat(dbContext.ArchivedMaterials.AsNoTracking().Where(x => x.MaterialThicknessId == command.Id).Select(x => x.Id))
+            .AnyAsync(ct))
             throw new BadHttpRequestException("Нельзя удалить толщину, используемую материалами.");
 
         dbContext.MaterialThicknesses.Remove(thickness);

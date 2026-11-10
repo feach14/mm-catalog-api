@@ -39,17 +39,21 @@ public sealed class GetMaterialsByIdsForCalculateQueryHandler(CatalogDbContext d
 {
     public async Task<GetMaterialsByIdsForCalculateQueryResult> Handle(GetMaterialsByIdsForCalculateQuery query, CancellationToken ct)
     {
-        var items = await dbContext.Materials.AsNoTracking()
+        var materials = await dbContext.Materials.AsNoTracking()
             .Where(x => query.MaterialIds.Contains(x.Id))
+            .Select(x => new { x.Id, x.Name, x.Article, x.CategoryId, CategoryName = x.Category.Name, x.OrderByCol })
+            .Concat(dbContext.ArchivedMaterials.AsNoTracking()
+                .Where(x => query.MaterialIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.Name, x.Article, x.CategoryId, CategoryName = x.Category.Name, x.OrderByCol }))
             .OrderBy(x => x.OrderByCol).ThenBy(x => x.Id)
-            .Select(x => new GetMaterialsByIdsForCalculateQueryItem
+            .ToArrayAsync(ct);
+        var items = materials.Select(x => new GetMaterialsByIdsForCalculateQueryItem
             (
                 x.Id,
                 x.Name,
                 x.Article,
-                new PropertyDto(x.CategoryId, x.Category.Name)
-            ))
-            .ToArrayAsync(ct);
+                new PropertyDto(x.CategoryId, x.CategoryName)
+            )).ToArray();
 
         return new GetMaterialsByIdsForCalculateQueryResult(items);
     }

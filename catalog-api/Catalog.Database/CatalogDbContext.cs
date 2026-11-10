@@ -21,6 +21,7 @@ public class CatalogDbContext(DbContextOptions<CatalogDbContext> _options) : DbC
     public DbSet<MaterialType> MaterialTypes { get; init; }
     public DbSet<MaterialThickness> MaterialThicknesses { get; init; }
     public DbSet<Material> Materials { get; init; }
+    public DbSet<ArchivedMaterial> ArchivedMaterials { get; init; }
     public DbSet<MaterialSheetSize> MaterialSheetSizes { get; init; }
     public DbSet<MaterialManufacturer> MaterialManufacturers { get; init; }
     public DbSet<MaterialCategory> MaterialCategories { get; init; }

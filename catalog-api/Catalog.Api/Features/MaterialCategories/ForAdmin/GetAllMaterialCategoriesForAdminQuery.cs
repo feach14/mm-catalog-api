@@ -35,8 +35,8 @@ public class GetAllMaterialCategoriesQueryHandler(CatalogDbContext dbContext) : 
                 OrderByCol: x.OrderByCol,
                 HideOnSite: x.HideOnSite,
                 HideInLk: x.HideInLk,
-                MaterialsAnyCount: x.Materials.Count(y => y.Count > 0),
-                MaterialsNotAnyCount: x.Materials.Count(y => y.Count < 1)
+                MaterialsAnyCount: x.Materials.Count(y => y.Count > 0) + dbContext.ArchivedMaterials.Count(material => material.CategoryId == x.Id && material.Count > 0),
+                MaterialsNotAnyCount: x.Materials.Count(y => y.Count < 1) + dbContext.ArchivedMaterials.Count(material => material.CategoryId == x.Id && material.Count < 1)
             ))
             .ToArrayAsync(ct);
 

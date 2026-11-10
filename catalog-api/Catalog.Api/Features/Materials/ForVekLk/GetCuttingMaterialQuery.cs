@@ -31,6 +31,20 @@ public sealed class GetCuttingMaterialQueryHandler(CatalogDbContext dbContext)
                 x.AllowSecondItemInOrder,
                 ExternalLink = string.IsNullOrWhiteSpace(x.ExternalLink) ? x.Category.ExternalLink : x.ExternalLink
             })
+            .Concat(dbContext.ArchivedMaterials.AsNoTracking()
+                .Where(x => x.Id == query.Id)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Name,
+                    MaterialTypeName = x.MaterialType.Name,
+                    Thickness = x.MaterialThickness.Value,
+                    x.MaterialSheetSize.Height,
+                    x.MaterialSheetSize.Width,
+                    ManufacturerName = x.MaterialManufacturer.Name,
+                    x.AllowSecondItemInOrder,
+                    ExternalLink = string.IsNullOrWhiteSpace(x.ExternalLink) ? x.Category.ExternalLink : x.ExternalLink
+                }))
             .SingleOrDefaultAsync(ct)
             ?? throw new BadHttpRequestException("Материал не найден.");
 

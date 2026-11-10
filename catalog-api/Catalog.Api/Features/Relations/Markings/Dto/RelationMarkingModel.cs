@@ -4,7 +4,8 @@ namespace Catalog.Api.Features.Relations.Markings.Dto;
 
 [Description("Параметры маркировки")]
 public sealed record RelationMarkingModel(
-    [property: Description("Название")] string Name);
+    [property: Description("Название")] string Name,
+    [property: Description("Описание")] string? Description = null);
 
 public sealed class RelationMarkingModelValidator : AbstractValidator<RelationMarkingModel>
 {
@@ -22,5 +23,8 @@ public sealed class RelationMarkingModelValidator : AbstractValidator<RelationMa
                 return !await dbContext.RelationMarkings.AsNoTracking().AnyAsync(
                     x => x.Id != id && EF.Property<string>(x, "NormalizedName") == normalizedName, ct);
             }).WithMessage("Запись с таким названием уже существует.");
+
+        RuleFor(x => x.Description)
+            .MaximumLength(2000).WithMessage("Описание не должно быть длиннее 2000 символов");
     }
 }

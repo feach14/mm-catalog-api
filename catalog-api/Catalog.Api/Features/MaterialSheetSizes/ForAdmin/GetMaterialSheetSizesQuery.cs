@@ -25,7 +25,7 @@ public sealed class GetMaterialSheetSizesQueryHandler(CatalogDbContext dbContext
 {
     public async Task<GetMaterialSheetSizesQueryResult> Handle(GetMaterialSheetSizesQuery query, CancellationToken ct)
     {
-        var items = await dbContext.MaterialSheetSizes
+        var items = await dbContext.MaterialSheetSizes.AsNoTracking()
             .OrderBy(x => x.OrderByCol)
             .Select(x => new GetMaterialSheetSizesQueryItem(
                 x.Id,
@@ -34,8 +34,8 @@ public sealed class GetMaterialSheetSizesQueryHandler(CatalogDbContext dbContext
                 x.Width,
                 x.ShowInFilters,
                 x.OrderByCol,
-                x.Materials.Count(material => material.Count > 0),
-                x.Materials.Count(material => material.Count < 1)))
+                x.Materials.Count(material => material.Count > 0) + dbContext.ArchivedMaterials.Count(material => material.MaterialSheetSizeId == x.Id && material.Count > 0),
+                x.Materials.Count(material => material.Count < 1) + dbContext.ArchivedMaterials.Count(material => material.MaterialSheetSizeId == x.Id && material.Count < 1)))
             .ToArrayAsync(ct);
         return new GetMaterialSheetSizesQueryResult(items);
     }

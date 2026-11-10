@@ -9,7 +9,8 @@ namespace Catalog.Api.Features.Materials.ForAdmin;
 public sealed record ExportMaterialsForAdminQuery(
     [property: Description("Поля и колонки выгрузки")] ExcelExportColumnDto[] Columns,
     [property: Description("Id в порядке выгрузки; null — все материалы, пустой список — без строк")] int[]? Ids = null,
-    [property: Description("Добавить строку заголовков")] bool IncludeHeaders = true) : IQuery<ExcelExportFile>;
+    [property: Description("Добавить строку заголовков")] bool IncludeHeaders = true,
+    [property: Description("Выгрузить архив материалов")] bool IsArchived = false) : IQuery<ExcelExportFile>;
 
 public sealed class ExportMaterialsForAdminQueryValidator : AbstractValidator<ExportMaterialsForAdminQuery>
 {
@@ -27,8 +28,10 @@ public sealed class ExportMaterialsForAdminQueryValidator : AbstractValidator<Ex
             .Must(ids => ids is null || ids.All(id => id > 0)).WithMessage("Id материалов должны быть положительными числами.")
             .Must(ids => ids is null || ids.Distinct().Count() == ids.Length).WithMessage("Id материалов не должны повторяться.")
             .Must((query, ids) => ids is null || ids.Length <= 1048576 - (query.IncludeHeaders ? 1 : 0)).WithMessage("Количество материалов превышает ограничение Excel.")
-            .MustAsync(async (ids, ct) => ids is null || ids.Length == 0
-                || await dbContext.Materials.AsNoTracking().CountAsync(x => ids.Contains(x.Id), ct) == ids.Length).WithMessage("Один или несколько материалов не найдены. Обновите список.");
+            .MustAsync(async (query, ids, ct) => ids is null || ids.Length == 0
+                || (query.IsArchived
+                    ? await dbContext.ArchivedMaterials.AsNoTracking().CountAsync(x => ids.Contains(x.Id), ct)
+                    : await dbContext.Materials.AsNoTracking().CountAsync(x => ids.Contains(x.Id), ct)) == ids.Length).WithMessage("Один или несколько материалов не найдены. Обновите список.");
     }
 }
 
@@ -37,10 +40,8 @@ public sealed class ExportMaterialsForAdminQueryHandler(CatalogDbContext dbConte
 {
     public async Task<ExcelExportFile> Handle(ExportMaterialsForAdminQuery query, CancellationToken ct)
     {
-        var materials = dbContext.Materials.AsNoTracking();
-        if (query.Ids is not null)
-            materials = materials.Where(x => query.Ids.Contains(x.Id));
-        var rows = await materials.OrderBy(x => x.OrderByCol).ThenBy(x => x.Id)
+        var rows = await dbContext.Materials.AsNoTracking()
+            .Where(x => !query.IsArchived && (query.Ids == null || query.Ids.Contains(x.Id)))
             .Select(x => new
             {
                 x.Id,
@@ -69,7 +70,39 @@ public sealed class ExportMaterialsForAdminQueryHandler(CatalogDbContext dbConte
                 x.CommentOnMaterialIsRequired,
                 x.AllowSecondItemInOrder,
                 x.OrderByCol
-            }).ToListAsync(ct);
+            })
+            .Concat(dbContext.ArchivedMaterials.AsNoTracking()
+                .Where(x => query.IsArchived && (query.Ids == null || query.Ids.Contains(x.Id)))
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Article,
+                    x.Name,
+                    Category = x.Category.Name,
+                    Manufacturer = x.MaterialManufacturer.Name,
+                    MaterialType = x.MaterialType.Name,
+                    Thickness = x.MaterialThickness.Value,
+                    ThicknessName = x.MaterialThickness.Name,
+                    SheetSize = x.MaterialSheetSize.Name,
+                    x.MaterialSheetSize.Width,
+                    x.MaterialSheetSize.Height,
+                    x.Price,
+                    x.Count,
+                    x.CountTypeEnum,
+                    x.ExternalLink,
+                    x.StroydvorProductId,
+                    x.StroydvorArticle,
+                    x.StroydvorPrice,
+                    x.StroydvorLastSyncAt,
+                    x.StroydvorInStock,
+                    x.HideInLk,
+                    x.HideOnSite,
+                    x.HidePriceOnSite,
+                    x.CommentOnMaterialIsRequired,
+                    x.AllowSecondItemInOrder,
+                    x.OrderByCol
+                }))
+            .OrderBy(x => x.OrderByCol).ThenBy(x => x.Id).ToListAsync(ct);
         if (query.Ids is not null)
         {
             var positions = query.Ids.Select((id, index) => (id, index)).ToDictionary(x => x.id, x => x.index);
@@ -77,7 +110,7 @@ public sealed class ExportMaterialsForAdminQueryHandler(CatalogDbContext dbConte
         }
         var columns = query.Columns.OrderBy(x => x.Column).ToArray();
         var titles = GetMaterialExportColumnsQueryHandler.Fields.ToDictionary(x => x.Key, x => x.Title);
-        return ExcelWorkbook.Create("Материалы", "materials.xlsx",
+        return ExcelWorkbook.Create(query.IsArchived ? "Архив материалов" : "Материалы", query.IsArchived ? "archive-materials.xlsx" : "materials.xlsx",
             columns.Select(x => new ExcelWorkbookColumn(x.Column, titles[x.Key])).ToArray(),
             rows.Select(row => columns.Select<ExcelExportColumnDto, object?>(column => column.Key switch
             {

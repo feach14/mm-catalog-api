@@ -31,5 +31,5 @@ internal static class CatalogOrderTransaction
 
     private static bool IsOrderConflict(PostgresException error) =>
         error.SqlState is PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected
-        || (error.SqlState == PostgresErrorCodes.UniqueViolation && error.ConstraintName == "ix_materials_order_by_col");
+        || (error.SqlState == PostgresErrorCodes.UniqueViolation && error.ConstraintName is "ix_materials_order_by_col" or "ix_archive_materials_order_by_col" or "pk_materials" or "pk_archive_materials");
 }

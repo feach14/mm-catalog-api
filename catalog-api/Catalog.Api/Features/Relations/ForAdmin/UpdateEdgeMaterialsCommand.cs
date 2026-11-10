@@ -1,3 +1,4 @@
+using Catalog.Api.Infrastructure.Ordering;
 using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Entities;
@@ -40,7 +41,9 @@ public sealed class UpdateEdgeMaterialsModelValidator : AbstractValidator<Update
             {
                 var materialIds = changes.Select(change => change.MaterialId).ToArray();
                 return materialIds.Length == 0 || await dbContext.Materials.AsNoTracking()
-                    .CountAsync(x => materialIds.Contains(x.Id), ct) == materialIds.Length;
+                    .Where(x => materialIds.Contains(x.Id)).Select(x => x.Id)
+                    .Concat(dbContext.ArchivedMaterials.AsNoTracking().Where(x => materialIds.Contains(x.Id)).Select(x => x.Id))
+                    .CountAsync(ct) == materialIds.Length;
             }).WithMessage("Один или несколько материалов не найдены")
             .Must(changes => changes.All(change => change.MarkingIds is null || change.MarkingIds.All(id => id > 0))).WithMessage("Id маркировок должны быть больше нуля")
             .Must(changes => changes.All(change => change.MarkingIds is null || change.MarkingIds.Distinct().Count() == change.MarkingIds.Length)).WithMessage("Маркировка не должна повторяться в одной связи")
@@ -61,93 +64,96 @@ public sealed class UpdateEdgeMaterialsCommandHandler(CatalogDbContext dbContext
     {
         var changes = command.Model.Changes;
         if (changes.Length == 0) return new UpdateEdgeMaterialsCommandResult(0);
-
-        var materialIds = changes.Select(change => change.MaterialId).Order().ToArray();
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
-        var lockedMaterialIds = await dbContext.Database.SqlQuery<int>(
-                $"SELECT id AS \"Value\" FROM catalog.materials WHERE id = ANY({materialIds}) ORDER BY id FOR UPDATE")
-            .ToArrayAsync(ct);
-        if (lockedMaterialIds.Length != materialIds.Length)
-            throw new BadHttpRequestException("Один или несколько материалов были удалены. Обновите список материалов.");
-
-        var edgeName = await dbContext.Edges.AsNoTracking()
-            .Where(x => x.Id == command.EdgeId).Select(x => x.Name).SingleAsync(ct);
-        var links = await dbContext.MaterialEdgeLinks
-            .Include(x => x.Markings)
-            .Where(x => materialIds.Contains(x.MaterialId))
-            .OrderBy(x => x.MaterialId).ThenBy(x => x.Priority).ThenBy(x => x.EdgeId)
-            .ToArrayAsync(ct);
-        var materialLinksById = links.GroupBy(x => x.MaterialId).ToDictionary(group => group.Key, group => group.ToList());
-        var changedCount = 0;
-
-        foreach (var change in changes.OrderBy(x => x.MaterialId))
+        return await CatalogOrderTransaction.Run(dbContext, async () =>
         {
-            var materialLinks = materialLinksById.GetValueOrDefault(change.MaterialId) ?? [];
-            var link = materialLinks.SingleOrDefault(x => x.EdgeId == command.EdgeId);
-            string description;
-            if (!change.Linked)
-            {
-                if (link is null) continue;
-                dbContext.MaterialEdgeLinks.Remove(link);
-                materialLinks.Remove(link);
-                description = "связь удалена";
-            }
-            else if (link is null)
-            {
-                link = new MaterialEdgeLink
-                {
-                    MaterialId = change.MaterialId,
-                    EdgeId = command.EdgeId,
-                    Priority = materialLinks.Count + 1
-                };
-                foreach (var markingId in change.MarkingIds ?? [])
-                    link.Markings.Add(new MaterialEdgeLinkMarking
-                    {
-                        MaterialId = change.MaterialId,
-                        EdgeId = command.EdgeId,
-                        MarkingId = markingId
-                    });
-                dbContext.MaterialEdgeLinks.Add(link);
-                materialLinks.Add(link);
-                description = $"связь добавлена, маркировки: {MarkingIdsText(change.MarkingIds ?? [])}";
-            }
-            else
-            {
-                if (change.MarkingIds is null) continue;
-                var previousMarkingIds = link.Markings.Select(x => x.MarkingId).ToHashSet();
-                var requestedMarkingIds = change.MarkingIds.ToHashSet();
-                if (previousMarkingIds.SetEquals(requestedMarkingIds)) continue;
+            var materialIds = changes.Select(change => change.MaterialId).ToArray();
+            var activeIds = await dbContext.Materials.AsNoTracking()
+                .Where(x => materialIds.Contains(x.Id)).Select(x => x.Id).ToArrayAsync(ct);
+            var archivedIds = await dbContext.ArchivedMaterials.AsNoTracking()
+                .Where(x => materialIds.Contains(x.Id)).Select(x => x.Id).ToArrayAsync(ct);
+            if (activeIds.Length + archivedIds.Length != materialIds.Length)
+                throw new BadHttpRequestException("Один или несколько материалов были удалены. Обновите список материалов.");
+            var edgeName = await dbContext.Edges.AsNoTracking()
+                .Where(x => x.Id == command.EdgeId).Select(x => x.Name).SingleAsync(ct);
+            var archivedSet = archivedIds.ToHashSet();
+            var links = await dbContext.MaterialEdgeLinks.Include(x => x.Markings)
+                .Where(x => materialIds.Contains(x.OwnerMaterialId))
+                .OrderBy(x => x.OwnerMaterialId).ThenBy(x => x.Priority).ThenBy(x => x.EdgeId)
+                .ToArrayAsync(ct);
+            var materialLinksById = links.GroupBy(x => x.OwnerMaterialId)
+                .ToDictionary(group => group.Key, group => group.ToList());
+            var changedCount = 0;
 
-                foreach (var assignment in link.Markings.Where(x => !requestedMarkingIds.Contains(x.MarkingId)).ToArray())
+            foreach (var change in changes.OrderBy(x => x.MaterialId))
+            {
+                var materialLinks = materialLinksById.GetValueOrDefault(change.MaterialId) ?? [];
+                var link = materialLinks.SingleOrDefault(x => x.EdgeId == command.EdgeId);
+                string description;
+                if (!change.Linked)
                 {
-                    link.Markings.Remove(assignment);
-                    dbContext.MaterialEdgeLinkMarkings.Remove(assignment);
+                    if (link is null) continue;
+                    dbContext.MaterialEdgeLinks.Remove(link);
+                    materialLinks.Remove(link);
+                    description = "связь удалена";
                 }
-                foreach (var markingId in requestedMarkingIds.Except(previousMarkingIds))
+                else if (link is null)
                 {
-                    var assignment = new MaterialEdgeLinkMarking
+                    var archived = archivedSet.Contains(change.MaterialId);
+                    link = new MaterialEdgeLink
                     {
-                        MaterialId = change.MaterialId,
+                        MaterialId = archived ? null : change.MaterialId,
+                        ArchivedMaterialId = archived ? change.MaterialId : null,
                         EdgeId = command.EdgeId,
-                        MarkingId = markingId
+                        Priority = materialLinks.Count + 1
                     };
-                    link.Markings.Add(assignment);
-                    dbContext.MaterialEdgeLinkMarkings.Add(assignment);
+                    foreach (var markingId in change.MarkingIds ?? [])
+                        link.Markings.Add(new MaterialEdgeLinkMarking
+                        {
+                            MaterialId = change.MaterialId,
+                            EdgeId = command.EdgeId,
+                            MarkingId = markingId
+                        });
+                    dbContext.MaterialEdgeLinks.Add(link);
+                    materialLinks.Add(link);
+                    description = $"связь добавлена, маркировки: {MarkingIdsText(change.MarkingIds ?? [])}";
                 }
-                description = $"маркировки изменены: {MarkingIdsText(previousMarkingIds)} → {MarkingIdsText(requestedMarkingIds)}";
+                else
+                {
+                    if (change.MarkingIds is null) continue;
+                    var previousMarkingIds = link.Markings.Select(x => x.MarkingId).ToHashSet();
+                    var requestedMarkingIds = change.MarkingIds.ToHashSet();
+                    if (previousMarkingIds.SetEquals(requestedMarkingIds)) continue;
+
+                    foreach (var assignment in link.Markings.Where(x => !requestedMarkingIds.Contains(x.MarkingId)).ToArray())
+                    {
+                        link.Markings.Remove(assignment);
+                        dbContext.MaterialEdgeLinkMarkings.Remove(assignment);
+                    }
+                    foreach (var markingId in requestedMarkingIds.Except(previousMarkingIds))
+                    {
+                        var assignment = new MaterialEdgeLinkMarking
+                        {
+                            MaterialId = change.MaterialId,
+                            EdgeId = command.EdgeId,
+                            MarkingId = markingId
+                        };
+                        link.Markings.Add(assignment);
+                        dbContext.MaterialEdgeLinkMarkings.Add(assignment);
+                    }
+                    description = $"маркировки изменены: {MarkingIdsText(previousMarkingIds)} → {MarkingIdsText(requestedMarkingIds)}";
+                }
+
+                for (var index = 0; index < materialLinks.Count; index++)
+                    materialLinks[index].Priority = index + 1;
+                historyWriter.Add(
+                    CatalogHistoryActionTypeEnum.Update, CatalogHistoryEntityTypeEnum.MaterialEdgeRelation, change.MaterialId,
+                    $"Материал #{change.MaterialId}, кромка #{command.EdgeId} «{edgeName}»: {description}.");
+                changedCount++;
             }
 
-            for (var index = 0; index < materialLinks.Count; index++)
-                materialLinks[index].Priority = index + 1;
-            historyWriter.Add(
-                CatalogHistoryActionTypeEnum.Update, CatalogHistoryEntityTypeEnum.MaterialEdgeRelation, change.MaterialId,
-                $"Материал #{change.MaterialId}, кромка #{command.EdgeId} «{edgeName}»: {description}.");
-            changedCount++;
-        }
-
-        if (changedCount > 0) await dbContext.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-        return new UpdateEdgeMaterialsCommandResult(changedCount);
+            if (changedCount > 0) await dbContext.SaveChangesAsync(ct);
+            return new UpdateEdgeMaterialsCommandResult(changedCount);
+        }, ct);
     }
 
     private static string MarkingIdsText(IEnumerable<int> markingIds)

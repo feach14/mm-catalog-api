@@ -26,6 +26,7 @@ public sealed class CreateRelationMarkingCommandHandler(CatalogDbContext dbConte
             RelationMarking marking = new()
             {
                 Name = command.Model.Name.Trim(),
+                Description = string.IsNullOrWhiteSpace(command.Model.Description) ? null : command.Model.Description.Trim(),
                 OrderByCol = maxOrderByCol + 1
             };
 

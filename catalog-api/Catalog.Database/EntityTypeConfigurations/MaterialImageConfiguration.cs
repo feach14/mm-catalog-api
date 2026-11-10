@@ -19,9 +19,14 @@ public class MaterialImageConfiguration : IEntityTypeConfiguration<MaterialImage
             .HasDefaultValue(MaterialImageTypeEnum.Original);
         eb.HasIndex(x => x.ImageType);
         eb.HasIndex(x => new { x.MaterialId, x.ImageType }).IsUnique();
+        eb.HasIndex(x => new { x.ArchivedMaterialId, x.ImageType }).IsUnique();
         eb.HasOne(x => x.Material)
             .WithMany(x => x.Images)
             .HasForeignKey(x => x.MaterialId)
+            .OnDelete(DeleteBehavior.Cascade);
+        eb.HasOne(x => x.ArchivedMaterial)
+            .WithMany(x => x.Images)
+            .HasForeignKey(x => x.ArchivedMaterialId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

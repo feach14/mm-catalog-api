@@ -18,7 +18,9 @@ public sealed class DeleteMaterialTypeCommandHandler(CatalogDbContext dbContext,
         var materialType = await dbContext.MaterialTypes.FirstOrDefaultAsync(x => x.Id == command.Id, ct)
             ?? throw new BadHttpRequestException($"Тип материала с id={command.Id} не найден.");
 
-        if (await dbContext.Materials.AnyAsync(x => x.MaterialTypeId == command.Id, ct))
+        if (await dbContext.Materials.AsNoTracking().Where(x => x.MaterialTypeId == command.Id).Select(x => x.Id)
+            .Concat(dbContext.ArchivedMaterials.AsNoTracking().Where(x => x.MaterialTypeId == command.Id).Select(x => x.Id))
+            .AnyAsync(ct))
             throw new BadHttpRequestException("Нельзя удалить тип материала, который используется материалами.");
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);

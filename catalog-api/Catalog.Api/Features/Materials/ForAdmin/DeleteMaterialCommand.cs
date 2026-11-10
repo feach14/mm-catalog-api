@@ -11,14 +11,16 @@ public sealed record DeleteMaterialCommand(int Id) : ICommand<DeleteMaterialComm
 public sealed record DeleteMaterialCommandResult(
     [property: Description("Успех операции")] bool Success);
 
-public class DeleteMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCache memoryCache, ICatalogHistoryWriter historyWriter) : ICommandHandler<DeleteMaterialCommand, DeleteMaterialCommandResult>
+public class DeleteMaterialCommandHandler(CatalogDbContext dbContext, IMemoryCache memoryCache, ICatalogHistoryWriter historyWriter,
+    ICommandHandler<DeleteArchivedMaterialCommand, DeleteMaterialCommandResult> archivedHandler) : ICommandHandler<DeleteMaterialCommand, DeleteMaterialCommandResult>
 {
     public async Task<DeleteMaterialCommandResult> Handle(DeleteMaterialCommand command, CancellationToken ct)
     {
         var material = await dbContext.Materials
             .Include(x => x.Images)
-            .FirstOrDefaultAsync(x => x.Id == command.Id, ct)
-            ?? throw new BadHttpRequestException($"Материал с id={command.Id} не найден.");
+            .FirstOrDefaultAsync(x => x.Id == command.Id, ct);
+        if (material is null)
+            return await archivedHandler.Handle(new DeleteArchivedMaterialCommand(command.Id), ct);
 
         var imageGuids = material.Images.Select(x => x.Guid).ToArray();
 

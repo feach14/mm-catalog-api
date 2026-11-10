@@ -33,13 +33,17 @@ public sealed record GetMaterialForAdminQueryResult(
     [property: Description("Артикул Стройдвора")] string? StroydvorArticle,
     [property: Description("Цена Стройдвора за лист")] decimal StroydvorPrice,
     [property: Description("Дата успешной синхронизации со Стройдвором")] DateTimeOffset? StroydvorLastSyncAt,
-    [property: Description("В наличии в Стройдворе")] bool StroydvorInStock)
+    [property: Description("В наличии в Стройдворе")] bool StroydvorInStock,
+    [property: Description("Материал в архиве")] bool IsArchived,
+    [property: Description("Id исходного материала до переноса в архив")] int? OriginalMaterialId)
 {
     [Description("Техническая ссылка на товар Стройдвора")]
     public string? StroydvorUrl => StroydvorProductId is { } id ? $"https://stroydvor21.ru/products/{id}" : null;
 }
 
-public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetMaterialForAdminQuery, GetMaterialForAdminQueryResult>
+public class GetMaterialForAdminQueryHandler(
+    CatalogDbContext dbContext,
+    IQueryHandler<GetArchivedMaterialForAdminQuery, GetMaterialForAdminQueryResult> archivedHandler) : IQueryHandler<GetMaterialForAdminQuery, GetMaterialForAdminQueryResult>
 {
     public async Task<GetMaterialForAdminQueryResult> Handle(GetMaterialForAdminQuery query, CancellationToken ct) =>
         await dbContext.Materials.AsNoTracking()
@@ -106,7 +110,9 @@ public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQuer
                 x.StroydvorArticle,
                 x.StroydvorPrice,
                 x.StroydvorLastSyncAt,
-                x.StroydvorInStock))
+                x.StroydvorInStock,
+                false,
+                null))
             .SingleOrDefaultAsync(ct)
-        ?? throw new BadHttpRequestException($"Материал с id={query.Id} не найден");
+        ?? await archivedHandler.Handle(new GetArchivedMaterialForAdminQuery(query.Id), ct);
 }

@@ -21,14 +21,18 @@ public sealed class UpdateRelationMarkingCommandHandler(CatalogDbContext dbConte
             ?? throw new BadHttpRequestException("Маркировка не найдена.");
 
         string name = command.Model.Name.Trim();
+        string? description = string.IsNullOrWhiteSpace(command.Model.Description) ? null : command.Model.Description.Trim();
         List<string> changes = [];
         if (marking.Name != name)
             changes.Add($"название «{marking.Name}» → «{name}»");
+        if (marking.Description != description)
+            changes.Add("изменено описание");
 
         if (changes.Count == 0)
             return new UpdateRelationMarkingCommandResult(true);
 
         marking.Name = name;
+        marking.Description = description;
         historyWriter.Add(
             CatalogHistoryActionTypeEnum.Update,
             CatalogHistoryEntityTypeEnum.RelationMarking,

@@ -29,8 +29,8 @@ public sealed class GetMaterialTypesQueryHandler(CatalogDbContext dbContext)
                 x.Id,
                 x.Name,
                 x.OrderByCol,
-                x.Materials.Count(material => material.Count > 0),
-                x.Materials.Count(material => material.Count < 1),
+                x.Materials.Count(material => material.Count > 0) + dbContext.ArchivedMaterials.Count(material => material.MaterialTypeId == x.Id && material.Count > 0),
+                x.Materials.Count(material => material.Count < 1) + dbContext.ArchivedMaterials.Count(material => material.MaterialTypeId == x.Id && material.Count < 1),
                 x.HideOnSite))
             .ToArrayAsync(ct);
         return new GetMaterialTypesQueryResult(items);

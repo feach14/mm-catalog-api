@@ -29,8 +29,8 @@ public sealed class GetMaterialThicknessesQueryHandler(CatalogDbContext dbContex
                 x.Id,
                 x.Name,
                 x.Value,
-                x.Materials.Count(material => material.Count > 0),
-                x.Materials.Count(material => material.Count < 1)))
+                x.Materials.Count(material => material.Count > 0) + dbContext.ArchivedMaterials.Count(material => material.MaterialThicknessId == x.Id && material.Count > 0),
+                x.Materials.Count(material => material.Count < 1) + dbContext.ArchivedMaterials.Count(material => material.MaterialThicknessId == x.Id && material.Count < 1)))
             .ToArrayAsync(ct);
         return new GetMaterialThicknessesQueryResult(items);
     }

@@ -17,7 +17,9 @@ public sealed class DeleteManufacturerCommandHandler(CatalogDbContext dbContext,
     {
         var manufacturer = await dbContext.MaterialManufacturers.FirstOrDefaultAsync(x => x.Id == command.Id, ct)
             ?? throw new BadHttpRequestException($"Производитель с id={command.Id} не найден.");
-        if (await dbContext.Materials.AnyAsync(x => x.MaterialManufacturerId == command.Id, ct))
+        if (await dbContext.Materials.AsNoTracking().Where(x => x.MaterialManufacturerId == command.Id).Select(x => x.Id)
+            .Concat(dbContext.ArchivedMaterials.AsNoTracking().Where(x => x.MaterialManufacturerId == command.Id).Select(x => x.Id))
+            .AnyAsync(ct))
             throw new BadHttpRequestException("Нельзя удалить производителя, который используется материалами.");
 
         dbContext.MaterialManufacturers.Remove(manufacturer);

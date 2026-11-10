@@ -20,14 +20,38 @@ public sealed class GetMaterialForCalculateQueryHandler(CatalogDbContext dbConte
     public async Task<GetMaterialForCalculateQueryResult> Handle(GetMaterialForCalculateQuery query, CancellationToken ct)
     {
         var material = await dbContext.Materials.AsNoTracking()
-            .Include(x => x.MaterialType)
-            .Include(x => x.MaterialThickness)
-            .Include(x => x.MaterialSheetSize)
-            .Include(x => x.MaterialManufacturer)
-            .SingleOrDefaultAsync(x => x.Id == query.Id, ct)
+            .Where(x => x.Id == query.Id)
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.Article,
+                x.Price,
+                x.MaterialSheetSize.Width,
+                x.MaterialSheetSize.Height,
+                MaterialTypeName = x.MaterialType.Name,
+                Thickness = x.MaterialThickness.Value,
+                ManufacturerName = x.MaterialManufacturer.Name
+            })
+            .Concat(dbContext.ArchivedMaterials.AsNoTracking()
+                .Where(x => x.Id == query.Id)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Name,
+                    x.Article,
+                    x.Price,
+                    x.MaterialSheetSize.Width,
+                    x.MaterialSheetSize.Height,
+                    MaterialTypeName = x.MaterialType.Name,
+                    Thickness = x.MaterialThickness.Value,
+                    ManufacturerName = x.MaterialManufacturer.Name
+                }))
+            .SingleOrDefaultAsync(ct)
             ?? throw new BadHttpRequestException($"Материал с id={query.Id} не найден");
 
-        return new GetMaterialForCalculateQueryResult(material.Id, material.MaterialSheetSize.Width,
-            material.MaterialSheetSize.Height, material.Price, MaterialNameHelper.GetFullName(material), material.Article);
+        return new GetMaterialForCalculateQueryResult(material.Id, material.Width, material.Height, material.Price,
+            MaterialNameHelper.GetFullName(material.Name, material.MaterialTypeName, material.Thickness,
+                material.Height, material.Width, material.ManufacturerName), material.Article);
     }
 }

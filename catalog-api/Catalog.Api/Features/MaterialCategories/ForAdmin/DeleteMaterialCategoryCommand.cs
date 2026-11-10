@@ -14,12 +14,16 @@ public class DeleteMaterialCategoryCommandHandler(CatalogDbContext dbContext, IC
 {
     public async Task<DeleteMaterialCategoryCommandResult> Handle(DeleteMaterialCategoryCommand command, CancellationToken ct)
     {
-        var categoryMaterials = await dbContext.Materials
+        var categoryMaterialNames = await dbContext.Materials.AsNoTracking()
             .Where(x => x.CategoryId == command.Id)
+            .Select(x => x.Name)
+            .Concat(dbContext.ArchivedMaterials.AsNoTracking()
+                .Where(x => x.CategoryId == command.Id)
+                .Select(x => x.Name))
             .ToArrayAsync(ct);
 
-        if (categoryMaterials.Length != 0)
-            throw new BadHttpRequestException($"Есть материалы привязанные к указанной категории. Пожалуйста измените категорию у материалов: {string.Join(',', categoryMaterials.Select(x => x.Name).ToArray())}.");
+        if (categoryMaterialNames.Length != 0)
+            throw new BadHttpRequestException($"Есть материалы привязанные к указанной категории. Пожалуйста измените категорию у материалов: {string.Join(',', categoryMaterialNames)}.");
 
         var materialCategory = await dbContext.MaterialCategories.FirstOrDefaultAsync(x => x.Id == command.Id, ct)
             ?? throw new BadHttpRequestException($"Категория материалов с id={command.Id} не существует.");

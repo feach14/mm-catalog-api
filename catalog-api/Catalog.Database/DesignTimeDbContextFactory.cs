@@ -12,7 +12,7 @@ internal class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<CatalogD
     {
         var optionsBuilder = new DbContextOptionsBuilder<CatalogDbContext>();
         optionsBuilder
-            .UseNpgsql(DbConnString, options => { options.MigrationsHistoryTable(EfMigrationsHistoryTableName, CatalogDbContext.SchemaName); })
+            .UseNpgsql(Environment.GetEnvironmentVariable(nameof(DbConnString)) ?? DbConnString, options => { options.MigrationsHistoryTable(EfMigrationsHistoryTableName, CatalogDbContext.SchemaName); })
             .UseSnakeCaseNamingConvention();
 
         return new CatalogDbContext(optionsBuilder.Options);

@@ -19,6 +19,8 @@ public sealed class CloneMaterialCommandHandler(CatalogDbContext dbContext, ICat
     {
         return await CatalogOrderTransaction.Run(dbContext, async () =>
         {
+            if (await dbContext.ArchivedMaterials.AsNoTracking().AnyAsync(x => x.Id == command.Id, ct))
+                throw new BadHttpRequestException("Клонирование архивных материалов недоступно.");
             var materials = await dbContext.Materials.OrderBy(material => material.OrderByCol).ToArrayAsync(ct);
             var sourceIndex = Array.FindIndex(materials, material => material.Id == command.Id);
             if (sourceIndex < 0)

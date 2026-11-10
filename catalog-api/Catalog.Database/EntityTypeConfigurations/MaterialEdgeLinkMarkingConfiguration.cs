@@ -8,10 +8,12 @@ public sealed class MaterialEdgeLinkMarkingConfiguration : IEntityTypeConfigurat
 {
     public void Configure(EntityTypeBuilder<MaterialEdgeLinkMarking> eb)
     {
-        eb.HasKey(x => new { x.MaterialId, x.EdgeId, x.MarkingId });
+        eb.HasKey(x => x.Id);
+        eb.HasIndex(x => new { x.MaterialId, x.EdgeId, x.MarkingId }).IsUnique();
         eb.HasOne(x => x.Link)
             .WithMany(x => x.Markings)
             .HasForeignKey(x => new { x.MaterialId, x.EdgeId })
+            .HasPrincipalKey(x => new { x.OwnerMaterialId, x.EdgeId })
             .OnDelete(DeleteBehavior.Cascade);
         eb.HasOne(x => x.Marking)
             .WithMany(x => x.Links)

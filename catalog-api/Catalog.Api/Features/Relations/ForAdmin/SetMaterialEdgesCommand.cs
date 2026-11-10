@@ -1,3 +1,4 @@
+using Catalog.Api.Infrastructure.Ordering;
 using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Entities;
@@ -20,7 +21,9 @@ public sealed class SetMaterialEdgesModelValidator : AbstractValidator<SetMateri
             .MustAsync(async (_, ct) =>
             {
                 int.TryParse(httpContextAccessor.HttpContext?.Request.RouteValues["materialId"]?.ToString(), out int materialId);
-                return await dbContext.Materials.AsNoTracking().AnyAsync(x => x.Id == materialId, ct);
+                return await dbContext.Materials.AsNoTracking().Where(x => x.Id == materialId).Select(x => x.Id)
+                    .Concat(dbContext.ArchivedMaterials.AsNoTracking().Where(x => x.Id == materialId).Select(x => x.Id))
+                    .AnyAsync(ct);
             }).WithMessage("Материал не найден").OverridePropertyName("MaterialId");
         RuleFor(x => x.EdgeIds)
             .Cascade(CascadeMode.Stop)
@@ -37,48 +40,44 @@ public sealed record SetMaterialEdgesCommandResult([property: Description("Ус�
 public sealed class SetMaterialEdgesCommandHandler(CatalogDbContext dbContext, ICatalogHistoryWriter historyWriter)
     : ICommandHandler<SetMaterialEdgesCommand, SetMaterialEdgesCommandResult>
 {
-    public async Task<SetMaterialEdgesCommandResult> Handle(SetMaterialEdgesCommand command, CancellationToken ct)
-    {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
-        // Все операции связей блокируют материал до чтения его списка кромок.
-        var materialId = await dbContext.Database.SqlQuery<int>(
-            $"SELECT id AS \"Value\" FROM catalog.materials WHERE id = {command.MaterialId} FOR UPDATE").SingleOrDefaultAsync(ct);
-        if (materialId == 0) throw new BadHttpRequestException("Материал не найден. Обновите список материалов.");
-
-        var links = await dbContext.MaterialEdgeLinks
-            .Where(x => x.MaterialId == command.MaterialId)
-            .OrderBy(x => x.Priority).ThenBy(x => x.EdgeId)
-            .ToArrayAsync(ct);
-        var edgeIds = command.Model.EdgeIds;
-        var previousIds = links.Select(x => x.EdgeId).ToArray();
-        if (previousIds.SequenceEqual(edgeIds))
+    public async Task<SetMaterialEdgesCommandResult> Handle(SetMaterialEdgesCommand command, CancellationToken ct) =>
+        await CatalogOrderTransaction.Run(dbContext, async () =>
         {
-            await transaction.CommitAsync(ct);
+            var archived = await dbContext.ArchivedMaterials.AsNoTracking().AnyAsync(x => x.Id == command.MaterialId, ct);
+            if (!archived && !await dbContext.Materials.AsNoTracking().AnyAsync(x => x.Id == command.MaterialId, ct))
+                throw new BadHttpRequestException("Материал не найден. Обновите список материалов.");
+
+            var links = await dbContext.MaterialEdgeLinks
+                .Where(x => x.OwnerMaterialId == command.MaterialId)
+                .OrderBy(x => x.Priority).ThenBy(x => x.EdgeId)
+                .ToArrayAsync(ct);
+            var edgeIds = command.Model.EdgeIds;
+            var previousIds = links.Select(x => x.EdgeId).ToArray();
+            if (previousIds.SequenceEqual(edgeIds))
+                return new SetMaterialEdgesCommandResult(true);
+
+            var selectedIds = edgeIds.ToHashSet();
+            dbContext.MaterialEdgeLinks.RemoveRange(links.Where(x => !selectedIds.Contains(x.EdgeId)));
+            var existing = links.ToDictionary(x => x.EdgeId);
+            for (var index = 0; index < edgeIds.Length; index++)
+            {
+                var edgeId = edgeIds[index];
+                if (existing.TryGetValue(edgeId, out var link))
+                    link.Priority = index + 1;
+                else
+                    dbContext.MaterialEdgeLinks.Add(new MaterialEdgeLink
+                    {
+                        MaterialId = archived ? null : command.MaterialId,
+                        ArchivedMaterialId = archived ? command.MaterialId : null,
+                        EdgeId = edgeId,
+                        Priority = index + 1
+                    });
+            }
+
+            historyWriter.Add(
+                CatalogHistoryActionTypeEnum.Update, CatalogHistoryEntityTypeEnum.MaterialEdgeRelation, command.MaterialId,
+                $"Изменены кромки материала #{command.MaterialId}: [{string.Join(", ", previousIds)}] → [{string.Join(", ", edgeIds)}]. Порядок соответствует приоритету показа.");
+            await dbContext.SaveChangesAsync(ct);
             return new SetMaterialEdgesCommandResult(true);
-        }
-
-        var selectedIds = edgeIds.ToHashSet();
-        dbContext.MaterialEdgeLinks.RemoveRange(links.Where(x => !selectedIds.Contains(x.EdgeId)));
-        var existing = links.ToDictionary(x => x.EdgeId);
-        for (int index = 0; index < edgeIds.Length; index++)
-        {
-            int edgeId = edgeIds[index];
-            if (existing.TryGetValue(edgeId, out var link))
-                link.Priority = index + 1;
-            else
-                dbContext.MaterialEdgeLinks.Add(new MaterialEdgeLink
-                {
-                    MaterialId = command.MaterialId,
-                    EdgeId = edgeId,
-                    Priority = index + 1
-                });
-        }
-
-        historyWriter.Add(
-            CatalogHistoryActionTypeEnum.Update, CatalogHistoryEntityTypeEnum.MaterialEdgeRelation, command.MaterialId,
-            $"Изменены кромки материала #{command.MaterialId}: [{string.Join(", ", previousIds)}] → [{string.Join(", ", edgeIds)}]. Порядок соответствует приоритету показа.");
-        await dbContext.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-        return new SetMaterialEdgesCommandResult(true);
-    }
+        }, ct);
 }

@@ -10,6 +10,7 @@ public sealed class RelationMarkingConfiguration : IEntityTypeConfiguration<Rela
     {
         eb.HasKey(x => x.Id);
         eb.Property(x => x.Name).IsRequired().HasMaxLength(100);
+        eb.Property(x => x.Description).HasMaxLength(2000);
         eb.Property(x => x.OrderByCol).HasDefaultValue(0);
         eb.HasIndex(x => new { x.OrderByCol, x.Id });
         eb.Property<string>("NormalizedName").IsRequired().HasMaxLength(100)
