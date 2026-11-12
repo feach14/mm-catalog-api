@@ -1,4 +1,5 @@
 using Catalog.Database;
+using Catalog.Database.Enums;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Edges.ForCalculate;
@@ -28,8 +29,10 @@ public sealed class GetEdgePriceForCalculateQueryValidator : AbstractValidator<G
 
 [Description("Стоимость кромки")]
 public sealed record GetEdgePriceForCalculateQueryResult(
-    [property: Description("Стоимость за погонный метр, руб.")] decimal Price,
-    [property: Description("Артикул")] string Article);
+    [property: Description("Стоимость: за метр для Meter, за бухту для Roll, руб.")] decimal Price,
+    [property: Description("Артикул")] string Article,
+    [property: Description("Длина бухты или кратность отреза в метрах")] decimal QuantityMultiple,
+    [property: Description("Тип: Meter — погонный метр, Roll — бухта"), JsonConverter(typeof(StrictStringEnumConverter))] EdgeSaleUnitTypeEnum SaleUnitType);
 
 public sealed class GetEdgePriceForCalculateQueryHandler(CatalogDbContext dbContext)
     : IQueryHandler<GetEdgePriceForCalculateQuery, GetEdgePriceForCalculateQueryResult>
@@ -40,7 +43,7 @@ public sealed class GetEdgePriceForCalculateQueryHandler(CatalogDbContext dbCont
             .Where(link => link.OwnerMaterialId == query.MaterialId
                            && link.Edge.Thickness.Value == query.Thickness
                            && (!query.ForVek || link.Markings.Any(marking => marking.Marking.Name == CalculateMarkingName)))
-            .Select(link => new { link.Edge.Price, link.Edge.Article })
+            .Select(link => new { link.Edge.Price, link.Edge.Article, QuantityMultiple = link.Edge.SaleUnit.Length, link.Edge.SaleUnit.SaleUnitType })
             .Take(2)
             .ToArrayAsync(ct);
 
@@ -50,7 +53,7 @@ public sealed class GetEdgePriceForCalculateQueryHandler(CatalogDbContext dbCont
         if (matches.Length > 1)
             throw new BadHttpRequestException($"Для материала с id={query.MaterialId} найдено несколько кромок толщиной {query.Thickness} мм{markingDescription}. Оставьте одну подходящую связь");
 
-        return new GetEdgePriceForCalculateQueryResult(matches[0].Price, matches[0].Article);
+        return new GetEdgePriceForCalculateQueryResult(matches[0].Price, matches[0].Article, matches[0].QuantityMultiple, matches[0].SaleUnitType);
     }
 
     private const string CalculateMarkingName = "Век ЛК";

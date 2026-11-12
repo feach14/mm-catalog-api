@@ -56,6 +56,7 @@ builder.Services
             loggingBuilder.AddSimpleConsole(options => options.IncludeScopes = true);
     })
     .AddDomainNameCorsPolicy(appSettingsConfig.Cors.DomainName)
+    .AddMobileClientCors(appSettingsConfig.Cors.DomainName)
     .AddControllers()
     .AddJsonOptions(options =>
     {

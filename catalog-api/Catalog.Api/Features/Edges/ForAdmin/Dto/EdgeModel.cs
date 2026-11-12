@@ -10,7 +10,7 @@ public record EdgeModel
     [Description("Артикул")]
     public required string Article { get; init; }
 
-    [Description("Стоимость за погонный метр, руб.")]
+    [Description("Стоимость: за метр для Meter, за бухту для Roll, руб.")]
     public required decimal Price { get; init; }
 
     [Description("Id производителя")]

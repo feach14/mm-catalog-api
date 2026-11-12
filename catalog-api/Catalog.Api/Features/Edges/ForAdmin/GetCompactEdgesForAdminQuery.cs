@@ -14,7 +14,7 @@ public sealed record GetCompactEdgesForAdminQueryItem(
     [property: Description("Id")] int Id,
     [property: Description("Название")] string Name,
     [property: Description("Артикул")] string Article,
-    [property: Description("Стоимость за погонный метр, руб.")] decimal Price,
+    [property: Description("Стоимость: за метр для Meter, за бухту для Roll, руб.")] decimal Price,
     [property: Description("Id производителя")] int ManufacturerId,
     [property: Description("Id толщины")] int ThicknessId,
     [property: Description("Id единицы продажи")] int SaleUnitId,
@@ -26,11 +26,16 @@ public sealed record GetCompactEdgesForAdminQueryItem(
 public sealed record EdgesForAdminFiltersDto(
     [property: Description("Производители")] EdgeFilterItemDto[] Manufacturers,
     [property: Description("Толщины")] EdgeThicknessFilterItemDto[] Thicknesses,
-    [property: Description("Единицы продажи")] EdgeFilterItemDto[] SaleUnits);
+    [property: Description("Единицы продажи")] EdgeSaleUnitFilterItemDto[] SaleUnits);
 
 public sealed record EdgeFilterItemDto(
     [property: Description("Id")] int Id,
     [property: Description("Название")] string Name);
+
+public sealed record EdgeSaleUnitFilterItemDto(
+    [property: Description("Id")] int Id,
+    [property: Description("Название")] string Name,
+    [property: Description("Тип: Meter — погонный метр, Roll — бухта"), JsonConverter(typeof(StrictStringEnumConverter))] EdgeSaleUnitTypeEnum SaleUnitType);
 
 public sealed record EdgeThicknessFilterItemDto(
     [property: Description("Id")] int Id,
@@ -58,7 +63,7 @@ public sealed class GetCompactEdgesForAdminQueryHandler(CatalogDbContext dbConte
             .Select(x => new EdgeThicknessFilterItemDto(x.Id, x.Name, x.Value)).ToArrayAsync(ct);
         var saleUnits = await dbContext.EdgeSaleUnits.AsNoTracking()
             .OrderBy(x => x.Name).ThenBy(x => x.Id)
-            .Select(x => new EdgeFilterItemDto(x.Id, x.Name)).ToArrayAsync(ct);
+            .Select(x => new EdgeSaleUnitFilterItemDto(x.Id, x.Name, x.SaleUnitType)).ToArrayAsync(ct);
         return new GetCompactEdgesForAdminQueryResult(items, new EdgesForAdminFiltersDto(manufacturers, thicknesses, saleUnits));
     }
 }

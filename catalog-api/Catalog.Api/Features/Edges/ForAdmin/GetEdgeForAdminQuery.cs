@@ -11,7 +11,7 @@ public sealed record GetEdgeForAdminQueryResult(
     [property: Description("Id")] int Id,
     [property: Description("Название")] string Name,
     [property: Description("Артикул")] string Article,
-    [property: Description("Стоимость за погонный метр, руб.")] decimal Price,
+    [property: Description("Стоимость: за метр для Meter, за бухту для Roll, руб.")] decimal Price,
     [property: Description("Id производителя")] int ManufacturerId,
     [property: Description("Id толщины")] int ThicknessId,
     [property: Description("Id единицы продажи")] int SaleUnitId,
