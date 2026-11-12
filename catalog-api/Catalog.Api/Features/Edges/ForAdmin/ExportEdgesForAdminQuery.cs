@@ -40,7 +40,7 @@ public sealed class ExportEdgesForAdminQueryHandler(CatalogDbContext dbContext)
         var edges = dbContext.Edges.AsNoTracking();
         if (query.Ids is not null)
             edges = edges.Where(x => query.Ids.Contains(x.Id));
-        var rows = await edges.OrderBy(x => x.OrderByCol).ThenBy(x => x.Id)
+        var rows = await edges.OrderBy(x => x.OrderByCol)
             .Select(x => new
             {
                 x.Id,

@@ -48,7 +48,7 @@ public sealed class GetCompactEdgesForAdminQueryHandler(CatalogDbContext dbConte
     public async Task<GetCompactEdgesForAdminQueryResult> Handle(GetCompactEdgesForAdminQuery query, CancellationToken ct)
     {
         var items = await dbContext.Edges.AsNoTracking()
-            .OrderBy(x => x.OrderByCol).ThenBy(x => x.Id)
+            .OrderBy(x => x.OrderByCol)
             .Select(x => new GetCompactEdgesForAdminQueryItem(
                 x.Id, x.Name, x.Article, x.Price, x.ManufacturerId, x.ThicknessId, x.SaleUnitId,
                 x.IsStockItem, x.StockQuantity, x.OrderByCol,
@@ -62,7 +62,7 @@ public sealed class GetCompactEdgesForAdminQueryHandler(CatalogDbContext dbConte
             .OrderBy(x => x.Value).ThenBy(x => x.Id)
             .Select(x => new EdgeThicknessFilterItemDto(x.Id, x.Name, x.Value)).ToArrayAsync(ct);
         var saleUnits = await dbContext.EdgeSaleUnits.AsNoTracking()
-            .OrderBy(x => x.Name).ThenBy(x => x.Id)
+            .OrderBy(x => x.OrderByCol)
             .Select(x => new EdgeSaleUnitFilterItemDto(x.Id, x.Name, x.SaleUnitType)).ToArrayAsync(ct);
         return new GetCompactEdgesForAdminQueryResult(items, new EdgesForAdminFiltersDto(manufacturers, thicknesses, saleUnits));
     }

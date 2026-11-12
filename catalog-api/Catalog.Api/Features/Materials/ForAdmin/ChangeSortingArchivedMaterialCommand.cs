@@ -16,7 +16,7 @@ public class ChangeSortingArchivedMaterialCommandHandler(CatalogDbContext dbCont
 
     private async Task<ChangeSortingMaterialCommandResult> Execute(ChangeSortingArchivedMaterialCommand command, CancellationToken ct)
     {
-        var materials = await dbContext.ArchivedMaterials.OrderBy(x => x.OrderByCol).ThenBy(x => x.Id).ToArrayAsync(ct);
+        var materials = await dbContext.ArchivedMaterials.OrderBy(x => x.OrderByCol).ToArrayAsync(ct);
         var material = materials.SingleOrDefault(x => x.Id == command.Id)
             ?? throw new BadHttpRequestException("Материал не найден.");
         var materialIndex = Array.FindIndex(materials, x => x.Id == material.Id);

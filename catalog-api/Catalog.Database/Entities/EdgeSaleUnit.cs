@@ -8,5 +8,6 @@ public sealed record EdgeSaleUnit
     public required string Name { get; set; }
     public required EdgeSaleUnitTypeEnum SaleUnitType { get; set; }
     public required decimal Length { get; set; }
+    public int OrderByCol { get; set; }
     public List<Edge> Edges { get; private set; } = [];
 }

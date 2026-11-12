@@ -32,7 +32,7 @@ public sealed class ChangeSortingEdgeCommandHandler(CatalogDbContext dbContext, 
     {
         return await CatalogOrderTransaction.Run(dbContext, async () =>
         {
-            var edges = await dbContext.Edges.OrderBy(x => x.OrderByCol).ThenBy(x => x.Id).ToArrayAsync(ct);
+            var edges = await dbContext.Edges.OrderBy(x => x.OrderByCol).ToArrayAsync(ct);
             var edge = edges.Single(x => x.Id == command.Id);
             var index = Array.FindIndex(edges, x => x.Id == edge.Id);
             var adjacentIndex = command.Direction switch

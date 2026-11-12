@@ -16,5 +16,7 @@ public sealed class EdgeSaleUnitConfiguration : IEntityTypeConfiguration<EdgeSal
         eb.Property(x => x.Length).HasPrecision(18, 3);
         eb.HasIndex("NormalizedName").IsUnique();
         eb.HasIndex(x => new { x.SaleUnitType, x.Length }).IsUnique();
+        eb.Property(x => x.OrderByCol).HasDefaultValue(0);
+        eb.HasIndex(x => new { x.OrderByCol, x.Name, x.Id });
     }
 }

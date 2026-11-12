@@ -18,7 +18,7 @@ namespace Catalog.Database.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("catalog")
-                .HasAnnotation("ProductVersion", "10.0.13")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -442,6 +442,12 @@ namespace Catalog.Database.Migrations
                         .HasColumnName("normalized_name")
                         .HasComputedColumnSql("lower(btrim(name))", true);
 
+                    b.Property<int>("OrderByCol")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("order_by_col");
+
                     b.Property<string>("SaleUnitType")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -458,6 +464,9 @@ namespace Catalog.Database.Migrations
                     b.HasIndex("SaleUnitType", "Length")
                         .IsUnique()
                         .HasDatabaseName("ix_edge_sale_units_sale_unit_type_length");
+
+                    b.HasIndex("OrderByCol", "Name", "Id")
+                        .HasDatabaseName("ix_edge_sale_units_order_by_col_name_id");
 
                     b.ToTable("edge_sale_units", "catalog");
                 });

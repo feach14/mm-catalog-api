@@ -54,4 +54,13 @@ public sealed class EdgeSaleUnitsForAdminController : BaseAdministrationApiContr
         [FromRoute, Description("Id")] int id,
         [FromServices] ICommandHandler<DeleteEdgeSaleUnitCommand, DeleteEdgeSaleUnitCommandResult> handler) =>
         handler.Handle(new DeleteEdgeSaleUnitCommand(id), HttpContext.RequestAborted);
+
+    [HttpPost("change-order-col"),
+     EndpointSummary(nameof(ChangeOrderCol)),
+     EndpointDescription("Изменение порядка единиц продажи кромок"),
+     ProducesResponseType(typeof(ChangeSortingEdgeSaleUnitCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
+    public Task<ChangeSortingEdgeSaleUnitCommandResult> ChangeOrderCol(
+        [FromBody, Description("Параметры сортировки")] ChangeSortingEdgeSaleUnitCommand model,
+        [FromServices] ICommandHandler<ChangeSortingEdgeSaleUnitCommand, ChangeSortingEdgeSaleUnitCommandResult> handler) =>
+        handler.Handle(model, HttpContext.RequestAborted);
 }

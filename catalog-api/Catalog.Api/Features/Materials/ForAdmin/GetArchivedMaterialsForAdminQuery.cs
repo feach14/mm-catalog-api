@@ -13,7 +13,7 @@ public class GetArchivedMaterialsForAdminQueryHandler(CatalogDbContext dbContext
     public async Task<GetAllMaterialsForAdminQueryResult> Handle(GetArchivedMaterialsForAdminQuery query, CancellationToken ct)
     {
         var materials = await dbContext.ArchivedMaterials.AsNoTracking()
-            .OrderBy(x => x.OrderByCol).ThenBy(x => x.Id)
+            .OrderBy(x => x.OrderByCol)
             .Select(x => new GetMaterialsQueryForAdminItemResult(
                 x.Id,
                 x.Name,

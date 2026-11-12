@@ -18,6 +18,7 @@ public sealed class GetEdgeSaleUnitQueryHandler(CatalogDbContext dbContext)
                 x.Name,
                 x.SaleUnitType,
                 x.Length,
+                x.OrderByCol,
                 x.Edges.Count(),
                 x.Edges.Count(edge => edge.IsStockItem),
                 x.Edges.Count(edge => !edge.IsStockItem)))

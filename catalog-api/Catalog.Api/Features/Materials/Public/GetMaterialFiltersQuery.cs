@@ -133,7 +133,6 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
                 categoriesBase.Any(material => material.CategoryId == category.Id)
                 || selectedCategoryIds.Contains(category.Id)))
             .OrderBy(category => category.OrderByCol)
-            .ThenBy(category => category.Id)
             .Select(category => new MaterialCategoryFilterDto(
                 category.Id,
                 category.Name,
@@ -148,7 +147,6 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
                 manufacturersBase.Any(material => material.MaterialManufacturerId == manufacturer.Id)
                 || selectedManufacturerIds.Contains(manufacturer.Id))
             .OrderBy(manufacturer => manufacturer.OrderByCol)
-            .ThenBy(manufacturer => manufacturer.Id)
             .Select(manufacturer => new MaterialManufacturerFilterDto(
                 manufacturer.Id,
                 manufacturer.Name,
@@ -163,7 +161,6 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
                 && (materialTypesBase.Any(material => material.MaterialTypeId == materialType.Id)
                     || selectedMaterialTypeIds.Contains(materialType.Id)))
             .OrderBy(materialType => materialType.OrderByCol)
-            .ThenBy(materialType => materialType.Id)
             .Select(materialType => new MaterialTypeFilterDto(
                 materialType.Id,
                 materialType.Name,
@@ -199,7 +196,6 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
                  && sheetSizesBase.Any(material => material.MaterialSheetSizeId == sheetSize.Id))
                 || selectedSheetSizeIds.Contains(sheetSize.Id))
             .OrderBy(sheetSize => sheetSize.OrderByCol)
-            .ThenBy(sheetSize => sheetSize.Id)
             .Select(sheetSize => new MaterialSheetSizeFilterDto(
                 sheetSize.Id,
                 sheetSize.Name,

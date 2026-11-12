@@ -35,7 +35,7 @@ public class ChangeSortingMaterialCommandHandler(CatalogDbContext dbContext,
         {
             if (!await dbContext.Materials.AsNoTracking().AnyAsync(x => x.Id == command.Id, ct))
                 return await archivedHandler.Handle(new ChangeSortingArchivedMaterialCommand(command.Id, command.Direction), ct);
-            var materials = await dbContext.Materials.OrderBy(x => x.OrderByCol).ThenBy(x => x.Id).ToArrayAsync(ct);
+            var materials = await dbContext.Materials.OrderBy(x => x.OrderByCol).ToArrayAsync(ct);
             var material = materials.Single(x => x.Id == command.Id);
             var materialIndex = Array.FindIndex(materials, x => x.Id == material.Id);
 

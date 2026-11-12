@@ -102,7 +102,7 @@ public sealed class ExportMaterialsForAdminQueryHandler(CatalogDbContext dbConte
                     x.AllowSecondItemInOrder,
                     x.OrderByCol
                 }))
-            .OrderBy(x => x.OrderByCol).ThenBy(x => x.Id).ToListAsync(ct);
+            .OrderBy(x => x.OrderByCol).ToListAsync(ct);
         if (query.Ids is not null)
         {
             var positions = query.Ids.Select((id, index) => (id, index)).ToDictionary(x => x.id, x => x.index);

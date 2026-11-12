@@ -68,7 +68,7 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
     public async Task<GetAllMaterialsForAdminQueryResult> Handle(GetAllMaterialsForAdminQuery query, CancellationToken ct)
     {
         var materials = await dbContext.Materials.AsNoTracking()
-            .OrderBy(x => x.OrderByCol).ThenBy(x => x.Id)
+            .OrderBy(x => x.OrderByCol)
             .Select(x => new GetMaterialsQueryForAdminItemResult(
                 x.Id,
                 x.Name,

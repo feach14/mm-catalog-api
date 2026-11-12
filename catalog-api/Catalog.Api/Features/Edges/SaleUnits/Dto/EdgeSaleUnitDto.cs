@@ -8,6 +8,7 @@ public sealed record EdgeSaleUnitDto(
     [property: Description("Название")] string Name,
     [property: Description("Тип: Meter — погонный метр, Roll — бухта"), JsonConverter(typeof(StrictStringEnumConverter))] EdgeSaleUnitTypeEnum SaleUnitType,
     [property: Description("Длина бухты или кратность отреза в метрах")] decimal Length,
+    [property: Description("Порядок сортировки")] int OrderByCol,
     [property: Description("Количество кромок")] int Count,
     [property: Description("Количество складских позиций")] int StockCount,
     [property: Description("Количество нескладских позиций")] int OnOrderCount);

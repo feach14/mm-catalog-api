@@ -1,4 +1,5 @@
 using Catalog.Api.Features.Edges.SaleUnits.Dto;
+using Catalog.Api.Infrastructure.Ordering;
 using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Entities;
@@ -17,23 +18,28 @@ public sealed class CreateEdgeSaleUnitCommandHandler(CatalogDbContext dbContext,
 {
     public async Task<CreateEdgeSaleUnitCommandResult> Handle(CreateEdgeSaleUnitCommand command, CancellationToken ct)
     {
-        EdgeSaleUnit saleUnit = new()
+        return await CatalogOrderTransaction.Run(dbContext, async () =>
         {
-            Name = command.Model.Name.Trim(),
-            SaleUnitType = command.Model.SaleUnitType,
-            Length = command.Model.Length
-        };
+            var maxOrderByCol = await dbContext.EdgeSaleUnits.MaxAsync(x => (int?)x.OrderByCol, ct) ?? 0;
+            if (maxOrderByCol == int.MaxValue)
+                throw new BadHttpRequestException("Достигнут предел порядка единиц продажи кромок.");
+            EdgeSaleUnit saleUnit = new()
+            {
+                Name = command.Model.Name.Trim(),
+                SaleUnitType = command.Model.SaleUnitType,
+                Length = command.Model.Length,
+                OrderByCol = maxOrderByCol + 1
+            };
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
-        dbContext.EdgeSaleUnits.Add(saleUnit);
-        await dbContext.SaveChangesAsync(ct);
-        historyWriter.Add(
-            CatalogHistoryActionTypeEnum.Create,
-            CatalogHistoryEntityTypeEnum.EdgeSaleUnit,
-            saleUnit.Id,
-            $"Создана единица продажи кромок #{saleUnit.Id} «{saleUnit.Name}»: {saleUnit.Length} м.");
-        await dbContext.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-        return new CreateEdgeSaleUnitCommandResult(saleUnit.Id);
+            dbContext.EdgeSaleUnits.Add(saleUnit);
+            await dbContext.SaveChangesAsync(ct);
+            historyWriter.Add(
+                CatalogHistoryActionTypeEnum.Create,
+                CatalogHistoryEntityTypeEnum.EdgeSaleUnit,
+                saleUnit.Id,
+                $"Создана единица продажи кромок #{saleUnit.Id} «{saleUnit.Name}»: {saleUnit.Length} м.");
+            await dbContext.SaveChangesAsync(ct);
+            return new CreateEdgeSaleUnitCommandResult(saleUnit.Id);
+        }, ct);
     }
 }

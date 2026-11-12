@@ -36,8 +36,7 @@ public sealed class GetCuttingMaterialCatalogQueryHandler(CatalogDbContext dbCon
             .Include(x => x.MaterialSheetSize)
             .Include(x => x.MaterialManufacturer)
             .Where(x => !x.HideInLk && !x.Category.HideInLk)
-            .OrderBy(x => x.Category.OrderByCol).ThenBy(x => x.CategoryId)
-            .ThenBy(x => x.OrderByCol).ThenBy(x => x.Id)
+            .OrderBy(x => x.OrderByCol)
             .Select(x => new
             {
                 x.Id,
@@ -56,13 +55,15 @@ public sealed class GetCuttingMaterialCatalogQueryHandler(CatalogDbContext dbCon
                     .FirstOrDefault()
             })
             .ToArrayAsync(ct);
-        var items = materials.Select(x => new CuttingMaterialCatalogItemDto(
+        var categoryGroups = materials
+            .GroupBy(x => new { x.CategoryId, x.CategoryName, x.CategoryOrderByCol })
+            .OrderBy(x => x.Key.CategoryOrderByCol)
+            .ToArray();
+        var items = categoryGroups.SelectMany(group => group).Select(x => new CuttingMaterialCatalogItemDto(
             x.Id,
             MaterialNameHelper.GetFullName(x.Material),
             x.Article, x.CategoryId, x.Count, x.Image)).ToArray();
-        var categories = materials
-            .GroupBy(x => new { x.CategoryId, x.CategoryName, x.CategoryOrderByCol })
-            .OrderBy(x => x.Key.CategoryOrderByCol).ThenBy(x => x.Key.CategoryId)
+        var categories = categoryGroups
             .Select(x => new CuttingMaterialCatalogCategoryDto(x.Key.CategoryId, x.Key.CategoryName))
             .ToArray();
 

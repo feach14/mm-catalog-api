@@ -1292,7 +1292,7 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
                     row["category"] = dict(row["category"], orderByCol=category_orders[row["category"]["id"]])
                 assert all(type(item["category"].get("orderByCol")) is int for item in items), "Порядок категории Calculate — целое число"
             equal(actual, projection, "Точные материалы и текущие категории Calculate")
-            keys = [(expected[item["id"]]["orderByCol"], item["id"]) for item in items]
+            keys = [expected[item["id"]]["orderByCol"] for item in items]
             equal(keys, sorted(keys), "Общий порядок материалов Calculate")
             return items
 

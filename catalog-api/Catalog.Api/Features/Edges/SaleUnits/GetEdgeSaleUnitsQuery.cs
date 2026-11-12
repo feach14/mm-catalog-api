@@ -17,13 +17,13 @@ public sealed class GetEdgeSaleUnitsQueryHandler(CatalogDbContext dbContext)
     {
         EdgeSaleUnitDto[] items = await dbContext.EdgeSaleUnits
             .AsNoTracking()
-            .OrderBy(x => x.Name)
-            .ThenBy(x => x.Id)
+            .OrderBy(x => x.OrderByCol)
             .Select(x => new EdgeSaleUnitDto(
                 x.Id,
                 x.Name,
                 x.SaleUnitType,
                 x.Length,
+                x.OrderByCol,
                 x.Edges.Count(),
                 x.Edges.Count(edge => edge.IsStockItem),
                 x.Edges.Count(edge => !edge.IsStockItem)))

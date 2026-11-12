@@ -32,7 +32,7 @@ public sealed class ChangeSortingRelationMarkingCommandHandler(CatalogDbContext 
     {
         return await CatalogOrderTransaction.Run(dbContext, async () =>
         {
-            var markings = await dbContext.RelationMarkings.OrderBy(x => x.OrderByCol).ThenBy(x => x.Id).ToArrayAsync(ct);
+            var markings = await dbContext.RelationMarkings.OrderBy(x => x.OrderByCol).ToArrayAsync(ct);
             var marking = markings.Single(x => x.Id == command.Id);
             var index = Array.FindIndex(markings, x => x.Id == marking.Id);
             var adjacentIndex = command.Direction switch

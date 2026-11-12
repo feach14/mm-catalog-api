@@ -30,7 +30,7 @@ public class GetAllMaterialsQueryHandler(CatalogDbContext dbContext) : IQueryHan
     {
         var materials = await dbContext.Materials.AsNoTracking()
             .Where(x => !x.HideOnSite && !x.Category.HideOnSite && !x.MaterialType.HideOnSite)
-            .OrderBy(x => x.OrderByCol).ThenBy(x => x.Id)
+            .OrderBy(x => x.OrderByCol)
             .Select(x => new GetAllMaterialsQueryItemResult(
                 x.Id,
                 x.Name,

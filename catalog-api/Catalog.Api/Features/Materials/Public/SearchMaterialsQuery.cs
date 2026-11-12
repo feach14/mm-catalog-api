@@ -125,7 +125,7 @@ public sealed class SearchMaterialsQueryHandler(CatalogDbContext dbContext)
         {
             PublicMaterialSortEnum.NameAsc => materials.OrderBy(x => x.Name).ThenBy(x => x.Id),
             PublicMaterialSortEnum.NameDesc => materials.OrderByDescending(x => x.Name).ThenBy(x => x.Id),
-            _ => materials.OrderBy(x => x.OrderByCol).ThenBy(x => x.Id)
+            _ => materials.OrderBy(x => x.OrderByCol)
         };
 
         var offset = checked((query.Page - 1) * query.PageSize);
