@@ -277,7 +277,7 @@ namespace Catalog.Database.Migrations
 
                     b.Property<int>("ThicknessId")
                         .HasColumnType("integer")
-                        .HasColumnName("thickness_id");
+                        .HasColumnName("size_id");
 
                     b.HasKey("Id")
                         .HasName("pk_edges");
@@ -289,7 +289,7 @@ namespace Catalog.Database.Migrations
                         .HasDatabaseName("ix_edges_sale_unit_id");
 
                     b.HasIndex("ThicknessId")
-                        .HasDatabaseName("ix_edges_thickness_id");
+                        .HasDatabaseName("ix_edges_size_id");
 
                     b.HasIndex("OrderByCol", "Id")
                         .HasDatabaseName("ix_edges_order_by_col_id");
@@ -486,31 +486,35 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
-                    b.Property<string>("NormalizedName")
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("normalized_name")
-                        .HasComputedColumnSql("lower(btrim(name))", true);
+                    b.Property<int>("OrderByCol")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("order_by_col");
 
                     b.Property<decimal>("Value")
                         .HasPrecision(18, 3)
                         .HasColumnType("numeric(18,3)")
-                        .HasColumnName("value");
+                        .HasColumnName("thickness");
+
+                    b.Property<decimal>("Width")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 3)
+                        .HasColumnType("numeric(18,3)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("width");
 
                     b.HasKey("Id")
-                        .HasName("pk_edge_thicknesses");
+                        .HasName("pk_edge_sizes");
 
-                    b.HasIndex("NormalizedName")
+                    b.HasIndex("OrderByCol", "Id")
+                        .HasDatabaseName("ix_edge_sizes_order_by_col_id");
+
+                    b.HasIndex("Value", "Width")
                         .IsUnique()
-                        .HasDatabaseName("ix_edge_thicknesses_normalized_name");
+                        .HasDatabaseName("ix_edge_sizes_thickness_width");
 
-                    b.HasIndex("Value")
-                        .IsUnique()
-                        .HasDatabaseName("ix_edge_thicknesses_value");
-
-                    b.ToTable("edge_thicknesses", "catalog");
+                    b.ToTable("edge_sizes", "catalog");
                 });
 
             modelBuilder.Entity("Catalog.Database.Entities.ImageCache", b =>
@@ -1145,18 +1149,18 @@ namespace Catalog.Database.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_edges_edge_sale_units_sale_unit_id");
 
-                    b.HasOne("Catalog.Database.Entities.EdgeThickness", "Thickness")
+                    b.HasOne("Catalog.Database.Entities.EdgeThickness", "Size")
                         .WithMany("Edges")
                         .HasForeignKey("ThicknessId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
-                        .HasConstraintName("fk_edges_edge_thicknesses_thickness_id");
+                        .HasConstraintName("fk_edges_edge_sizes_size_id");
 
                     b.Navigation("Manufacturer");
 
                     b.Navigation("SaleUnit");
 
-                    b.Navigation("Thickness");
+                    b.Navigation("Size");
                 });
 
             modelBuilder.Entity("Catalog.Database.Entities.EdgeImage", b =>

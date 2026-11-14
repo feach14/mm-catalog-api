@@ -29,7 +29,7 @@ public class CatalogDbContext(DbContextOptions<CatalogDbContext> _options) : DbC
     public DbSet<ImageCache> ImageCache { get; init; }
     public DbSet<Edge> Edges { get; init; }
     public DbSet<EdgeManufacturer> EdgeManufacturers { get; init; }
-    public DbSet<EdgeThickness> EdgeThicknesses { get; init; }
+    public DbSet<EdgeSize> EdgeSizes { get; init; }
     public DbSet<EdgeSaleUnit> EdgeSaleUnits { get; init; }
     public DbSet<EdgeImage> EdgeImages { get; init; }
     public DbSet<EdgeImageCache> EdgeImageCache { get; init; }

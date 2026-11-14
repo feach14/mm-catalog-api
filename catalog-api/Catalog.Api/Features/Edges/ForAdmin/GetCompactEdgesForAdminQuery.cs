@@ -16,7 +16,7 @@ public sealed record GetCompactEdgesForAdminQueryItem(
     [property: Description("Артикул")] string Article,
     [property: Description("Стоимость: за метр для Meter, за бухту для Roll, руб.")] decimal Price,
     [property: Description("Id производителя")] int ManufacturerId,
-    [property: Description("Id толщины")] int ThicknessId,
+    [property: Description("Id размера")] int SizeId,
     [property: Description("Id единицы продажи")] int SaleUnitId,
     [property: Description("Складская позиция")] bool IsStockItem,
     [property: Description("Остаток в метрах")] decimal? StockQuantity,
@@ -25,7 +25,7 @@ public sealed record GetCompactEdgesForAdminQueryItem(
 
 public sealed record EdgesForAdminFiltersDto(
     [property: Description("Производители")] EdgeFilterItemDto[] Manufacturers,
-    [property: Description("Толщины")] EdgeThicknessFilterItemDto[] Thicknesses,
+    [property: Description("Размеры")] EdgeSizeFilterItemDto[] Sizes,
     [property: Description("Единицы продажи")] EdgeSaleUnitFilterItemDto[] SaleUnits);
 
 public sealed record EdgeFilterItemDto(
@@ -37,10 +37,12 @@ public sealed record EdgeSaleUnitFilterItemDto(
     [property: Description("Название")] string Name,
     [property: Description("Тип: Meter — погонный метр, Roll — бухта"), JsonConverter(typeof(StrictStringEnumConverter))] EdgeSaleUnitTypeEnum SaleUnitType);
 
-public sealed record EdgeThicknessFilterItemDto(
+public sealed record EdgeSizeFilterItemDto(
     [property: Description("Id")] int Id,
     [property: Description("Название")] string Name,
-    [property: Description("Толщина в миллиметрах")] decimal Value);
+    [property: Description("Толщина в миллиметрах")] decimal Thickness,
+    [property: Description("Ширина в миллиметрах")] decimal Width,
+    [property: Description("Порядок сортировки")] int OrderByCol);
 
 public sealed class GetCompactEdgesForAdminQueryHandler(CatalogDbContext dbContext)
     : IQueryHandler<GetCompactEdgesForAdminQuery, GetCompactEdgesForAdminQueryResult>
@@ -50,7 +52,7 @@ public sealed class GetCompactEdgesForAdminQueryHandler(CatalogDbContext dbConte
         var items = await dbContext.Edges.AsNoTracking()
             .OrderBy(x => x.OrderByCol)
             .Select(x => new GetCompactEdgesForAdminQueryItem(
-                x.Id, x.Name, x.Article, x.Price, x.ManufacturerId, x.ThicknessId, x.SaleUnitId,
+                x.Id, x.Name, x.Article, x.Price, x.ManufacturerId, x.SizeId, x.SaleUnitId,
                 x.IsStockItem, x.StockQuantity, x.OrderByCol,
                 x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240)
                     .Select(image => (Guid?)image.Guid).SingleOrDefault()))
@@ -58,12 +60,12 @@ public sealed class GetCompactEdgesForAdminQueryHandler(CatalogDbContext dbConte
         var manufacturers = await dbContext.EdgeManufacturers.AsNoTracking()
             .OrderBy(x => x.Name).ThenBy(x => x.Id)
             .Select(x => new EdgeFilterItemDto(x.Id, x.Name)).ToArrayAsync(ct);
-        var thicknesses = await dbContext.EdgeThicknesses.AsNoTracking()
-            .OrderBy(x => x.Value).ThenBy(x => x.Id)
-            .Select(x => new EdgeThicknessFilterItemDto(x.Id, x.Name, x.Value)).ToArrayAsync(ct);
+        var sizes = await dbContext.EdgeSizes.AsNoTracking()
+            .OrderBy(x => x.OrderByCol)
+            .Select(x => new EdgeSizeFilterItemDto(x.Id, x.Name, x.Thickness, x.Width, x.OrderByCol)).ToArrayAsync(ct);
         var saleUnits = await dbContext.EdgeSaleUnits.AsNoTracking()
             .OrderBy(x => x.OrderByCol)
             .Select(x => new EdgeSaleUnitFilterItemDto(x.Id, x.Name, x.SaleUnitType)).ToArrayAsync(ct);
-        return new GetCompactEdgesForAdminQueryResult(items, new EdgesForAdminFiltersDto(manufacturers, thicknesses, saleUnits));
+        return new GetCompactEdgesForAdminQueryResult(items, new EdgesForAdminFiltersDto(manufacturers, sizes, saleUnits));
     }
 }

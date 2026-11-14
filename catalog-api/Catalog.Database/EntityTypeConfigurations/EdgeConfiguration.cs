@@ -9,6 +9,8 @@ public sealed class EdgeConfiguration : IEntityTypeConfiguration<Edge>
     public void Configure(EntityTypeBuilder<Edge> eb)
     {
         eb.HasKey(x => x.Id);
+        eb.Property(x => x.SizeId).HasColumnName("size_id");
+        eb.HasIndex(x => x.SizeId).HasDatabaseName("ix_edges_size_id");
         eb.Property(x => x.Name).IsRequired().HasMaxLength(250);
         eb.Property(x => x.Article).IsRequired().HasMaxLength(100);
         eb.Property(x => x.Price).HasPrecision(18, 2);
@@ -19,9 +21,10 @@ public sealed class EdgeConfiguration : IEntityTypeConfiguration<Edge>
             .WithMany(x => x.Edges)
             .HasForeignKey(x => x.ManufacturerId)
             .OnDelete(DeleteBehavior.Restrict);
-        eb.HasOne(x => x.Thickness)
+        eb.HasOne(x => x.Size)
             .WithMany(x => x.Edges)
-            .HasForeignKey(x => x.ThicknessId)
+            .HasForeignKey(x => x.SizeId)
+            .HasConstraintName("fk_edges_edge_sizes_size_id")
             .OnDelete(DeleteBehavior.Restrict);
         eb.HasOne(x => x.SaleUnit)
             .WithMany(x => x.Edges)

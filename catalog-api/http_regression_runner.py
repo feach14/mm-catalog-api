@@ -1702,6 +1702,13 @@ def main():
         "MaterialTypes",
         "MaterialTypesForAdmin",
         "CatalogHistoryForAdmin",
+        "EdgesForAdmin",
+        "EdgeManufacturersForAdmin",
+        "EdgeSizesForAdmin",
+        "EdgeSaleUnitsForAdmin",
+        "Edges",
+        "RelationMarkingsForAdmin",
+        "MaterialEdgeRelationsForAdmin",
         "MaterialsForVekLk",
     ]
     equal([tag["name"] for tag in openapi_document.get("tags", [])], expected_tag_names,

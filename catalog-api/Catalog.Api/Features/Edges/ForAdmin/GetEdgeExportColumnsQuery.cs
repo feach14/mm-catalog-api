@@ -14,12 +14,13 @@ public sealed class GetEdgeExportColumnsQueryHandler : IQueryHandler<GetEdgeExpo
         new("price", "Стоимость метра/бухты, руб.", true),
         new("manufacturer", "Производитель", true),
         new("thickness", "Толщина, мм", true),
+        new("width", "Ширина, мм", true),
         new("saleUnit", "Единица продажи", true),
         new("saleUnitLength", "Длина единицы продажи, м", true),
         new("isStockItem", "Складская позиция", true),
         new("stockQuantity", "Остаток, м", true),
         new("id", "Id", false),
-        new("thicknessName", "Название толщины", false),
+        new("sizeName", "Название размера", false),
         new("saleUnitType", "Способ продажи", false),
         new("orderByCol", "Порядок сортировки", false)
     ];

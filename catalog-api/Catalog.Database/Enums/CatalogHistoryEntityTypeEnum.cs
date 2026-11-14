@@ -10,7 +10,7 @@ public enum CatalogHistoryEntityTypeEnum
     MaterialType,
     Edge,
     EdgeManufacturer,
-    EdgeThickness,
+    EdgeSize,
     EdgeSaleUnit,
     RelationMarking,
     MaterialEdgeRelation

@@ -1,4 +1,3 @@
-using Catalog.Api.Features.Materials.ForAdmin.Dto;
 using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Entities;

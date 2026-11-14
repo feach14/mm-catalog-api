@@ -62,7 +62,7 @@ public sealed class UpdateEdgeCommandHandler(CatalogDbContext dbContext, IMemory
         AddChange(changes, "артикул", edge.Article, article);
         AddChange(changes, "стоимость метра или бухты согласно единице продажи, руб.", edge.Price, model.Price);
         AddChange(changes, "производитель", edge.ManufacturerId, model.ManufacturerId);
-        AddChange(changes, "толщина", edge.ThicknessId, model.ThicknessId);
+        AddChange(changes, "размер", edge.SizeId, model.SizeId);
         AddChange(changes, "единица продажи", edge.SaleUnitId, model.SaleUnitId);
         AddChange(changes, "складская позиция", edge.IsStockItem, model.IsStockItem);
         AddChange(changes, "остаток в метрах", edge.StockQuantity, model.StockQuantity);
@@ -74,7 +74,7 @@ public sealed class UpdateEdgeCommandHandler(CatalogDbContext dbContext, IMemory
         edge.Article = article;
         edge.Price = model.Price;
         edge.ManufacturerId = model.ManufacturerId;
-        edge.ThicknessId = model.ThicknessId;
+        edge.SizeId = model.SizeId;
         edge.SaleUnitId = model.SaleUnitId;
         edge.IsStockItem = model.IsStockItem;
         edge.StockQuantity = model.StockQuantity;

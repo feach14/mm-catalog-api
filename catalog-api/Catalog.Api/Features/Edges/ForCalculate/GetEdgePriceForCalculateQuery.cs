@@ -1,3 +1,4 @@
+using Catalog.Api.Features.Edges.Helpers;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;
@@ -31,6 +32,7 @@ public sealed class GetEdgePriceForCalculateQueryValidator : AbstractValidator<G
 public sealed record GetEdgePriceForCalculateQueryResult(
     [property: Description("Стоимость: за метр для Meter, за бухту для Roll, руб.")] decimal Price,
     [property: Description("Артикул")] string Article,
+    [property: Description("Название")] string Name,
     [property: Description("Длина бухты или кратность отреза в метрах")] decimal QuantityMultiple,
     [property: Description("Тип: Meter — погонный метр, Roll — бухта"), JsonConverter(typeof(StrictStringEnumConverter))] EdgeSaleUnitTypeEnum SaleUnitType);
 
@@ -41,9 +43,18 @@ public sealed class GetEdgePriceForCalculateQueryHandler(CatalogDbContext dbCont
     {
         var matches = await dbContext.MaterialEdgeLinks.AsNoTracking()
             .Where(link => link.OwnerMaterialId == query.MaterialId
-                           && link.Edge.Thickness.Value == query.Thickness
+                           && link.Edge.Size.Thickness == query.Thickness
                            && (!query.ForVek || link.Markings.Any(marking => marking.Marking.Name == CalculateMarkingName)))
-            .Select(link => new { link.Edge.Price, link.Edge.Article, QuantityMultiple = link.Edge.SaleUnit.Length, link.Edge.SaleUnit.SaleUnitType })
+            .Select(link => new
+            {
+                link.Edge.Price,
+                link.Edge.Article,
+                link.Edge.Name,
+                SizeName = link.Edge.Size.Name,
+                link.Edge.IsStockItem,
+                QuantityMultiple = link.Edge.SaleUnit.Length,
+                link.Edge.SaleUnit.SaleUnitType
+            })
             .Take(2)
             .ToArrayAsync(ct);
 
@@ -53,7 +64,9 @@ public sealed class GetEdgePriceForCalculateQueryHandler(CatalogDbContext dbCont
         if (matches.Length > 1)
             throw new BadHttpRequestException($"Для материала с id={query.MaterialId} найдено несколько кромок толщиной {query.Thickness} мм{markingDescription}. Оставьте одну подходящую связь");
 
-        return new GetEdgePriceForCalculateQueryResult(matches[0].Price, matches[0].Article, matches[0].QuantityMultiple, matches[0].SaleUnitType);
+        return new GetEdgePriceForCalculateQueryResult(matches[0].Price, matches[0].Article,
+            EdgeNameHelper.GetFullName(matches[0].Name, matches[0].SizeName, matches[0].IsStockItem),
+            matches[0].QuantityMultiple, matches[0].SaleUnitType);
     }
 
     private const string CalculateMarkingName = "Век ЛК";

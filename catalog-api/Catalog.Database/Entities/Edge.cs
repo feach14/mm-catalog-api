@@ -10,8 +10,8 @@ public sealed record Edge
     public required int ManufacturerId { get; set; }
     public EdgeManufacturer Manufacturer { get; private set; } = null!;
 
-    public required int ThicknessId { get; set; }
-    public EdgeThickness Thickness { get; private set; } = null!;
+    public required int SizeId { get; set; }
+    public EdgeSize Size { get; private set; } = null!;
 
     public required int SaleUnitId { get; set; }
     public EdgeSaleUnit SaleUnit { get; private set; } = null!;

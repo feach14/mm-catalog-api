@@ -16,8 +16,8 @@ public record EdgeModel
     [Description("Id производителя")]
     public required int ManufacturerId { get; init; }
 
-    [Description("Id толщины")]
-    public required int ThicknessId { get; init; }
+    [Description("Id размера")]
+    public required int SizeId { get; init; }
 
     [Description("Id единицы продажи")]
     public required int SaleUnitId { get; init; }
@@ -56,11 +56,11 @@ public sealed class EdgeModelValidator : AbstractValidator<EdgeModel>
             .GreaterThan(0).WithMessage("Выберите производителя кромки")
             .MustAsync(async (id, ct) => await dbContext.EdgeManufacturers.AsNoTracking().AnyAsync(x => x.Id == id, ct))
             .WithMessage("Производитель кромки не найден");
-        RuleFor(x => x.ThicknessId)
+        RuleFor(x => x.SizeId)
             .Cascade(CascadeMode.Stop)
-            .GreaterThan(0).WithMessage("Выберите толщину кромки")
-            .MustAsync(async (id, ct) => await dbContext.EdgeThicknesses.AsNoTracking().AnyAsync(x => x.Id == id, ct))
-            .WithMessage("Толщина кромки не найдена");
+            .GreaterThan(0).WithMessage("Выберите размер кромки")
+            .MustAsync(async (id, ct) => await dbContext.EdgeSizes.AsNoTracking().AnyAsync(x => x.Id == id, ct))
+            .WithMessage("Размер кромки не найден");
         RuleFor(x => x.SaleUnitId)
             .Cascade(CascadeMode.Stop)
             .GreaterThan(0).WithMessage("Выберите единицу продажи")

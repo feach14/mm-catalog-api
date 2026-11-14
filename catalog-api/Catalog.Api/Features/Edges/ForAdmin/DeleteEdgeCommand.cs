@@ -25,7 +25,7 @@ public sealed class DeleteEdgeCommandHandler(CatalogDbContext dbContext, IMemory
         var imageGuids = edge.Images.Select(x => x.Guid).ToArray();
         historyWriter.Add(
             CatalogHistoryActionTypeEnum.Delete, CatalogHistoryEntityTypeEnum.Edge, edge.Id,
-            $"Удалена кромка #{edge.Id} «{edge.Name}»: артикул {edge.Article}, производитель #{edge.ManufacturerId}, толщина #{edge.ThicknessId}, единица продажи #{edge.SaleUnitId}, складская позиция: {edge.IsStockItem}, остаток {edge.StockQuantity?.ToString() ?? "нет"} м, изображения {string.Join(", ", imageGuids)}.");
+            $"Удалена кромка #{edge.Id} «{edge.Name}»: артикул {edge.Article}, производитель #{edge.ManufacturerId}, размер #{edge.SizeId}, единица продажи #{edge.SaleUnitId}, складская позиция: {edge.IsStockItem}, остаток {edge.StockQuantity?.ToString() ?? "нет"} м, изображения {string.Join(", ", imageGuids)}.");
         dbContext.Edges.Remove(edge);
         try
         {
