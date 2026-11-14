@@ -22,6 +22,7 @@ public sealed class UploadMaterialImageCommandValidator : AbstractValidator<Uplo
         RuleFor(x => x.File)
             .Cascade(CascadeMode.Stop)
             .NotNull().WithMessage("Файл изображения не передан")
+            .Must(file => file.FileName.Length <= 255).WithMessage("Название файла не должно превышать 255 символов")
             .Must(file => file.Length > 0).WithMessage("Файл изображения пустой")
             .Must(file => file.Length <= MaxImageSize).WithMessage("Размер изображения не должен превышать 5 МБ")
             .MustAsync(async (file, ct) =>

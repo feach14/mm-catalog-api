@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace Catalog.Api.Services.Stroydvor;
 
-public sealed record StroydvorProductReadResult(StroydvorProductData? Product, string? Error)
+public sealed record StroydvorProductReadResult(StroydvorProductData? Product, string? Error, string? LogDetails = null)
 {
     public bool Success => Product is not null;
 }
@@ -36,14 +36,16 @@ public sealed class StroydvorProductClient(HttpClient httpClient)
                         return new StroydvorProductReadResult(null, "Стройдвор не вернул конечную карточку товара.");
                     var target = location.IsAbsoluteUri ? location : new Uri(currentUri, location);
                     if (!IsSameProduct(target, productUri))
-                        return new StroydvorProductReadResult(null, "Стройдвор перенаправил запрос на другой товар или адрес. Проверьте привязку.");
+                        return new StroydvorProductReadResult(null, "Стройдвор перенаправил запрос на другой товар или адрес. Проверьте привязку.",
+                            $"Ожидаемая карточка: «{productUri}»; адрес перенаправления: «{target}».");
                     currentUri = target;
                     continue;
                 }
                 if (!response.IsSuccessStatusCode)
                     return new StroydvorProductReadResult(null, $"Стройдвор вернул ошибку HTTP {(int)response.StatusCode}.");
                 if (response.Content.Headers.ContentLength > 3_000_000)
-                    return new StroydvorProductReadResult(null, "Страница Стройдвора превышает допустимый размер.");
+                    return new StroydvorProductReadResult(null, "Страница Стройдвора превышает допустимый размер.",
+                        $"Размер ответа по Content-Length: {response.Content.Headers.ContentLength} байт; допустимый максимум: 3000000 байт.");
 
                 await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token);
                 using var reader = new StreamReader(stream, Encoding.UTF8, true, 4096);
@@ -54,7 +56,8 @@ public sealed class StroydvorProductClient(HttpClient httpClient)
                 {
                     html.Append(buffer, 0, count);
                     if (html.Length > 3_000_000)
-                        return new StroydvorProductReadResult(null, "Страница Стройдвора превышает допустимый размер.");
+                        return new StroydvorProductReadResult(null, "Страница Стройдвора превышает допустимый размер.",
+                            $"Размер прочитанной страницы: {html.Length} символов; допустимый максимум: 3000000 символов.");
                 }
                 return new StroydvorProductReadResult(StroydvorProductParser.Parse(html.ToString(), productId), null);
             }
@@ -70,7 +73,8 @@ public sealed class StroydvorProductClient(HttpClient httpClient)
         catch (InvalidDataException error)
         {
             // A changed supplier page must not leave a successful synchronization timestamp.
-            return new StroydvorProductReadResult(null, error.Message);
+            return new StroydvorProductReadResult(null, error.Message,
+                error.Data[nameof(StroydvorProductReadResult.LogDetails)] as string);
         }
         catch (IOException)
         {

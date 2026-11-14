@@ -38,53 +38,71 @@ public static class StroydvorProductParser
     public static StroydvorProductData Parse(string html, int productId)
     {
         if (html.Length > 3_000_000)
-            throw new InvalidDataException("Страница Стройдвора превышает допустимый размер.");
+            throw InvalidProduct("Страница Стройдвора превышает допустимый размер.",
+                $"Размер страницы: {html.Length} символов, допустимо не более 3000000.");
 
         var root = ReadHtml(html);
         var main = First(root, node => node.HasClass("pdp-main"))
                    ?? throw new InvalidDataException("Не найдена основная карточка товара Стройдвора.");
         var name = Text(First(main, node => node.Tag == "h1" && !node.IsRelated));
-        var materialType = StroydvorMaterialScope.GetMaterialType(
-            name?.Split((char[]?)null, 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault());
+        var materialTypeToken = name?.Split((char[]?)null, 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        var materialType = StroydvorMaterialScope.GetMaterialType(materialTypeToken);
         if (string.IsNullOrWhiteSpace(name) || materialType is null)
-            throw new InvalidDataException("Карточка Стройдвора не относится к ЛДСП или ЛМДФ.");
+            throw InvalidProduct("Карточка Стройдвора не относится к ЛДСП или ЛМДФ.",
+                $"Тип материала Стройдвора: «{materialTypeToken ?? "не указан"}», ожидался ЛДСП или ЛМДФ. Название карточки: «{name ?? "не указано"}».");
 
         var priceMeta = First(main, node => node.Tag == "meta" && node.HasItemProp("price") && !node.IsRelated);
         var cart = First(main, node => node.Attribute("product_id") == productId.ToString(CultureInfo.InvariantCulture)
                                       && node.Attribute("price") is not null && !node.IsRelated);
-        var price = ParseDecimal(priceMeta?.Attribute("content")) ?? ParseDecimal(cart?.Attribute("price"));
+        var metaPrice = priceMeta?.Attribute("content");
+        var cartPrice = cart?.Attribute("price");
+        var price = ParseDecimal(metaPrice) ?? ParseDecimal(cartPrice);
         if (price is null)
-            throw new InvalidDataException("На карточке Стройдвора не найдена цена материала.");
+            throw InvalidProduct("На карточке Стройдвора не найдена цена материала.",
+                $"Цена Стройдвора: meta price «{metaPrice ?? "не указана"}», цена корзины «{cartPrice ?? "не указана"}». Ожидалось неотрицательное число.");
 
-        var unit = Text(First(main, node => node.HasClass("pdp-price__unit") && !node.IsRelated))?.TrimStart('/').Trim()
+        var rawUnit = Text(First(main, node => node.HasClass("pdp-price__unit") && !node.IsRelated));
+        var unit = rawUnit?.TrimStart('/').Trim()
                    ?? Property(main, "Единица");
         if (!IsSheetUnit(unit))
-            throw new InvalidDataException("Цена Стройдвора указана не за лист; синхронизация отклонена.");
+            throw InvalidProduct("Цена Стройдвора указана не за лист; синхронизация отклонена.",
+                $"Единица цены Стройдвора: «{rawUnit ?? unit ?? "не указана"}», ожидалась цена за лист.");
 
         var currency = First(main, node => node.Tag == "meta" && node.HasItemProp("priceCurrency") && !node.IsRelated)?.Attribute("content");
         if (currency is not null && !currency.Equals("RUB", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("Цена Стройдвора указана не в рублях.");
+            throw InvalidProduct("Цена Стройдвора указана не в рублях.",
+                $"Валюта Стройдвора: «{currency}», ожидалась «RUB».");
 
         var article = Text(First(main, node => node.HasClass("pdp-sku") && !node.IsRelated));
         if (article?.StartsWith("Артикул", StringComparison.OrdinalIgnoreCase) == true)
             article = article[(article.IndexOf(':') + 1)..].Trim();
         if (string.IsNullOrWhiteSpace(article)) article = null;
         if (article?.Length > 100)
-            throw new InvalidDataException("Артикул Стройдвора превышает допустимую длину.");
+            throw InvalidProduct("Артикул Стройдвора превышает допустимую длину.",
+                $"Длина артикула Стройдвора: {article.Length} символов, допустимо не более 100.");
 
         var titleSize = ParseSize(name);
         var propertySize = ParseSize(Property(main, "Формат (мм)"));
         if (titleSize is not null && propertySize is not null && !SameSize(titleSize.Value, propertySize.Value))
-            throw new InvalidDataException("В карточке Стройдвора расходятся форматы листа в названии и характеристиках.");
+            throw InvalidProduct("В карточке Стройдвора расходятся форматы листа в названии и характеристиках.",
+                $"Формат Стройдвора: в названии {titleSize.Value.Height}×{titleSize.Value.Width} мм, в характеристиках {propertySize.Value.Height}×{propertySize.Value.Width} мм.");
         var size = propertySize ?? titleSize;
         var titleThicknessMatch = Thickness.Match(name);
         var titleThickness = titleThicknessMatch.Success ? ParseDecimal(titleThicknessMatch.Groups["t"].Value) : null;
         var propertyThickness = ParseDecimal(Property(main, "Толщина (мм)"));
         if (titleThickness is not null && propertyThickness is not null && titleThickness != propertyThickness)
-            throw new InvalidDataException("В карточке Стройдвора расходится толщина в названии и характеристиках.");
+            throw InvalidProduct("В карточке Стройдвора расходится толщина в названии и характеристиках.",
+                $"Толщина Стройдвора: в названии {titleThickness.Value} мм, в характеристиках {propertyThickness.Value} мм.");
 
         return new StroydvorProductData(price.Value, article, InStock(main), name, materialType.Value,
             propertyThickness ?? titleThickness, size?.Height, size?.Width);
+    }
+
+    private static InvalidDataException InvalidProduct(string message, string details)
+    {
+        var error = new InvalidDataException(message);
+        error.Data[nameof(StroydvorProductReadResult.LogDetails)] = details;
+        return error;
     }
 
     private static bool IsSheetUnit(string? value)
@@ -109,15 +127,19 @@ public static class StroydvorProductParser
         {
             var radio = First(store, node => node.Tag == "input" && node.Attribute("type") == "radio");
             var warehouse = radio?.Attribute("value");
-            var quantity = ParseDecimal(radio?.Attribute("count"));
+            var rawQuantity = radio?.Attribute("count");
+            var quantity = ParseDecimal(rawQuantity);
             if (warehouse is null || quantity is null)
-                throw new InvalidDataException("Не удалось определить наличие материала в Стройдворе.");
+                throw InvalidProduct("Не удалось определить наличие материала в Стройдворе.",
+                    $"Склад Стройдвора: «{warehouse ?? "не указан"}», остаток «{rawQuantity ?? "не указан"}». Ожидались идентификатор склада и неотрицательное число.");
             if (warehouses.TryGetValue(warehouse, out var previous) && previous != quantity)
-                throw new InvalidDataException("В карточке Стройдвора расходятся остатки одного склада.");
+                throw InvalidProduct("В карточке Стройдвора расходятся остатки одного склада.",
+                    $"Остаток склада Стройдвора «{warehouse}»: в первой записи {previous}, в повторной {quantity.Value}.");
             warehouses[warehouse] = quantity.Value;
         }
         if (warehouses.Count > 0) return warehouses.Values.Any(quantity => quantity > 0);
-        throw new InvalidDataException("На карточке Стройдвора не указано наличие материала.");
+        throw InvalidProduct("На карточке Стройдвора не указано наличие материала.",
+            $"Наличие Стройдвора: класс блока «{stock?.Attribute("class") ?? "не указан"}», availability «{availability ?? "не указано"}», складов {warehouses.Count}. Ожидались статус наличия или остатки складов.");
     }
 
     private static string? Property(HtmlNode main, string key)
@@ -181,7 +203,9 @@ public static class StroydvorProductParser
                 if (token.Groups[1].Success) node.Children.Add(token.Groups[3].Value);
                 else if (!VoidTags.Contains(tag) && !token.Value.EndsWith("/>", StringComparison.Ordinal))
                 {
-                    if (stack.Count >= 256) throw new InvalidDataException("Страница Стройдвора содержит слишком глубокую разметку.");
+                    if (stack.Count >= 256)
+                        throw InvalidProduct("Страница Стройдвора содержит слишком глубокую разметку.",
+                            $"Глубина разметки Стройдвора: {stack.Count}, требуется менее 256 перед добавлением вложенного элемента.");
                     stack.Add(node);
                 }
             }

@@ -10,8 +10,14 @@ public class MaterialModelValidator : AbstractValidator<MaterialModel>
 {
     public MaterialModelValidator(CatalogDbContext dbContext, IHttpContextAccessor httpContextAccessor)
     {
-        RuleFor(m => m.Name).NotEmpty().WithMessage("Не указано название материала");
-        RuleFor(m => m.Article).NotEmpty().WithMessage("Не указан артикул материала");
+        RuleFor(m => m.Name)
+            .NotEmpty().WithMessage("Не указано название материала")
+            .MaximumLength(250).WithMessage("Название материала не должно быть длиннее 250 символов");
+        RuleFor(m => m.Article)
+            .NotEmpty().WithMessage("Не указан артикул материала")
+            .MaximumLength(100).WithMessage("Артикул материала не должен быть длиннее 100 символов");
+        RuleFor(m => m.ExternalLink)
+            .MaximumLength(250).WithMessage("Ссылка должна содержать не более 250 символов.");
         RuleFor(m => m.Price).GreaterThan(0).When(m => m.Count > 0).WithMessage("Стоимость материала должна быть больше 0 при количестве больше 0");
         RuleFor(m => m.StroydvorProductId).GreaterThan(0)
             .When(m => m.StroydvorProductId.HasValue)

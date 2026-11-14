@@ -32,7 +32,8 @@ public sealed class SyncMaterialsStroydvorCommandHandler(
     CatalogDbContext dbContext,
     StroydvorProductClient productClient,
     ICatalogHistoryWriter historyWriter,
-    TimeProvider timeProvider) : ICommandHandler<SyncMaterialsStroydvorCommand, SyncMaterialsStroydvorCommandResult>
+    TimeProvider timeProvider,
+    ILogger<SyncMaterialsStroydvorCommandHandler> logger) : ICommandHandler<SyncMaterialsStroydvorCommand, SyncMaterialsStroydvorCommandResult>
 {
     public async Task<SyncMaterialsStroydvorCommandResult> Handle(SyncMaterialsStroydvorCommand command, CancellationToken ct)
     {
@@ -43,14 +44,26 @@ public sealed class SyncMaterialsStroydvorCommandHandler(
             .Where(x => command.Ids.Contains(x.Id))
             .ToArrayAsync(ct);
         if (materials.Length != command.Ids.Length)
+        {
+            logger.LogError("Не удалось синхронизировать материалы со Стройдвором: один из указанных актуальных материалов не найден. Id материалов: {MaterialIds}",
+                string.Join(", ", command.Ids));
             throw new BadHttpRequestException("Один из указанных актуальных материалов не найден.");
+        }
         foreach (var material in materials)
         {
             if (material.StroydvorProductId is not > 0)
-                throw new BadHttpRequestException($"У материала #{material.Id} нет привязки к Стройдвору.");
+            {
+                var error = $"У материала #{material.Id} нет привязки к Стройдвору.";
+                LogSyncFailure(material, error);
+                throw new BadHttpRequestException(error);
+            }
             if (!StroydvorMaterialScope.IsEligible(material.MaterialManufacturerId, material.MaterialType.Name,
                     material.MaterialSheetSize.Height, material.MaterialSheetSize.Width))
-                throw new BadHttpRequestException($"Материал #{material.Id} не относится к ЛДСП или ЛМДФ выбранных производителей и форматов для Стройдвора.");
+            {
+                var error = $"Материал #{material.Id} не относится к ЛДСП или ЛМДФ выбранных производителей и форматов для Стройдвора.";
+                LogSyncFailure(material, error);
+                throw new BadHttpRequestException(error);
+            }
         }
 
         var reads = new ConcurrentDictionary<int, StroydvorProductReadResult>();
@@ -94,7 +107,9 @@ public sealed class SyncMaterialsStroydvorCommandHandler(
             if (changed == 0)
             {
                 var current = await dbContext.Materials.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
-                items.Add(CurrentResult(id, current, "Материал, привязка или данные синхронизации изменились во время запроса. Повторите синхронизацию."));
+                const string error = "Материал, привязка или данные синхронизации изменились во время запроса. Повторите синхронизацию.";
+                LogSyncFailure(material, error, read.Product);
+                items.Add(CurrentResult(id, current, error));
                 continue;
             }
 
@@ -111,24 +126,51 @@ public sealed class SyncMaterialsStroydvorCommandHandler(
         return new SyncMaterialsStroydvorCommandResult(items.ToArray());
     }
 
-    private static StroydvorProductReadResult ValidatePhysicalProperties(Material material, StroydvorProductReadResult read)
+    private StroydvorProductReadResult ValidatePhysicalProperties(Material material, StroydvorProductReadResult read)
     {
         var product = read.Product;
-        if (product is null) return read;
-        if (product.MaterialType != StroydvorMaterialScope.GetMaterialType(material.MaterialType.Name))
-            return new StroydvorProductReadResult(null,
-                $"Тип материала на карточке Стройдвора — «{StroydvorMaterialScope.GetMaterialTypeName(product.MaterialType)}», у нашего материала — «{material.MaterialType.Name}». Проверьте привязку.");
-        if (product.ThicknessMm is not null && product.ThicknessMm != material.MaterialThickness.Value)
-            return new StroydvorProductReadResult(null, "Толщина на карточке Стройдвора отличается от толщины нашего материала. Проверьте привязку.");
-        if (product.Height is not null && product.Width is not null)
+        var error = read.Error;
+        var logDetails = read.LogDetails;
+        if (product is not null)
         {
             var size = material.MaterialSheetSize;
-            if (!(product.Height == size.Height && product.Width == size.Width
-                  || product.Height == size.Width && product.Width == size.Height))
-                return new StroydvorProductReadResult(null, "Формат на карточке Стройдвора отличается от формата нашего материала. Проверьте привязку.");
+            if (product.MaterialType != StroydvorMaterialScope.GetMaterialType(material.MaterialType.Name))
+            {
+                error = $"Тип материала на карточке Стройдвора — «{StroydvorMaterialScope.GetMaterialTypeName(product.MaterialType)}», у нашего материала — «{material.MaterialType.Name}». Проверьте привязку.";
+                logDetails = $"Тип: у нас «{material.MaterialType.Name}», в Стройдворе «{StroydvorMaterialScope.GetMaterialTypeName(product.MaterialType)}».";
+            }
+            else if (product.ThicknessMm is not null && product.ThicknessMm != material.MaterialThickness.Value)
+            {
+                error = "Толщина на карточке Стройдвора отличается от толщины нашего материала. Проверьте привязку.";
+                logDetails = $"Толщина: у нас {material.MaterialThickness.Value} мм, в Стройдворе {product.ThicknessMm} мм.";
+            }
+            else if (product.Height is not null && product.Width is not null
+                     && !(product.Height == size.Height && product.Width == size.Width
+                          || product.Height == size.Width && product.Width == size.Height))
+            {
+                error = "Формат на карточке Стройдвора отличается от формата нашего материала. Проверьте привязку.";
+                logDetails = $"Формат: у нас {size.Height}×{size.Width} мм, в Стройдворе {product.Height}×{product.Width} мм.";
+            }
+            else
+                return read;
         }
-        return read;
+
+        LogSyncFailure(material, logDetails is null ? error : $"{error} {logDetails}", product);
+        return product is null ? read : new StroydvorProductReadResult(null, error, logDetails);
     }
+
+    private void LogSyncFailure(Material material, string? error, StroydvorProductData? product = null) =>
+        logger.LogError(
+            "Не удалось синхронизировать материал #{MaterialId} «{MaterialName}», артикул «{MaterialArticle}», с товаром Стройдвора #{StroydvorProductId}. Причина: {SyncError} " +
+            "Тип: у нас «{MaterialType}», в Стройдворе «{StroydvorMaterialType}». " +
+            "Толщина: у нас {MaterialThickness} мм, в Стройдворе {StroydvorThickness} мм. " +
+            "Формат: у нас {MaterialHeight}×{MaterialWidth} мм, в Стройдворе {StroydvorHeight}×{StroydvorWidth} мм. " +
+            "Карточка Стройдвора «{StroydvorProductName}», артикул «{StroydvorArticle}».",
+            material.Id, material.Name, material.Article, material.StroydvorProductId, error,
+            material.MaterialType.Name, product is null ? null : StroydvorMaterialScope.GetMaterialTypeName(product.MaterialType),
+            material.MaterialThickness.Value, product?.ThicknessMm,
+            material.MaterialSheetSize.Height, material.MaterialSheetSize.Width, product?.Height, product?.Width,
+            product?.Name, product?.Article);
 
     private static MaterialStroydvorSyncDto CurrentResult(int id, Material? material, string error) =>
         new(id, false, error, material?.StroydvorProductId, material?.StroydvorArticle,

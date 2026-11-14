@@ -20,9 +20,11 @@ public class MaterialCategoryModelValidator : AbstractValidator<MaterialCategory
     public MaterialCategoryModelValidator()
     {
         RuleFor(m => m.Name)
-            .NotEmpty().WithMessage("Не указано название категории");
+            .NotEmpty().WithMessage("Не указано название категории")
+            .MaximumLength(200).WithMessage("Название категории не должно быть длиннее 200 символов");
 
         RuleFor(m => m.ExternalLink)
-            .NotEmpty().WithMessage("Нет ссылки на источник. Для категорий данное поле обязательно для заполнения.");
+            .NotEmpty().WithMessage("Нет ссылки на источник. Для категорий данное поле обязательно для заполнения.")
+            .MaximumLength(250).WithMessage("Ссылка должна содержать не более 250 символов.");
     }
 }
