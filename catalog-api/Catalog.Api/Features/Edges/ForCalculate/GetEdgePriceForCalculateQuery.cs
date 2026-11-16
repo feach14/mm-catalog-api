@@ -36,14 +36,17 @@ public sealed record GetEdgePriceForCalculateQueryResult(
     [property: Description("Длина бухты или кратность отреза в метрах")] decimal QuantityMultiple,
     [property: Description("Тип: Meter — погонный метр, Roll — бухта"), JsonConverter(typeof(StrictStringEnumConverter))] EdgeSaleUnitTypeEnum SaleUnitType);
 
-public sealed class GetEdgePriceForCalculateQueryHandler(CatalogDbContext dbContext)
+public sealed class GetEdgePriceForCalculateQueryHandler(
+    CatalogDbContext dbContext,
+    ILogger<GetEdgePriceForCalculateQueryHandler> logger)
     : IQueryHandler<GetEdgePriceForCalculateQuery, GetEdgePriceForCalculateQueryResult>
 {
     public async Task<GetEdgePriceForCalculateQueryResult> Handle(GetEdgePriceForCalculateQuery query, CancellationToken ct)
     {
         var matches = await dbContext.MaterialEdgeLinks.AsNoTracking()
             .Where(link => link.OwnerMaterialId == query.MaterialId
-                           && link.Edge.Size.Thickness == query.Thickness
+                           && (link.Edge.Size.Thickness == query.Thickness
+                               || (query.Thickness == 1m && link.Edge.Size.Thickness == 0.8m))
                            && (!query.ForVek || link.Markings.Any(marking => marking.Marking.Name == CalculateMarkingName)))
             .Select(link => new
             {
@@ -60,7 +63,22 @@ public sealed class GetEdgePriceForCalculateQueryHandler(CatalogDbContext dbCont
 
         var markingDescription = query.ForVek ? $" с маркировкой «{CalculateMarkingName}»" : string.Empty;
         if (matches.Length == 0)
+        {
+            var materialName = await dbContext.Materials.AsNoTracking()
+                .Where(x => x.Id == query.MaterialId)
+                .Select(x => x.Name)
+                .Concat(dbContext.ArchivedMaterials.AsNoTracking()
+                    .Where(x => x.Id == query.MaterialId)
+                    .Select(x => x.Name))
+                .SingleAsync(ct);
+
+            logger.LogError(
+                "Для материала #{MaterialId} «{MaterialName}» недоступна кромка толщиной {Thickness} мм. " +
+                "Требуемая маркировка: «{MarkingName}»; подбор для ВЕК: {ForVek}.",
+                query.MaterialId, materialName, query.Thickness,
+                query.ForVek ? CalculateMarkingName : "без ограничения по маркировке", query.ForVek);
             throw new BadHttpRequestException($"Для выбранного материала недоступна кромка толщиной {query.Thickness} мм{markingDescription}. Выберите другую толщину кромки");
+        }
         if (matches.Length > 1)
             throw new BadHttpRequestException($"Для материала с id={query.MaterialId} найдено несколько кромок толщиной {query.Thickness} мм{markingDescription}. Оставьте одну подходящую связь");
 
