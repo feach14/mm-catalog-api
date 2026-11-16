@@ -19,6 +19,11 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ICatalogHistoryWriter, CatalogHistoryWriter>();
 builder.Services.AddHttpClient<StroydvorProductClient>(client => client.Timeout = Timeout.InfiniteTimeSpan)
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddOptions<StroydvorPriceSyncOptions>()
+    .Bind(builder.Configuration.GetSection(StroydvorPriceSyncOptions.SectionName))
+    .Validate(StroydvorPriceSyncOptions.IsValid, "Проверьте cron из пяти полей и часовой пояс в StroydvorPriceSync")
+    .ValidateOnStart();
+builder.Services.AddHostedService<StroydvorPriceSyncBackgroundService>();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new StrictStringEnumConverter()));
 var appSettingsConfig = builder.Configuration.Get<AppSettingsConfig>()
@@ -86,7 +91,10 @@ if (apiDocEnabled)
 var app = builder.Build();
 await app.DataProtectionInit();
 app.UseCompactMaterialsResponseCompression();
-app.UseMiddleware<RequestResponseLoggerMiddleware>();
+app.UseWhen(
+    context => !context.Request.Path.StartsWithSegments("/api/materials/images")
+               && !context.Request.Path.StartsWithSegments("/api/edges/images"),
+    branch => branch.UseMiddleware<RequestResponseLoggerMiddleware>());
 if (apiDocEnabled)
 {
     app.MapOpenApi(ApiDocExtensions.OpenApiFilePath);

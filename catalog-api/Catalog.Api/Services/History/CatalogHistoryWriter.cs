@@ -22,7 +22,7 @@ public sealed class CatalogHistoryWriter(
             ActionType = actionType,
             EntityType = entityType,
             EntityId = entityId,
-            UserPhone = httpContextAccessor.GetPhoneNumber(),
+            UserPhone = httpContextAccessor.HttpContext is null ? "system" : httpContextAccessor.GetPhoneNumber(),
             Message = message
         });
     }
