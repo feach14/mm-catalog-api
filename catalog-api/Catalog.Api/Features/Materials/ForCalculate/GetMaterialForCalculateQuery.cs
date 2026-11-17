@@ -10,7 +10,7 @@ public sealed record GetMaterialForCalculateQueryResult(
     [property: Description("Id")] int Id,
     [property: Description("Ширина плиты, мм")] int Width,
     [property: Description("Высота плиты, мм")] int Height,
-    [property: Description("Стоимость листа, руб.")] decimal Price,
+    [property: Description("Стоимость листа, руб.: цена Стройдвора, если больше нуля, иначе ручная")] decimal Price,
     [property: Description("Название")] string Name,
     [property: Description("Артикул")] string Article);
 
@@ -26,7 +26,7 @@ public sealed class GetMaterialForCalculateQueryHandler(CatalogDbContext dbConte
                 x.Id,
                 x.Name,
                 x.Article,
-                x.Price,
+                Price = x.StroydvorPrice > 0 ? x.StroydvorPrice : x.Price,
                 x.MaterialSheetSize.Width,
                 x.MaterialSheetSize.Height,
                 MaterialTypeName = x.MaterialType.Name,
@@ -40,7 +40,7 @@ public sealed class GetMaterialForCalculateQueryHandler(CatalogDbContext dbConte
                     x.Id,
                     x.Name,
                     x.Article,
-                    x.Price,
+                    Price = x.StroydvorPrice > 0 ? x.StroydvorPrice : x.Price,
                     x.MaterialSheetSize.Width,
                     x.MaterialSheetSize.Height,
                     MaterialTypeName = x.MaterialType.Name,
