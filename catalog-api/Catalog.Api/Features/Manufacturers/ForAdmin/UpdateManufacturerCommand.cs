@@ -2,6 +2,7 @@ using Catalog.Api.Features.Manufacturers.Dto;
 using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Enums;
+using Catalog.Database.Search;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Manufacturers.ForAdmin;
@@ -31,6 +32,8 @@ public sealed class UpdateManufacturerCommandHandler(CatalogDbContext dbContext,
             CatalogHistoryEntityTypeEnum.Manufacturer,
             manufacturer.Id,
             $"Производитель #{manufacturer.Id} изменён: название «{oldName}» → «{newName}».");
+        await MaterialSearchTextHelper.UpdateAsync(dbContext,
+            dbContext.Materials.Where(material => material.MaterialManufacturerId == manufacturer.Id), ct);
         await dbContext.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         return new UpdateManufacturerCommandResult(true);

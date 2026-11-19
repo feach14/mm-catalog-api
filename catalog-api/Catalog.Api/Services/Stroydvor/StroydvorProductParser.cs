@@ -14,7 +14,7 @@ public sealed record StroydvorProductData(
     int? Height,
     int? Width);
 
-public static class StroydvorProductParser
+public static partial class StroydvorProductParser
 {
     private static readonly Regex Tokens = new(
         @"<!--[\s\S]*?-->|<(script|style)\b([^>]*)>([\s\S]*?)</\1\s*>|</([a-z][\w:-]*)\s*>|<([a-z][\w:-]*)\b([^>]*)>|[^<]+|<",

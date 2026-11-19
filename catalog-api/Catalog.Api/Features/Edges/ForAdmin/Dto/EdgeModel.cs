@@ -4,6 +4,20 @@ namespace Catalog.Api.Features.Edges.ForAdmin.Dto;
 
 public record EdgeModel
 {
+    private int? _stroydvorProductId;
+    internal bool StroydvorProductIdSpecified { get; private set; }
+
+    [Description("Id товара Стройдвора; null — удалить привязку")]
+    public int? StroydvorProductId
+    {
+        get => _stroydvorProductId;
+        init
+        {
+            _stroydvorProductId = value;
+            StroydvorProductIdSpecified = true;
+        }
+    }
+
     [Description("Название")]
     public required string Name { get; init; }
 
@@ -39,6 +53,8 @@ public sealed class EdgeModelValidator : AbstractValidator<EdgeModel>
 {
     public EdgeModelValidator(CatalogDbContext dbContext)
     {
+        RuleFor(x => x.StroydvorProductId).GreaterThan(0)
+            .When(x => x.StroydvorProductId.HasValue).WithMessage("Id товара Стройдвора должен быть положительным числом");
         RuleFor(x => x.Name)
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("Укажите название кромки")

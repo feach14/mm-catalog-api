@@ -1,6 +1,8 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Catalog.Api.Features.Edges.ForAdmin;
+using Catalog.Api.Features.Edges.ForAdmin.Stroydvor;
+using Catalog.Api.Features.Edges.ForAdmin.Stroydvor.Dto;
 using Catalog.Api.Features.Exports.Dto;
 using Catalog.Api.Infrastructure.Excel;
 using Core.Attributes;
@@ -108,5 +110,23 @@ public sealed class EdgesForAdminController : BaseAdministrationApiController
     public Task<UploadEdgeImageCommandResult> UploadEdgeImage(
         [FromForm, Description("Параметры изображения")] UploadEdgeImageCommand command,
         [FromServices] ICommandHandler<UploadEdgeImageCommand, UploadEdgeImageCommandResult> handler) =>
+        handler.Handle(command, HttpContext.RequestAborted);
+
+    [HttpPost("{id:int}/stroydvor/sync"),
+     EndpointSummary(nameof(SyncEdge)),
+     EndpointDescription("Синхронизация кромки со Стройдвором"),
+     ProducesResponseType(typeof(EdgeStroydvorSyncDto), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат синхронизации")]
+    public Task<EdgeStroydvorSyncDto> SyncEdge(
+        [FromRoute, Description("Id кромки")] int id,
+        [FromServices] ICommandHandler<SyncEdgeStroydvorCommand, EdgeStroydvorSyncDto> handler) =>
+        handler.Handle(new SyncEdgeStroydvorCommand(id), HttpContext.RequestAborted);
+
+    [HttpPost("stroydvor/sync"),
+     EndpointSummary(nameof(SyncEdges)),
+     EndpointDescription("Синхронизация списка кромок со Стройдвором"),
+     ProducesResponseType(typeof(SyncEdgesStroydvorCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результаты синхронизации")]
+    public Task<SyncEdgesStroydvorCommandResult> SyncEdges(
+        [FromBody, Description("Кромки для синхронизации")] SyncEdgesStroydvorCommand command,
+        [FromServices] ICommandHandler<SyncEdgesStroydvorCommand, SyncEdgesStroydvorCommandResult> handler) =>
         handler.Handle(command, HttpContext.RequestAborted);
 }

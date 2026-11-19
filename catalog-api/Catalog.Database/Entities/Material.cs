@@ -24,6 +24,7 @@ public sealed record Material
 
     public required string Name { get; set; }
     public required string Article { get; set; }
+    public string SearchText { get; internal set; } = string.Empty;
     public required int MaterialThicknessId { get; set; }
     public MaterialThickness MaterialThickness { get; private set; }
 

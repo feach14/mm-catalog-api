@@ -6,6 +6,11 @@ public sealed record Edge
     public required string Name { get; set; }
     public required string Article { get; set; }
     public required decimal Price { get; set; }
+    public int? StroydvorProductId { get; set; }
+    public string? StroydvorArticle { get; set; }
+    public decimal StroydvorPrice { get; set; }
+    public DateTimeOffset? StroydvorLastSyncAt { get; set; }
+    public bool StroydvorInStock { get; set; }
 
     public required int ManufacturerId { get; set; }
     public EdgeManufacturer Manufacturer { get; private set; } = null!;

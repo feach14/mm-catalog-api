@@ -11,6 +11,8 @@ public class MaterialConfiguration : IEntityTypeConfiguration<Material>
         eb.HasKey(x => x.Id);
         eb.Property(x => x.Article).IsRequired().HasMaxLength(100);
         eb.Property(x => x.Name).IsRequired().HasMaxLength(250);
+        eb.Property(x => x.SearchText).IsRequired().HasDefaultValue(string.Empty);
+        eb.HasIndex(x => x.SearchText).HasMethod("gin").HasOperators("gin_trgm_ops");
         eb.Property(x => x.ExternalLink).HasMaxLength(250);
         eb.Property(x => x.StroydvorArticle).HasMaxLength(100);
         eb.Property(x => x.StroydvorPrice).HasPrecision(18, 2).HasDefaultValue(0m);

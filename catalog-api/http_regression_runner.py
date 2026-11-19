@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import copy
 import json
 import os
@@ -48,13 +49,13 @@ def validate_regression_environment():
     for name, value in expected.items():
         if os.environ.get(name) != value:
             raise RuntimeError(f"Для DEV-регресса явно задайте {name}={value}")
-    for name, host in (("CATALOG_API_URL", "catalog-api.debug.feach.ru"),
-                       ("ACCOUNTS_API_URL", "accounts-api.debug.feach.ru")):
+    for name, hosts in (("CATALOG_API_URL", ("catalog-api.debug.feach.ru", "debug.feach.ru")),
+                        ("ACCOUNTS_API_URL", ("accounts-api.debug.feach.ru",))):
         value = os.environ.get(name, "")
         url = urllib.parse.urlparse(value)
-        if (url.scheme != "https" or url.hostname != host or not url.port
+        if (url.scheme != "https" or url.hostname not in hosts or not url.port
                 or url.path not in ("", "/") or url.query or url.fragment or url.username):
-            raise RuntimeError(f"Для DEV-регресса явно задайте {name}=https://{host}:<порт>")
+            raise RuntimeError(f"Для DEV-регресса явно задайте {name}=https://{hosts[0]}:<порт>")
     for name in ("DbConnString", "DataProtectionDbConnString"):
         value = os.environ.get(name, "")
         def connection_values(keys):
@@ -65,7 +66,7 @@ def validate_regression_environment():
             raise RuntimeError(f"Для DEV-регресса явно задайте {name} на Host=185.151.240.63;Port=5432;Database=mm-debug")
 
 
-def load_test_credentials():
+def load_test_credentials(roles=None):
     default_path = os.path.abspath(os.path.join(
         ROOT, "..", "..", "mm-accounts-api", "accounts-api", "docs", "TEST_CREDENTIALS.md"))
     path = os.environ.get("ACCOUNTS_TEST_CREDENTIALS_FILE", default_path)
@@ -86,7 +87,9 @@ def load_test_credentials():
         "tester": "Тестер",
     }
     credentials = {"password": password_match.group(1)}
-    for role, label in role_labels.items():
+    selected_roles = role_labels if roles is None else roles
+    for role in selected_roles:
+        label = role_labels[role]
         match = re.search(rf"^\|\s*{re.escape(label)}\s*\|\s*`([^`]+)`", contents, re.MULTILINE)
         if match is None:
             raise RuntimeError(f"Credentials for role {role} are missing in {path}")
@@ -608,7 +611,7 @@ def public_query(endpoint, parameters):
 
 def equal(actual, expected, label):
     if actual != expected:
-        raise AssertionError(f"{label}: expected {expected!r}, got {actual!r}")
+        raise AssertionError(f"{label}: ожидалось {expected!r}, получено {actual!r}")
 
 
 def problem(response, label, field=None):
@@ -619,6 +622,208 @@ def problem(response, label, field=None):
         raise AssertionError(label + ": missing ProblemDetails title")
     if field and not any(field.lower() in key.lower() for key in body.get("errors", {})):
         raise AssertionError(label + ": missing field validation error for " + field)
+
+
+def run_material_search_scenarios(prefix):
+    marker = prefix + "-words"
+    path = "/api/for-admin/materials"
+    rows = {}
+
+    def create_relation(resource, model, tracked):
+        response = request("POST", path + "/" + resource, model, auth=True)
+        expect(response[0], 200, "Создание справочника " + resource)
+        entity_id = json_body(response)["id"]
+        tracked.append(entity_id)
+        return entity_id
+
+    def update_relation(resource, entity_id, model):
+        expect(request("PUT", f"{path}/{resource}/{entity_id}", model, auth=True)[0],
+               200, "Изменение справочника " + resource)
+
+    category_id = create_category(marker + "-категория")
+    manufacturer_id = create_manufacturer("ТестБренд " + marker)
+    material_type = {"name": "HDF " + marker, "hideOnSite": False}
+    material_type_id = create_relation("material-types", material_type, created_material_types)
+    height = 100000 + int(uuid.uuid4().hex[:6], 16)
+    sheet_size = {"name": marker + "-формат", "height": height, "width": 1830, "showInFilters": True}
+    sheet_size_id = create_relation("sheet-sizes", sheet_size, created_sheet_sizes)
+    thickness_response = request("GET", path + "/thicknesses", auth=True)
+    expect(thickness_response[0], 200, "Чтение толщин для поисковых сценариев")
+    existing_thicknesses = {row["value"]: row["id"] for row in json_body(thickness_response)["items"]}
+
+    def thickness(value):
+        if value not in existing_thicknesses:
+            existing_thicknesses[value] = create_relation("thicknesses", {
+                "name": marker + "-толщина", "value": value
+            }, created_thicknesses)
+        return existing_thicknesses[value]
+
+    def add_material(name, article, depth, count):
+        model = {
+            "categoryId": category_id, "sheetSizeId": sheet_size_id,
+            "manufacturerId": manufacturer_id, "materialTypeId": material_type_id,
+            "name": name + " " + marker, "article": article, "count": count,
+            "thicknessId": thickness(depth), "price": 123.45, "countTypeEnum": "M2",
+            "commentOnMaterialIsRequired": False, "allowSecondItemInOrder": True,
+            "hideOnSite": False, "hideInLk": False, "hidePriceOnSite": False
+        }
+        material_id = create_material(model)
+        rows[material_id] = model
+        return material_id
+
+    white_id = add_material("Белый", "A-42", 3.2, 2)
+    control_id = add_material("Контроль A3", "A-44", 16, 0)
+    integer_id = add_material("Целый", "INT", 3, 1)
+    code_id = add_material("Код", "003", 16, 1)
+    all_ids = set(rows)
+
+    def check_search(term, expected_ids):
+        params = {"search": marker + " " + term, "pageSize": 100}
+        body = public_query("search", params)
+        equal({row["id"] for row in body["items"]}, set(expected_ids), "Поисковая выдача: " + term)
+        equal((len(body["items"]), body["totalCount"]), (len(expected_ids), len(expected_ids)),
+              "Количество и отсутствие дублей: " + term)
+        facets = public_query("filters", {"search": params["search"]})
+        for group, field in (("categories", "categoryId"), ("manufacturers", "manufacturerId"),
+                             ("materialTypes", "materialTypeId"), ("thicknesses", "thicknessId"),
+                             ("sheetSizes", "sheetSizeId")):
+            counts = {}
+            for entity_id in expected_ids:
+                value = rows[entity_id][field]
+                counts[value] = counts.get(value, 0) + 1
+            equal({item["id"]: item["count"] for item in facets[group]}, counts,
+                  "Фасеты " + group + ": " + term)
+        depth_counts = {}
+        depth_values = {entity_id: value for value, entity_id in existing_thicknesses.items()}
+        for entity_id in expected_ids:
+            value = depth_values[rows[entity_id]["thicknessId"]]
+            depth_counts[value] = depth_counts.get(value, 0) + 1
+        equal({item["value"]: item["count"] for item in facets["depths"]}, depth_counts,
+              "Фасеты числовых толщин: " + term)
+        equal({item["value"]: item["count"] for item in facets["availability"]},
+              {True: sum(rows[entity_id]["count"] > 0 for entity_id in expected_ids),
+               False: sum(rows[entity_id]["count"] < 1 for entity_id in expected_ids)},
+              "Наличие в фасетах: " + term)
+
+    for term in ("HDF Белый A-42 ТестБренд", "тестбренд a-42 белый hdf", "Белый HDF A-4",
+                 "  HDF   Белый\tТестБренд  "):
+        check_search(term, {white_id})
+    check_search("HDF ТестБренд", all_ids)
+    check_search(marker + "-категория", set())
+    check_search("Белый отсутствующееслово", set())
+    mark("SEARCH-09", "Слова из разных характеристик объединяются через И независимо от порядка и регистра; частичный артикул сохранён, название категории не учитывается")
+
+    for separator in ("x", "х", "×", "*"):
+        for spacing in ("", " "):
+            check_search(f"Белый {height}{spacing}{separator}{spacing}1830", {white_id})
+    for term in ("Белый 3,20", "Белый 3.2", "Белый 3,2мм", "Белый 3.2 mm", f"Белый {height} мм"):
+        check_search(term, {white_id})
+    mark("SEARCH-10", "Форматы с x/х/×/*, пробелами и десятичной запятой/точкой дают одинаковую выдачу и фасеты")
+    check_search("3", {integer_id, code_id})
+    check_search("3 мм", {integer_id})
+    check_search("Код 003", {code_id})
+    check_search("Код 00", {code_id})
+    mark("SEARCH-11", "Число 3 не совпадает с размером 3.2/1830 или названием A3, но находит часть артикула 003; 3 мм проверяет только размеры")
+
+    rows[code_id]["name"] = marker + " Литеральный % _ \\"
+    expect(request("PUT", f"{path}/{code_id}", rows[code_id], auth=True)[0], 200, "Запись буквальных спецсимволов")
+    for symbol in ("%", "_", "\\"):
+        check_search(symbol, {code_id})
+    mark("SEARCH-02", "Проценты, подчёркивания и обратная косая черта ищутся буквально")
+    rows[code_id].update(name=marker + " Новыйдекор", article="Z-99")
+    expect(request("PUT", f"{path}/{code_id}", rows[code_id], auth=True)[0], 200, "Изменение названия и артикула")
+    check_search("Литеральный", set())
+    check_search("Новыйдекор 003", set())
+    check_search("Новыйдекор Z-9", {code_id})
+    check_search("99", {code_id})
+    replacement_maker = create_manufacturer("ДругойБренд " + marker)
+    rows[code_id]["manufacturerId"] = replacement_maker
+    expect(request("PUT", f"{path}/{code_id}", rows[code_id], auth=True)[0], 200, "Смена производителя материала")
+    check_search("ТестБренд", all_ids - {code_id})
+    check_search("ДругойБренд", {code_id})
+    mark("SEARCH-12", "Изменения названия, артикула и ссылки на производителя сразу отражаются в поиске")
+
+    renamed_type = dict(material_type, name="ПереименованныйТип " + marker)
+    update_relation("material-types", material_type_id, renamed_type)
+    check_search("HDF", set())
+    check_search("ПереименованныйТип", all_ids)
+    update_relation("manufacturers", manufacturer_id, {"name": "НовыйБренд " + marker})
+    check_search("ТестБренд", set())
+    check_search("НовыйБренд", all_ids - {code_id})
+    category_model = {"name": marker + "-новаякатегория", "externalLink": "https://example.test/material-search",
+                      "hideOnSite": False, "hideInLk": False}
+    update_relation("categories", category_id, category_model)
+    check_search(marker + "-категория", set())
+    check_search("новаякатегория", set())
+    check_search("ПереименованныйТип", all_ids)
+    sheet_size.update(name=marker + "-новыйформат", height=height + 1)
+    update_relation("sheet-sizes", sheet_size_id, sheet_size)
+    check_search(str(height), set())
+    check_search(f"новыйформат {height + 1}x1830", all_ids)
+    # Изменяем только собственную тестовую толщину; существующие справочные записи не трогаем.
+    decimal_values = [value / 1000 for value in range(7001, 8000) if value / 1000 not in existing_thicknesses][:2]
+    equal(len(decimal_values), 2, "Свободные значения для собственной тестовой толщины")
+    own_thickness = thickness(decimal_values[0])
+    rows[control_id]["thicknessId"] = own_thickness
+    expect(request("PUT", f"{path}/{control_id}", rows[control_id], auth=True)[0], 200, "Смена толщины материала")
+    check_search(str(decimal_values[0]), {control_id})
+    update_relation("thicknesses", own_thickness, {"name": "Новаятолщина " + marker, "value": decimal_values[1]})
+    del existing_thicknesses[decimal_values[0]]
+    existing_thicknesses[decimal_values[1]] = own_thickness
+    check_search(str(decimal_values[0]), set())
+    check_search(f"Новаятолщина {decimal_values[1]}", {control_id})
+    mark("SEARCH-13", "Изменения типа, производителя, формата и толщины обновляют связанные материалы; категория не участвует в поиске до и после переименования")
+
+    clone_response = request("POST", f"{path}/{white_id}/clone", auth=True)
+    expect(clone_response[0], 200, "Клонирование материала для поиска")
+    clone_id = json_body(clone_response)["newMaterialId"]
+    created_materials.append(clone_id)
+    rows[clone_id] = dict(rows[white_id], name=rows[white_id]["name"] + " (Копия)")
+    check_search("Белый A-42 ПереименованныйТип", {white_id, clone_id})
+    check_search("Копия Белый", {clone_id})
+    expect(request("POST", f"{path}/{white_id}/archive", auth=True)[0], 200, "Архивирование материала для поиска")
+    check_search("Белый A-42", {clone_id})
+    renamed_type["name"] = "ТипПослеАрхива " + marker
+    update_relation("material-types", material_type_id, renamed_type)
+    expect(request("POST", f"{path}/{white_id}/restore", auth=True)[0], 200, "Восстановление материала для поиска")
+    check_search("Белый A-42 ТипПослеАрхива", {white_id, clone_id})
+    check_search("ПереименованныйТип", set())
+    mark("SEARCH-14", "Копия получает поисковый текст; архив скрыт, восстановление использует актуальные справочники")
+
+    rows[white_id]["hideOnSite"] = True
+    expect(request("PUT", f"{path}/{white_id}", rows[white_id], auth=True)[0], 200, "Скрытие материала")
+    check_search("Белый A-42", {clone_id})
+    rows[white_id]["hideOnSite"] = False
+    expect(request("PUT", f"{path}/{white_id}", rows[white_id], auth=True)[0], 200, "Возврат видимости материала")
+    update_relation("material-types", material_type_id, dict(renamed_type, hideOnSite=True))
+    check_search("", set())
+    update_relation("material-types", material_type_id, renamed_type)
+    check_search("", all_ids | {clone_id})
+    update_relation("categories", category_id, dict(category_model, hideOnSite=True))
+    check_search("", set())
+    update_relation("categories", category_id, category_model)
+    check_search("", all_ids | {clone_id})
+    mark("SEARCH-15", "Видимость материала, категории и типа сохраняется; во всех сценариях проверены точные id, totalCount и счётчики фасет")
+
+
+def run_material_search_only():
+    global cookie, run_prefix
+    validate_regression_environment()
+    run_prefix = "codex-search-" + uuid.uuid4().hex[:12]
+    print("Префикс тестовых данных: " + run_prefix, file=sys.stderr, flush=True)
+    start_server()
+    credentials = load_test_credentials(roles=("tester",))
+    cookie = signin(credentials["tester"], credentials["password"], "Тестер")
+    run_material_search_scenarios(run_prefix)
+    cleanup()
+    equal(sum(map(len, (created_materials, created_categories, created_sheet_sizes, created_manufacturers,
+                       created_thicknesses, created_material_types))), 0, "Очистка поисковых тестовых данных")
+    equal(public_query("search", {"search": run_prefix})["totalCount"], 0, "Тестовые материалы удалены")
+    equal(history(search=run_prefix)["totalCount"], 0, "Тестер не создаёт историю каталога")
+    mark("FIN-04", "Тестовые материалы и справочники удалены; тестовая история отсутствует")
+    print(json.dumps({"success": not failures, "mode": "material-search", "prefix": run_prefix,
+                      "results": results, "failures": failures}, ensure_ascii=False, indent=2))
+    return not failures
 
 
 def run_search_facet_scenarios(prefix, dimension_base):
@@ -2291,8 +2496,12 @@ def main():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="HTTP-проверки Catalog API в mm-debug")
+    parser.add_argument("--material-search", action="store_true",
+                        help="Проверить только поиск материалов и автоматическое обновление SearchText")
+    args = parser.parse_args()
     try:
-        if not main():
+        if not (run_material_search_only() if args.material_search else main()):
             sys.exit(1)
     except Exception as error:
         try:

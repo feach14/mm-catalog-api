@@ -21,6 +21,7 @@ namespace Catalog.Database.Migrations
                 .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Catalog.Database.Entities.ArchivedMaterial", b =>
@@ -270,14 +271,40 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("sale_unit_id");
 
+                    b.Property<int>("SizeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("size_id");
+
                     b.Property<decimal?>("StockQuantity")
                         .HasPrecision(18, 3)
                         .HasColumnType("numeric(18,3)")
                         .HasColumnName("stock_quantity");
 
-                    b.Property<int>("ThicknessId")
+                    b.Property<string>("StroydvorArticle")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("stroydvor_article");
+
+                    b.Property<bool>("StroydvorInStock")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("stroydvor_in_stock");
+
+                    b.Property<DateTimeOffset?>("StroydvorLastSyncAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("stroydvor_last_sync_at");
+
+                    b.Property<decimal>("StroydvorPrice")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("stroydvor_price");
+
+                    b.Property<int?>("StroydvorProductId")
                         .HasColumnType("integer")
-                        .HasColumnName("size_id");
+                        .HasColumnName("stroydvor_product_id");
 
                     b.HasKey("Id")
                         .HasName("pk_edges");
@@ -288,8 +315,11 @@ namespace Catalog.Database.Migrations
                     b.HasIndex("SaleUnitId")
                         .HasDatabaseName("ix_edges_sale_unit_id");
 
-                    b.HasIndex("ThicknessId")
+                    b.HasIndex("SizeId")
                         .HasDatabaseName("ix_edges_size_id");
+
+                    b.HasIndex("StroydvorProductId")
+                        .HasDatabaseName("ix_edges_stroydvor_product_id");
 
                     b.HasIndex("OrderByCol", "Id")
                         .HasDatabaseName("ix_edges_order_by_col_id");
@@ -471,7 +501,7 @@ namespace Catalog.Database.Migrations
                     b.ToTable("edge_sale_units", "catalog");
                 });
 
-            modelBuilder.Entity("Catalog.Database.Entities.EdgeThickness", b =>
+            modelBuilder.Entity("Catalog.Database.Entities.EdgeSize", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -492,7 +522,7 @@ namespace Catalog.Database.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("order_by_col");
 
-                    b.Property<decimal>("Value")
+                    b.Property<decimal>("Thickness")
                         .HasPrecision(18, 3)
                         .HasColumnType("numeric(18,3)")
                         .HasColumnName("thickness");
@@ -510,7 +540,7 @@ namespace Catalog.Database.Migrations
                     b.HasIndex("OrderByCol", "Id")
                         .HasDatabaseName("ix_edge_sizes_order_by_col_id");
 
-                    b.HasIndex("Value", "Width")
+                    b.HasIndex("Thickness", "Width")
                         .IsUnique()
                         .HasDatabaseName("ix_edge_sizes_thickness_width");
 
@@ -644,6 +674,13 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("price");
 
+                    b.Property<string>("SearchText")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("")
+                        .HasColumnName("search_text");
+
                     b.Property<string>("StroydvorArticle")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -691,6 +728,12 @@ namespace Catalog.Database.Migrations
                     b.HasIndex("OrderByCol")
                         .IsUnique()
                         .HasDatabaseName("ix_materials_order_by_col");
+
+                    b.HasIndex("SearchText")
+                        .HasDatabaseName("ix_materials_search_text");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchText"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("SearchText"), new[] { "gin_trgm_ops" });
 
                     b.HasIndex("StroydvorProductId")
                         .HasDatabaseName("ix_materials_stroydvor_product_id");
@@ -1149,9 +1192,9 @@ namespace Catalog.Database.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_edges_edge_sale_units_sale_unit_id");
 
-                    b.HasOne("Catalog.Database.Entities.EdgeThickness", "Size")
+                    b.HasOne("Catalog.Database.Entities.EdgeSize", "Size")
                         .WithMany("Edges")
-                        .HasForeignKey("ThicknessId")
+                        .HasForeignKey("SizeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_edges_edge_sizes_size_id");
@@ -1312,7 +1355,7 @@ namespace Catalog.Database.Migrations
                     b.Navigation("Edges");
                 });
 
-            modelBuilder.Entity("Catalog.Database.Entities.EdgeThickness", b =>
+            modelBuilder.Entity("Catalog.Database.Entities.EdgeSize", b =>
                 {
                     b.Navigation("Edges");
                 });

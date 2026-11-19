@@ -2,6 +2,7 @@ using Catalog.Api.Features.MaterialSheetSizes.ForAdmin.Dto;
 using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Enums;
+using Catalog.Database.Search;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.MaterialSheetSizes.ForAdmin;
@@ -40,6 +41,8 @@ public sealed class UpdateMaterialSheetSizeCommandHandler(CatalogDbContext dbCon
             CatalogHistoryEntityTypeEnum.SheetSize,
             size.Id,
             $"Размер плиты #{size.Id} изменён: {string.Join(", ", changes)}.");
+        await MaterialSearchTextHelper.UpdateAsync(dbContext,
+            dbContext.Materials.Where(material => material.MaterialSheetSizeId == size.Id), ct);
         await dbContext.SaveChangesAsync(ct);
         return new UpdateMaterialSheetSizeCommandResult(true);
     }

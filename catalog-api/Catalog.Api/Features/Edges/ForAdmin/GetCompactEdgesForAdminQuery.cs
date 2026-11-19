@@ -15,6 +15,11 @@ public sealed record GetCompactEdgesForAdminQueryItem(
     [property: Description("Название")] string Name,
     [property: Description("Артикул")] string Article,
     [property: Description("Стоимость: за метр для Meter, за бухту для Roll, руб.")] decimal Price,
+    [property: Description("Id товара Стройдвора")] int? StroydvorProductId,
+    [property: Description("Артикул Стройдвора")] string? StroydvorArticle,
+    [property: Description("Цена Стройдвора: за метр для Meter, за бухту для Roll, руб.")] decimal StroydvorPrice,
+    [property: Description("Дата успешной синхронизации со Стройдвором")] DateTimeOffset? StroydvorLastSyncAt,
+    [property: Description("В наличии в Стройдворе")] bool StroydvorInStock,
     [property: Description("Id производителя")] int ManufacturerId,
     [property: Description("Id размера")] int SizeId,
     [property: Description("Id единицы продажи")] int SaleUnitId,
@@ -52,7 +57,9 @@ public sealed class GetCompactEdgesForAdminQueryHandler(CatalogDbContext dbConte
         var items = await dbContext.Edges.AsNoTracking()
             .OrderBy(x => x.OrderByCol)
             .Select(x => new GetCompactEdgesForAdminQueryItem(
-                x.Id, x.Name, x.Article, x.Price, x.ManufacturerId, x.SizeId, x.SaleUnitId,
+                x.Id, x.Name, x.Article, x.Price,
+                x.StroydvorProductId, x.StroydvorArticle, x.StroydvorPrice, x.StroydvorLastSyncAt, x.StroydvorInStock,
+                x.ManufacturerId, x.SizeId, x.SaleUnitId,
                 x.IsStockItem, x.StockQuantity, x.OrderByCol,
                 x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240)
                     .Select(image => (Guid?)image.Guid).SingleOrDefault()))

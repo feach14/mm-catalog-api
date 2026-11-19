@@ -36,6 +36,17 @@ public sealed class UpdateEdgeSaleUnitCommandHandler(CatalogDbContext dbContext,
         if (changes.Count == 0)
             return new UpdateEdgeSaleUnitCommandResult(true);
 
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+        if (saleUnit.SaleUnitType != command.Model.SaleUnitType || saleUnit.Length != command.Model.Length)
+        {
+            await dbContext.Edges.Where(x => x.SaleUnitId == saleUnit.Id)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(x => x.StroydvorArticle, (string?)null)
+                    .SetProperty(x => x.StroydvorPrice, 0m)
+                    .SetProperty(x => x.StroydvorLastSyncAt, (DateTimeOffset?)null)
+                    .SetProperty(x => x.StroydvorInStock, false), ct);
+            changes.Add("снимки Стройдвора у кромок очищены; требуется ручная синхронизация");
+        }
         saleUnit.Name = name;
         saleUnit.SaleUnitType = command.Model.SaleUnitType;
         saleUnit.Length = command.Model.Length;
@@ -45,6 +56,7 @@ public sealed class UpdateEdgeSaleUnitCommandHandler(CatalogDbContext dbContext,
             saleUnit.Id,
             $"Единица продажи кромок #{saleUnit.Id}: {string.Join(", ", changes)}.");
         await dbContext.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return new UpdateEdgeSaleUnitCommandResult(true);
     }
 }

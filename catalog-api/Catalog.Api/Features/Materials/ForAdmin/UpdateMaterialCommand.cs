@@ -3,6 +3,7 @@ using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Entities;
 using Catalog.Database.Enums;
+using Catalog.Database.Search;
 using Core.CQRS;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -154,6 +155,7 @@ public class UpdateMaterialCommandHandler(
             material.Id,
             $"Материал #{material.Id} «{material.Name}» изменён: {string.Join(", ", changes)}.");
 
+        await MaterialSearchTextHelper.UpdateAsync(dbContext, [material], ct);
         await dbContext.SaveChangesAsync(ct);
 
         foreach (var imageGuid in replacedImageGuids.Where(x => x.HasValue))

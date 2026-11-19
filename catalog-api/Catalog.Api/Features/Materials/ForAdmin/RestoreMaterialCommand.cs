@@ -3,6 +3,7 @@ using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Entities;
 using Catalog.Database.Enums;
+using Catalog.Database.Search;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.ForAdmin;
@@ -86,6 +87,7 @@ public sealed class RestoreMaterialCommandHandler(CatalogDbContext dbContext, IC
             dbContext.Materials.Add(destination);
             dbContext.Entry(destination).Property(material => material.Id).CurrentValue = source.OriginalMaterialId;
             dbContext.Entry(destination).Property(material => material.Id).IsTemporary = false;
+            await MaterialSearchTextHelper.UpdateAsync(dbContext, [destination], ct);
             await dbContext.SaveChangesAsync(ct);
 
             // Existing child rows keep their identity; only their material owner changes.

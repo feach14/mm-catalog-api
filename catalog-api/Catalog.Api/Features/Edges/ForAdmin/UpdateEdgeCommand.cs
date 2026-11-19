@@ -57,7 +57,13 @@ public sealed class UpdateEdgeCommandHandler(CatalogDbContext dbContext, IMemory
         var thumbnail = edge.Images.SingleOrDefault(x => x.ImageType == EdgeImageTypeEnum.Thumbnail240);
         var name = model.Name.Trim();
         var article = model.Article.Trim();
+        var resetStroydvor = (model.StroydvorProductIdSpecified && edge.StroydvorProductId != model.StroydvorProductId)
+                            || edge.Name != name || edge.Article != article
+                            || edge.ManufacturerId != model.ManufacturerId
+                            || edge.SaleUnitId != model.SaleUnitId;
         var changes = new List<string>();
+        if (model.StroydvorProductIdSpecified)
+            AddChange(changes, "Id товара Стройдвора", edge.StroydvorProductId, model.StroydvorProductId);
         AddChange(changes, "название", edge.Name, name);
         AddChange(changes, "артикул", edge.Article, article);
         AddChange(changes, "стоимость метра или бухты согласно единице продажи, руб.", edge.Price, model.Price);
@@ -70,6 +76,16 @@ public sealed class UpdateEdgeCommandHandler(CatalogDbContext dbContext, IMemory
         AddChange(changes, "миниатюра", thumbnail?.Guid, model.Thumbnail240);
         if (changes.Count == 0) return new UpdateEdgeCommandResult(true);
 
+        if (model.StroydvorProductIdSpecified)
+            edge.StroydvorProductId = model.StroydvorProductId;
+        if (resetStroydvor)
+        {
+            edge.StroydvorArticle = null;
+            edge.StroydvorPrice = 0;
+            edge.StroydvorLastSyncAt = null;
+            edge.StroydvorInStock = false;
+            changes.Add("снимок Стройдвора очищен; требуется ручная синхронизация");
+        }
         edge.Name = name;
         edge.Article = article;
         edge.Price = model.Price;

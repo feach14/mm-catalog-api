@@ -50,7 +50,7 @@ public sealed class GetEdgePriceForCalculateQueryHandler(
                            && (!query.ForVek || link.Markings.Any(marking => marking.Marking.Name == CalculateMarkingName)))
             .Select(link => new
             {
-                link.Edge.Price,
+                Price = link.Edge.StroydvorPrice > 0 ? link.Edge.StroydvorPrice : link.Edge.Price,
                 link.Edge.Article,
                 link.Edge.Name,
                 SizeName = link.Edge.Size.Name,

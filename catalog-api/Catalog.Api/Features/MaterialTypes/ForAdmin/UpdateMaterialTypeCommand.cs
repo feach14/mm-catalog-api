@@ -2,6 +2,7 @@ using Catalog.Api.Features.MaterialTypes.ForAdmin.Dto;
 using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Enums;
+using Catalog.Database.Search;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.MaterialTypes.ForAdmin;
@@ -38,6 +39,8 @@ public sealed class UpdateMaterialTypeCommandHandler(CatalogDbContext dbContext,
             materialType.Id,
             $"Тип материала #{materialType.Id} изменён: {string.Join(", ", changes)}.");
 
+        await MaterialSearchTextHelper.UpdateAsync(dbContext,
+            dbContext.Materials.Where(material => material.MaterialTypeId == materialType.Id), ct);
         await dbContext.SaveChangesAsync(ct);
 
         return new UpdateMaterialTypeCommandResult(true);

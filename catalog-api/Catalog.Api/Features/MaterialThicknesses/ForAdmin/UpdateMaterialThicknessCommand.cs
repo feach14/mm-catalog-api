@@ -2,6 +2,7 @@ using Catalog.Api.Features.MaterialThicknesses.ForAdmin.Dto;
 using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Enums;
+using Catalog.Database.Search;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.MaterialThicknesses.ForAdmin;
@@ -36,6 +37,8 @@ public sealed class UpdateMaterialThicknessCommandHandler(CatalogDbContext dbCon
             CatalogHistoryEntityTypeEnum.Thickness,
             thickness.Id,
             $"Толщина материала #{thickness.Id} изменена: {string.Join(", ", changes)}.");
+        await MaterialSearchTextHelper.UpdateAsync(dbContext,
+            dbContext.Materials.Where(material => material.MaterialThicknessId == thickness.Id), ct);
         await dbContext.SaveChangesAsync(ct);
         return new UpdateMaterialThicknessCommandResult(true);
     }

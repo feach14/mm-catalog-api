@@ -1,5 +1,6 @@
 // ReSharper disable NotAccessedPositionalProperty.Global
 
+using Catalog.Api.Features.Materials.Helpers;
 using Catalog.Database;
 using Catalog.Database.Entities;
 using Core.CQRS;
@@ -13,7 +14,7 @@ public sealed record GetMaterialFiltersQuery(
     [property: Description("Толщины в миллиметрах"), FromQuery] decimal[]? Depths = null,
     [property: Description("ID толщин материалов"), FromQuery] int[]? ThicknessIds = null,
     [property: Description("ID форматов листа"), FromQuery] int[]? SheetSizeIds = null,
-    [property: Description("Поиск по названию или артикулу, до 250 символов"), FromQuery] string? Search = null,
+    [property: Description("Поиск по словам в названии, артикуле и характеристиках, до 250 символов"), FromQuery] string? Search = null,
     [property: Description("Наличие материала: true — количество больше нуля, false — количество меньше единицы"), FromQuery] bool? InStock = null
 ) : IQuery<GetMaterialFiltersQueryResult>;
 
@@ -230,14 +231,7 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
         ExcludedFilterEnum excluded)
     {
         materials = materials.Where(x => !x.HideOnSite && !x.Category.HideOnSite && !x.MaterialType.HideOnSite);
-        var search = query.Search?.Trim();
-        if (!string.IsNullOrEmpty(search))
-        {
-            var pattern = $"%{EscapeLikePattern(search)}%";
-            materials = materials.Where(x =>
-                EF.Functions.ILike(x.Name, pattern, "\\")
-                || EF.Functions.ILike(x.Article, pattern, "\\"));
-        }
+        materials = MaterialSearchQuery.Apply(materials, query.Search);
 
         if (excluded != ExcludedFilterEnum.Category && query.CategoryIds is { Length: > 0 })
         {
@@ -272,11 +266,6 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
 
         return materials;
     }
-
-    private static string EscapeLikePattern(string value) => value
-        .Replace("\\", "\\\\", StringComparison.Ordinal)
-        .Replace("%", "\\%", StringComparison.Ordinal)
-        .Replace("_", "\\_", StringComparison.Ordinal);
 
     private enum ExcludedFilterEnum
     {

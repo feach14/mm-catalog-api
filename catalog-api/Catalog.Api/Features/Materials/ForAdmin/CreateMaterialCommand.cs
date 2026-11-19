@@ -4,6 +4,7 @@ using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Entities;
 using Catalog.Database.Enums;
+using Catalog.Database.Search;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.ForAdmin;
@@ -72,6 +73,7 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
             };
 
             await dbContext.Materials.AddAsync(material, ct);
+            await MaterialSearchTextHelper.UpdateAsync(dbContext, [material], ct);
             await dbContext.SaveChangesAsync(ct);
 
             Guid?[] images = [command.Material.Image, command.Material.Thumbnail480, command.Material.Thumbnail240];

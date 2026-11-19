@@ -22,7 +22,13 @@ public sealed class GetEdgeExportColumnsQueryHandler : IQueryHandler<GetEdgeExpo
         new("id", "Id", false),
         new("sizeName", "Название размера", false),
         new("saleUnitType", "Способ продажи", false),
-        new("orderByCol", "Порядок сортировки", false)
+        new("orderByCol", "Порядок сортировки", false),
+        new("stroydvorProductId", "Id товара Стройдвора", false),
+        new("stroydvorArticle", "Артикул Стройдвора", false),
+        new("stroydvorPrice", "Цена Стройдвора за метр/бухту, руб.", false),
+        new("stroydvorLastSyncAt", "Дата синхронизации со Стройдвором", false),
+        new("stroydvorInStock", "В наличии в Стройдворе", false),
+        new("stroydvorUrl", "Ссылка Стройдвора", false)
     ];
 
     public Task<ExcelExportColumnsResult> Handle(GetEdgeExportColumnsQuery query, CancellationToken ct) =>

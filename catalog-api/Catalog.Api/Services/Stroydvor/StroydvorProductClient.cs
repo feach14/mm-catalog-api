@@ -8,11 +8,29 @@ public sealed record StroydvorProductReadResult(StroydvorProductData? Product, s
     public bool Success => Product is not null;
 }
 
+public sealed record StroydvorEdgeProductReadResult(StroydvorEdgeProductData? Product, string? Error, string? LogDetails = null)
+{
+    public bool Success => Product is not null;
+}
+
 public sealed class StroydvorProductClient(HttpClient httpClient)
 {
     public static string ProductUrl(int productId) => $"https://stroydvor21.ru/products/{productId}";
 
     public async Task<StroydvorProductReadResult> Read(int productId, CancellationToken ct)
+    {
+        var result = await ReadProduct(productId, StroydvorProductParser.Parse, ct);
+        return new StroydvorProductReadResult(result.Product, result.Error, result.LogDetails);
+    }
+
+    public async Task<StroydvorEdgeProductReadResult> ReadEdge(int productId, CancellationToken ct)
+    {
+        var result = await ReadProduct(productId, StroydvorProductParser.ParseEdge, ct);
+        return new StroydvorEdgeProductReadResult(result.Product, result.Error, result.LogDetails);
+    }
+
+    private async Task<ProductReadResult<TProduct>> ReadProduct<TProduct>(
+        int productId, Func<string, int, TProduct> parse, CancellationToken ct) where TProduct : class
     {
         if (productId <= 0) throw new ArgumentOutOfRangeException(nameof(productId));
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -33,18 +51,18 @@ public sealed class StroydvorProductClient(HttpClient httpClient)
                 {
                     var location = response.Headers.Location;
                     if (location is null || redirect == 3)
-                        return new StroydvorProductReadResult(null, "Стройдвор не вернул конечную карточку товара.");
+                        return new ProductReadResult<TProduct>(null, "Стройдвор не вернул конечную карточку товара.");
                     var target = location.IsAbsoluteUri ? location : new Uri(currentUri, location);
                     if (!IsSameProduct(target, productUri))
-                        return new StroydvorProductReadResult(null, "Стройдвор перенаправил запрос на другой товар или адрес. Проверьте привязку.",
+                        return new ProductReadResult<TProduct>(null, "Стройдвор перенаправил запрос на другой товар или адрес. Проверьте привязку.",
                             $"Ожидаемая карточка: «{productUri}»; адрес перенаправления: «{target}».");
                     currentUri = target;
                     continue;
                 }
                 if (!response.IsSuccessStatusCode)
-                    return new StroydvorProductReadResult(null, $"Стройдвор вернул ошибку HTTP {(int)response.StatusCode}.");
+                    return new ProductReadResult<TProduct>(null, $"Стройдвор вернул ошибку HTTP {(int)response.StatusCode}.");
                 if (response.Content.Headers.ContentLength > 3_000_000)
-                    return new StroydvorProductReadResult(null, "Страница Стройдвора превышает допустимый размер.",
+                    return new ProductReadResult<TProduct>(null, "Страница Стройдвора превышает допустимый размер.",
                         $"Размер ответа по Content-Length: {response.Content.Headers.ContentLength} байт; допустимый максимум: 3000000 байт.");
 
                 await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token);
@@ -56,36 +74,38 @@ public sealed class StroydvorProductClient(HttpClient httpClient)
                 {
                     html.Append(buffer, 0, count);
                     if (html.Length > 3_000_000)
-                        return new StroydvorProductReadResult(null, "Страница Стройдвора превышает допустимый размер.",
+                        return new ProductReadResult<TProduct>(null, "Страница Стройдвора превышает допустимый размер.",
                             $"Размер прочитанной страницы: {html.Length} символов; допустимый максимум: 3000000 символов.");
                 }
-                return new StroydvorProductReadResult(StroydvorProductParser.Parse(html.ToString(), productId), null);
+                return new ProductReadResult<TProduct>(parse(html.ToString(), productId), null);
             }
         }
         catch (HttpRequestException)
         {
-            return new StroydvorProductReadResult(null, "Не удалось подключиться к Стройдвору.");
+            return new ProductReadResult<TProduct>(null, "Не удалось подключиться к Стройдвору.");
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            return new StroydvorProductReadResult(null, "Стройдвор не ответил за 15 секунд.");
+            return new ProductReadResult<TProduct>(null, "Стройдвор не ответил за 15 секунд.");
         }
         catch (InvalidDataException error)
         {
             // A changed supplier page must not leave a successful synchronization timestamp.
-            return new StroydvorProductReadResult(null, error.Message,
+            return new ProductReadResult<TProduct>(null, error.Message,
                 error.Data[nameof(StroydvorProductReadResult.LogDetails)] as string);
         }
         catch (IOException)
         {
-            return new StroydvorProductReadResult(null, "Соединение со Стройдвором прервалось при получении карточки.");
+            return new ProductReadResult<TProduct>(null, "Соединение со Стройдвором прервалось при получении карточки.");
         }
         catch (RegexMatchTimeoutException)
         {
-            return new StroydvorProductReadResult(null, "Не удалось разобрать формат страницы Стройдвора.");
+            return new ProductReadResult<TProduct>(null, "Не удалось разобрать формат страницы Стройдвора.");
         }
-        return new StroydvorProductReadResult(null, "Не удалось получить карточку товара Стройдвора.");
+        return new ProductReadResult<TProduct>(null, "Не удалось получить карточку товара Стройдвора.");
     }
+
+    private sealed record ProductReadResult<TProduct>(TProduct? Product, string? Error, string? LogDetails = null);
 
     private static bool IsSameProduct(Uri target, Uri expected) =>
         target.Scheme == Uri.UriSchemeHttps

@@ -4,6 +4,7 @@ using Catalog.Api.Extensions;
 using Catalog.Api.Services.History;
 using Catalog.Api.Services.Stroydvor;
 using Catalog.Database;
+using Catalog.Database.Search;
 using Core.AccountAuth;
 using Core.Cors;
 using Core.Extensions;
@@ -89,6 +90,14 @@ if (apiDocEnabled)
     builder.Services.AddOpenApiFromConfig<Program>(builder.Configuration).AddExcelExportOpenApi();
 
 var app = builder.Build();
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+    var updated = await MaterialSearchTextHelper.BackfillAsync(dbContext, app.Lifetime.ApplicationStopping,
+        builder.Configuration.GetValue<bool>("MaterialSearch:Rebuild"));
+    if (updated > 0)
+        app.Logger.LogInformation("Заполнен поисковый текст материалов: {Count}", updated);
+}
 await app.DataProtectionInit();
 app.UseCompactMaterialsResponseCompression();
 app.UseWhen(

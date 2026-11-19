@@ -3,6 +3,7 @@ using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Entities;
 using Catalog.Database.Enums;
+using Catalog.Database.Search;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.ForAdmin;
@@ -89,6 +90,7 @@ public sealed class CloneMaterialCommandHandler(CatalogDbContext dbContext, ICat
                 OrderByCol = clonePosition
             };
             dbContext.Materials.Add(clone);
+            await MaterialSearchTextHelper.UpdateAsync(dbContext, [clone], ct);
             await dbContext.SaveChangesAsync(ct);
 
             foreach (var image in sourceImages)

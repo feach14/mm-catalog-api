@@ -46,6 +46,7 @@ public sealed class CreateEdgeCommandHandler(CatalogDbContext dbContext, ICatalo
                 Name = model.Name.Trim(),
                 Article = model.Article.Trim(),
                 Price = model.Price,
+                StroydvorProductId = model.StroydvorProductId,
                 ManufacturerId = model.ManufacturerId,
                 SizeId = model.SizeId,
                 SaleUnitId = model.SaleUnitId,
@@ -72,7 +73,7 @@ public sealed class CreateEdgeCommandHandler(CatalogDbContext dbContext, ICatalo
             }
             historyWriter.Add(
                 CatalogHistoryActionTypeEnum.Create, CatalogHistoryEntityTypeEnum.Edge, edge.Id,
-                $"Создана кромка #{edge.Id} «{edge.Name}»: артикул {edge.Article}, стоимость {edge.Price} руб. за метр или бухту согласно единице продажи, производитель #{edge.ManufacturerId}, размер #{edge.SizeId}, единица продажи #{edge.SaleUnitId}, складская позиция: {edge.IsStockItem}, остаток {edge.StockQuantity?.ToString() ?? "нет"} м, оригинал {model.Image?.ToString() ?? "нет"}, миниатюра {model.Thumbnail240?.ToString() ?? "нет"}.");
+                $"Создана кромка #{edge.Id} «{edge.Name}»: артикул {edge.Article}, стоимость {edge.Price} руб. за метр или бухту согласно единице продажи, товар Стройдвора #{edge.StroydvorProductId?.ToString() ?? "нет"}, производитель #{edge.ManufacturerId}, размер #{edge.SizeId}, единица продажи #{edge.SaleUnitId}, складская позиция: {edge.IsStockItem}, остаток {edge.StockQuantity?.ToString() ?? "нет"} м, оригинал {model.Image?.ToString() ?? "нет"}, миниатюра {model.Thumbnail240?.ToString() ?? "нет"}.");
             await dbContext.SaveChangesAsync(ct);
             return new CreateEdgeCommandResult(edge.Id);
         }, ct);
