@@ -35,7 +35,8 @@ public sealed record GetMaterialForAdminQueryResult(
     [property: Description("Дата успешной синхронизации со Стройдвором")] DateTimeOffset? StroydvorLastSyncAt,
     [property: Description("В наличии в Стройдворе")] bool StroydvorInStock,
     [property: Description("Материал в архиве")] bool IsArchived,
-    [property: Description("Id исходного материала до переноса в архив")] int? OriginalMaterialId)
+    [property: Description("Id исходного материала до переноса в архив")] int? OriginalMaterialId,
+    [property: Description("Комментарии менеджеров")] MaterialCommentDto[] Comments)
 {
     [Description("Техническая ссылка на товар Стройдвора")]
     public string? StroydvorUrl => StroydvorProductId is { } id ? $"https://stroydvor21.ru/products/{id}" : null;
@@ -112,7 +113,9 @@ public class GetMaterialForAdminQueryHandler(
                 x.StroydvorLastSyncAt,
                 x.StroydvorInStock,
                 false,
-                null))
+                null,
+                x.Comments.OrderBy(comment => comment.Id)
+                    .Select(comment => new MaterialCommentDto(comment.Id, comment.Text)).ToArray()))
             .SingleOrDefaultAsync(ct)
         ?? await archivedHandler.Handle(new GetArchivedMaterialForAdminQuery(query.Id), ct);
 }

@@ -1,6 +1,7 @@
 // ReSharper disable NotAccessedPositionalProperty.Global
 
 using Catalog.Api.Features.Materials.Dto;
+using Catalog.Api.Features.Materials.ForAdmin.Dto;
 using Catalog.Database;
 using Core.CQRS;
 
@@ -34,7 +35,9 @@ public class GetArchivedMaterialsForAdminQueryHandler(CatalogDbContext dbContext
                 x.StroydvorArticle,
                 x.StroydvorPrice,
                 x.StroydvorLastSyncAt,
-                x.StroydvorInStock))
+                x.StroydvorInStock,
+                x.Comments.OrderBy(comment => comment.Id)
+                    .Select(comment => new MaterialCommentDto(comment.Id, comment.Text)).ToArray()))
             .ToArrayAsync(ct);
 
         var categories = await dbContext.MaterialCategories.AsNoTracking()

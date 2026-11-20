@@ -77,7 +77,9 @@ public class GetArchivedMaterialForAdminQueryHandler(CatalogDbContext dbContext)
                 x.StroydvorLastSyncAt,
                 x.StroydvorInStock,
                 true,
-                x.OriginalMaterialId))
+                x.OriginalMaterialId,
+                x.Comments.OrderBy(comment => comment.Id)
+                    .Select(comment => new MaterialCommentDto(comment.Id, comment.Text)).ToArray()))
             .SingleOrDefaultAsync(ct)
         ?? throw new BadHttpRequestException($"Материал с id={query.Id} не найден");
 }

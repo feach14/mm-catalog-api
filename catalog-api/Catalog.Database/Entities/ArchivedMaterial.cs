@@ -46,4 +46,5 @@ public sealed record ArchivedMaterial
     public required int OrderByCol { get; set; }
 
     public List<MaterialImage> Images { get; private set; }
+    public List<MaterialComment> Comments { get; private set; }
 }

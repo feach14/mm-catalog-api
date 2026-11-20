@@ -786,6 +786,41 @@ namespace Catalog.Database.Migrations
                     b.ToTable("material_categories", "catalog");
                 });
 
+            modelBuilder.Entity("Catalog.Database.Entities.MaterialComment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ArchivedMaterialId")
+                        .HasColumnType("integer")
+                        .HasColumnName("archived_material_id");
+
+                    b.Property<int?>("MaterialId")
+                        .HasColumnType("integer")
+                        .HasColumnName("material_id");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("text");
+
+                    b.HasKey("Id")
+                        .HasName("pk_material_comments");
+
+                    b.HasIndex("ArchivedMaterialId", "Id")
+                        .HasDatabaseName("ix_material_comments_archived_material_id_id");
+
+                    b.HasIndex("MaterialId", "Id")
+                        .HasDatabaseName("ix_material_comments_material_id_id");
+
+                    b.ToTable("material_comments", "catalog");
+                });
+
             modelBuilder.Entity("Catalog.Database.Entities.MaterialEdgeLink", b =>
                 {
                     b.Property<int>("Id")
@@ -1266,6 +1301,25 @@ namespace Catalog.Database.Migrations
                     b.Navigation("MaterialType");
                 });
 
+            modelBuilder.Entity("Catalog.Database.Entities.MaterialComment", b =>
+                {
+                    b.HasOne("Catalog.Database.Entities.ArchivedMaterial", "ArchivedMaterial")
+                        .WithMany("Comments")
+                        .HasForeignKey("ArchivedMaterialId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_material_comments_archived_materials_archived_material_id");
+
+                    b.HasOne("Catalog.Database.Entities.Material", "Material")
+                        .WithMany("Comments")
+                        .HasForeignKey("MaterialId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_material_comments_materials_material_id");
+
+                    b.Navigation("ArchivedMaterial");
+
+                    b.Navigation("Material");
+                });
+
             modelBuilder.Entity("Catalog.Database.Entities.MaterialEdgeLink", b =>
                 {
                     b.HasOne("Catalog.Database.Entities.ArchivedMaterial", "ArchivedMaterial")
@@ -1337,6 +1391,8 @@ namespace Catalog.Database.Migrations
 
             modelBuilder.Entity("Catalog.Database.Entities.ArchivedMaterial", b =>
                 {
+                    b.Navigation("Comments");
+
                     b.Navigation("Images");
                 });
 
@@ -1362,6 +1418,8 @@ namespace Catalog.Database.Migrations
 
             modelBuilder.Entity("Catalog.Database.Entities.Material", b =>
                 {
+                    b.Navigation("Comments");
+
                     b.Navigation("Images");
                 });
 

@@ -2,6 +2,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using Catalog.Api.Features.Exports.Dto;
 using Catalog.Api.Features.Materials.ForAdmin;
+using Catalog.Api.Features.Materials.ForAdmin.Dto;
 using Catalog.Api.Infrastructure.Excel;
 using Core.Attributes;
 using Core.Controllers;
@@ -139,6 +140,26 @@ public class MaterialsForAdminController : BaseAdministrationApiController
         [FromBody, Description("Внешняя ссылка")] UpdateMaterialExternalLinkModel model,
         [FromServices] ICommandHandler<UpdateMaterialExternalLinkCommand, UpdateMaterialExternalLinkCommandResult> handler) =>
         handler.Handle(new UpdateMaterialExternalLinkCommand(id, model), HttpContext.RequestAborted);
+
+    [HttpPost("{id:int}/comments"),
+     EndpointSummary(nameof(AddMaterialComment)),
+     EndpointDescription("Добавление комментария менеджера"),
+     ProducesResponseType(typeof(MaterialCommentDto), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Добавленный комментарий")]
+    public Task<MaterialCommentDto> AddMaterialComment(
+        [FromRoute, Description("Id материала")] int id,
+        [FromBody, Description("Комментарий")] AddMaterialCommentModel model,
+        [FromServices] ICommandHandler<AddMaterialCommentCommand, MaterialCommentDto> handler) =>
+        handler.Handle(new AddMaterialCommentCommand(id, model), HttpContext.RequestAborted);
+
+    [HttpDelete("{id:int}/comments/{commentId:int}"),
+     EndpointSummary(nameof(DeleteMaterialComment)),
+     EndpointDescription("Удаление комментария менеджера"),
+     ProducesResponseType(typeof(DeleteMaterialCommentCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
+    public Task<DeleteMaterialCommentCommandResult> DeleteMaterialComment(
+        [FromRoute, Description("Id материала")] int id,
+        [FromRoute, Description("Id комментария")] int commentId,
+        [FromServices] ICommandHandler<DeleteMaterialCommentCommand, DeleteMaterialCommentCommandResult> handler) =>
+        handler.Handle(new DeleteMaterialCommentCommand(id, commentId), HttpContext.RequestAborted);
 
     [HttpPost("{id:int}/clone"),
      EndpointSummary(nameof(CloneMaterial)),

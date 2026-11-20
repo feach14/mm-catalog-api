@@ -35,6 +35,8 @@ public sealed class CloneMaterialCommandHandler(CatalogDbContext dbContext, ICat
 
             var sourceImages = await dbContext.MaterialImages.AsNoTracking()
                 .Where(image => image.MaterialId == source.Id).ToArrayAsync(ct);
+            var sourceComments = await dbContext.MaterialComments.AsNoTracking()
+                .Where(comment => comment.MaterialId == source.Id).OrderBy(comment => comment.Id).ToArrayAsync(ct);
             var sourceLinks = await dbContext.MaterialEdgeLinks.AsNoTracking().Include(link => link.Markings)
                 .Where(link => link.MaterialId == source.Id).ToArrayAsync(ct);
 
@@ -103,6 +105,13 @@ public sealed class CloneMaterialCommandHandler(CatalogDbContext dbContext, ICat
                     ImageType = image.ImageType
                 });
 
+            foreach (var comment in sourceComments)
+                dbContext.MaterialComments.Add(new MaterialComment
+                {
+                    MaterialId = clone.Id,
+                    Text = comment.Text
+                });
+
             foreach (var sourceLink in sourceLinks)
             {
                 var link = new MaterialEdgeLink
@@ -123,7 +132,7 @@ public sealed class CloneMaterialCommandHandler(CatalogDbContext dbContext, ICat
 
             historyWriter.Add(CatalogHistoryActionTypeEnum.Create, CatalogHistoryEntityTypeEnum.Material, clone.Id,
                 $"Создан материал #{clone.Id} «{clone.Name}» копированием материала #{source.Id} «{source.Name}»: "
-                + $"изображений {sourceImages.Length}, связей с кромками {sourceLinks.Length}.");
+                + $"изображений {sourceImages.Length}, связей с кромками {sourceLinks.Length}, комментариев {sourceComments.Length}.");
             await dbContext.SaveChangesAsync(ct);
             return new CloneMaterialCommandResult(clone.Id);
         }, ct);

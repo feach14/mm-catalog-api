@@ -1,6 +1,7 @@
 // ReSharper disable NotAccessedPositionalProperty.Global
 
 using Catalog.Api.Features.Materials.Dto;
+using Catalog.Api.Features.Materials.ForAdmin.Dto;
 using Catalog.Database;
 using Core.CQRS;
 
@@ -57,7 +58,8 @@ public sealed record GetMaterialsQueryForAdminItemResult(
     [property: Description("Артикул Стройдвора")] string? StroydvorArticle,
     [property: Description("Цена Стройдвора за лист")] decimal StroydvorPrice,
     [property: Description("Дата успешной синхронизации со Стройдвором")] DateTimeOffset? StroydvorLastSyncAt,
-    [property: Description("В наличии в Стройдворе")] bool StroydvorInStock)
+    [property: Description("В наличии в Стройдворе")] bool StroydvorInStock,
+    [property: Description("Комментарии менеджеров")] MaterialCommentDto[] Comments)
 {
     [Description("Техническая ссылка на товар Стройдвора")]
     public string? StroydvorUrl => StroydvorProductId is { } id ? $"https://stroydvor21.ru/products/{id}" : null;
@@ -89,7 +91,9 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
                 x.StroydvorArticle,
                 x.StroydvorPrice,
                 x.StroydvorLastSyncAt,
-                x.StroydvorInStock))
+                x.StroydvorInStock,
+                x.Comments.OrderBy(comment => comment.Id)
+                    .Select(comment => new MaterialCommentDto(comment.Id, comment.Text)).ToArray()))
             .ToArrayAsync(ct);
 
         var categories = await dbContext.MaterialCategories.AsNoTracking()

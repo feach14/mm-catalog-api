@@ -19,11 +19,13 @@ public class MaterialsForCalculateController : BaseApiController
      EndpointSummary(nameof(Materials)),
      EndpointDescription("Материалы"),
      ProducesResponseType(typeof(GetMaterialsForCalculateQueryResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Материалы"),
+     ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest, MediaTypeNames.Application.ProblemJson, Description = "Неверные параметры поиска"),
      ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized, Description = "Источник запроса не прошёл аутентификацию"),
      ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, Description = "У пользователя нет прав тестера, менеджера или администратора")]
     public Task<GetMaterialsForCalculateQueryResult> Materials(
+        [FromQuery] GetMaterialsForCalculateQuery query,
         [FromServices] IQueryHandler<GetMaterialsForCalculateQuery, GetMaterialsForCalculateQueryResult> handler) =>
-        handler.Handle(new GetMaterialsForCalculateQuery(), HttpContext.RequestAborted);
+        handler.Handle(query, HttpContext.RequestAborted);
 
     [HttpGet("materials/{id:int}"),
      AllowAnonymous,

@@ -69,13 +69,17 @@ public sealed class ArchiveMaterialCommandHandler(CatalogDbContext dbContext, IC
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(image => image.ArchivedMaterialId, destination.Id)
                     .SetProperty(image => image.MaterialId, (int?)null), ct);
+            var commentCount = await dbContext.MaterialComments.Where(comment => comment.MaterialId == source.Id)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(comment => comment.ArchivedMaterialId, destination.Id)
+                    .SetProperty(comment => comment.MaterialId, (int?)null), ct);
             var linkCount = await dbContext.MaterialEdgeLinks.Where(link => link.MaterialId == source.Id)
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(link => link.ArchivedMaterialId, destination.Id)
                     .SetProperty(link => link.MaterialId, (int?)null), ct);
             dbContext.Materials.Remove(source);
             historyWriter.Add(CatalogHistoryActionTypeEnum.Update, CatalogHistoryEntityTypeEnum.Material, destination.Id,
-                $"Материал #{destination.Id} «{destination.Name}» перенесён в архив: изображений {imageCount}, связей с кромками {linkCount}.");
+                $"Материал #{destination.Id} «{destination.Name}» перенесён в архив: изображений {imageCount}, связей с кромками {linkCount}, комментариев {commentCount}.");
             await dbContext.SaveChangesAsync(ct);
             return new ArchiveMaterialCommandResult(true);
         }, ct);

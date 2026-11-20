@@ -1,5 +1,6 @@
 // ReSharper disable NotAccessedPositionalProperty.Global
 
+using Catalog.Api.Features.Materials.ForAdmin.Dto;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;
@@ -34,7 +35,8 @@ public sealed record GetCompactMaterialsForAdminQueryItem(
     [property: Description("Цена Стройдвора за лист")] decimal Spp,
     [property: Description("Дата успешной синхронизации со Стройдвором")] DateTimeOffset? Spls,
     [property: Description("В наличии в Стройдворе")] bool Spis,
-    [property: Description("Техническая ссылка на товар Стройдвора")] string? Spurl);
+    [property: Description("Техническая ссылка на товар Стройдвора")] string? Spurl,
+    [property: Description("Комментарии менеджеров")] MaterialCommentDto[] Comments);
 
 public sealed class GetCompactMaterialsForAdminQueryHandler(
     IQueryHandler<GetAllMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult> materialsHandler,
@@ -75,7 +77,8 @@ public sealed class GetCompactMaterialsForAdminQueryHandler(
             x.StroydvorPrice,
             x.StroydvorLastSyncAt,
             x.StroydvorInStock,
-            x.StroydvorUrl)).ToArray();
+            x.StroydvorUrl,
+            x.Comments)).ToArray();
 
         return new GetCompactMaterialsForAdminQueryResult(items, materials.Filters);
     }

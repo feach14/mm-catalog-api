@@ -27,6 +27,7 @@ public class CatalogDbContext(DbContextOptions<CatalogDbContext> _options) : DbC
     public DbSet<MaterialManufacturer> MaterialManufacturers { get; init; }
     public DbSet<MaterialCategory> MaterialCategories { get; init; }
     public DbSet<MaterialImage> MaterialImages { get; init; }
+    public DbSet<MaterialComment> MaterialComments { get; init; }
     public DbSet<ImageCache> ImageCache { get; init; }
     public DbSet<Edge> Edges { get; init; }
     public DbSet<EdgeManufacturer> EdgeManufacturers { get; init; }
