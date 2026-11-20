@@ -1,3 +1,4 @@
+using Catalog.Api.Features.Edges.Helpers;
 using Catalog.Api.Services.History;
 using Catalog.Database;
 using Catalog.Database.Enums;
@@ -14,14 +15,14 @@ public sealed record DeleteEdgeCommandResult([property: Description("Успех 
 public sealed class DeleteEdgeCommandHandler(CatalogDbContext dbContext, IMemoryCache memoryCache, ICatalogHistoryWriter historyWriter)
     : ICommandHandler<DeleteEdgeCommand, DeleteEdgeCommandResult>
 {
-    private const string LinkedEdgeMessage = "Кромка связана с материалами. Сначала снимите все связи с материалами.";
-
     public async Task<DeleteEdgeCommandResult> Handle(DeleteEdgeCommand command, CancellationToken ct)
     {
-        var edge = await dbContext.Edges.Include(x => x.Images).SingleOrDefaultAsync(x => x.Id == command.Id, ct)
+        var edge = await dbContext.Edges.Include(x => x.Images).Include(x => x.Size)
+            .SingleOrDefaultAsync(x => x.Id == command.Id, ct)
             ?? throw new BadHttpRequestException($"Кромка с id={command.Id} не найдена.");
+        var linkedEdgeMessage = $"Кромка #{edge.Id} «{EdgeNameHelper.GetFullName(edge.Name, edge.Size.Name, edge.IsStockItem)}» связана с материалами. Сначала снимите все связи с материалами.";
         if (await dbContext.MaterialEdgeLinks.AsNoTracking().AnyAsync(x => x.EdgeId == edge.Id, ct))
-            throw new BadHttpRequestException(LinkedEdgeMessage);
+            throw new BadHttpRequestException(linkedEdgeMessage);
         var imageGuids = edge.Images.Select(x => x.Guid).ToArray();
         historyWriter.Add(
             CatalogHistoryActionTypeEnum.Delete, CatalogHistoryEntityTypeEnum.Edge, edge.Id,
@@ -38,7 +39,7 @@ public sealed class DeleteEdgeCommandHandler(CatalogDbContext dbContext, IMemory
             ConstraintName: "fk_material_edge_links_edges_edge_id"
         })
         {
-            throw new BadHttpRequestException(LinkedEdgeMessage);
+            throw new BadHttpRequestException(linkedEdgeMessage);
         }
         foreach (var guid in imageGuids) memoryCache.Remove(("edge-image", guid));
         return new DeleteEdgeCommandResult(true);

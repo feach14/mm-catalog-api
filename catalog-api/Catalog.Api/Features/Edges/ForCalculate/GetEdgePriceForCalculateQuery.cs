@@ -1,4 +1,5 @@
 using Catalog.Api.Features.Edges.Helpers;
+using Catalog.Api.Features.Materials.Helpers;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;
@@ -61,26 +62,52 @@ public sealed class GetEdgePriceForCalculateQueryHandler(
             .Take(2)
             .ToArrayAsync(ct);
 
-        var markingDescription = query.ForVek ? $" с маркировкой «{CalculateMarkingName}»" : string.Empty;
-        if (matches.Length == 0)
+        if (matches.Length != 1)
         {
-            var materialName = await dbContext.Materials.AsNoTracking()
+            var material = await dbContext.Materials.AsNoTracking()
                 .Where(x => x.Id == query.MaterialId)
-                .Select(x => x.Name)
+                .Select(x => new
+                {
+                    x.Name,
+                    MaterialTypeName = x.MaterialType.Name,
+                    Thickness = x.MaterialThickness.Value,
+                    x.MaterialSheetSize.Height,
+                    x.MaterialSheetSize.Width,
+                    ManufacturerName = x.MaterialManufacturer.Name
+                })
                 .Concat(dbContext.ArchivedMaterials.AsNoTracking()
                     .Where(x => x.Id == query.MaterialId)
-                    .Select(x => x.Name))
+                    .Select(x => new
+                    {
+                        x.Name,
+                        MaterialTypeName = x.MaterialType.Name,
+                        Thickness = x.MaterialThickness.Value,
+                        x.MaterialSheetSize.Height,
+                        x.MaterialSheetSize.Width,
+                        ManufacturerName = x.MaterialManufacturer.Name
+                    }))
                 .SingleAsync(ct);
+            var materialName = MaterialNameHelper.GetFullName(material.Name, material.MaterialTypeName,
+                material.Thickness, material.Height, material.Width, material.ManufacturerName);
+            var markingDescription = query.ForVek ? $" с маркировкой «{CalculateMarkingName}»" : string.Empty;
+
+            if (matches.Length == 0)
+            {
+                logger.LogError(
+                    "Для материала #{MaterialId} «{MaterialName}» недоступна кромка толщиной {Thickness} мм. " +
+                    "Требуемая маркировка: «{MarkingName}»; подбор для ВЕК: {ForVek}.",
+                    query.MaterialId, materialName, query.Thickness,
+                    query.ForVek ? CalculateMarkingName : "без ограничения по маркировке", query.ForVek);
+                throw new BadHttpRequestException($"Для материала #{query.MaterialId} «{materialName}» недоступна кромка толщиной {query.Thickness} мм{markingDescription}. Выберите другую толщину кромки");
+            }
 
             logger.LogError(
-                "Для материала #{MaterialId} «{MaterialName}» недоступна кромка толщиной {Thickness} мм. " +
+                "Для материала #{MaterialId} «{MaterialName}» найдено несколько кромок толщиной {Thickness} мм. " +
                 "Требуемая маркировка: «{MarkingName}»; подбор для ВЕК: {ForVek}.",
                 query.MaterialId, materialName, query.Thickness,
                 query.ForVek ? CalculateMarkingName : "без ограничения по маркировке", query.ForVek);
-            throw new BadHttpRequestException($"Для выбранного материала недоступна кромка толщиной {query.Thickness} мм{markingDescription}. Выберите другую толщину кромки");
+            throw new BadHttpRequestException($"Для материала #{query.MaterialId} «{materialName}» найдено несколько кромок толщиной {query.Thickness} мм{markingDescription}. Оставьте одну подходящую связь");
         }
-        if (matches.Length > 1)
-            throw new BadHttpRequestException($"Для материала с id={query.MaterialId} найдено несколько кромок толщиной {query.Thickness} мм{markingDescription}. Оставьте одну подходящую связь");
 
         return new GetEdgePriceForCalculateQueryResult(matches[0].Price, matches[0].Article,
             EdgeNameHelper.GetFullName(matches[0].Name, matches[0].SizeName, matches[0].IsStockItem),

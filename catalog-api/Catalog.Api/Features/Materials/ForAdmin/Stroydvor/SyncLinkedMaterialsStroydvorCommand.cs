@@ -1,3 +1,4 @@
+using Catalog.Api.Features.Materials.Helpers;
 using Catalog.Database;
 using Core.CQRS;
 
@@ -18,20 +19,29 @@ public sealed class SyncLinkedMaterialsStroydvorCommandHandler(
 {
     public async Task<SyncLinkedMaterialsStroydvorCommandResult> Handle(SyncLinkedMaterialsStroydvorCommand command, CancellationToken ct)
     {
-        var ids = await dbContext.Materials.AsNoTracking()
+        var materials = await dbContext.Materials.AsNoTracking()
             .Where(x => x.StroydvorProductId > 0)
-            .Select(x => x.Id)
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                MaterialTypeName = x.MaterialType.Name,
+                Thickness = x.MaterialThickness.Value,
+                x.MaterialSheetSize.Height,
+                x.MaterialSheetSize.Width,
+                ManufacturerName = x.MaterialManufacturer.Name
+            })
             .ToArrayAsync(ct);
         var succeeded = 0;
         var failed = 0;
 
-        await Parallel.ForEachAsync(ids, new ParallelOptions { MaxDegreeOfParallelism = 3, CancellationToken = ct }, async (id, token) =>
+        await Parallel.ForEachAsync(materials, new ParallelOptions { MaxDegreeOfParallelism = 3, CancellationToken = ct }, async (material, token) =>
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<SyncMaterialsStroydvorCommand, SyncMaterialsStroydvorCommandResult>>();
             try
             {
-                var result = await handler.Handle(new SyncMaterialsStroydvorCommand([id]), token);
+                var result = await handler.Handle(new SyncMaterialsStroydvorCommand([material.Id]), token);
                 if (result.Items[0].Success)
                     Interlocked.Increment(ref succeeded);
                 else
@@ -40,11 +50,14 @@ public sealed class SyncLinkedMaterialsStroydvorCommandHandler(
             catch (BadHttpRequestException error)
             {
                 // A material can be removed or its binding changed after the initial selection.
-                logger.LogWarning(error, "Не удалось выполнить фоновую синхронизацию материала #{MaterialId} со Стройдвором: {SyncError}", id, error.Message);
+                var materialName = MaterialNameHelper.GetFullName(material.Name, material.MaterialTypeName, material.Thickness,
+                    material.Height, material.Width, material.ManufacturerName);
+                logger.LogWarning(error, "Не удалось выполнить фоновую синхронизацию материала #{MaterialId} «{MaterialName}» со Стройдвором: {SyncError}",
+                    material.Id, materialName, error.Message);
                 Interlocked.Increment(ref failed);
             }
         });
 
-        return new SyncLinkedMaterialsStroydvorCommandResult(ids.Length, succeeded, failed);
+        return new SyncLinkedMaterialsStroydvorCommandResult(materials.Length, succeeded, failed);
     }
 }
