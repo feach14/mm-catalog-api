@@ -15,7 +15,7 @@ public sealed record GetMaterialFiltersQuery(
     [property: Description("ID толщин материалов"), FromQuery] int[]? ThicknessIds = null,
     [property: Description("ID форматов листа"), FromQuery] int[]? SheetSizeIds = null,
     [property: Description("Поиск по словам в названии, артикуле и характеристиках, до 250 символов"), FromQuery] string? Search = null,
-    [property: Description("Наличие материала: true — количество больше нуля, false — количество меньше единицы"), FromQuery] bool? InStock = null
+    [property: Description("Наличие с учётом количества и доступности у привязанного поставщика"), FromQuery] bool? InStock = null
 ) : IQuery<GetMaterialFiltersQueryResult>;
 
 public sealed class GetMaterialFiltersQueryValidator : AbstractValidator<GetMaterialFiltersQuery>
@@ -206,8 +206,10 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
             .ToArrayAsync(ct);
 
         var availabilityBase = BaseQuery(query, ExcludedFilterEnum.Availability);
-        var availableCount = await availabilityBase.CountAsync(material => material.Count > 0, ct);
-        var unavailableCount = await availabilityBase.CountAsync(material => material.Count < 1, ct);
+        var availableCount = await availabilityBase.CountAsync(
+            material => material.Count > 0 && (!material.StroydvorProductId.HasValue || material.StroydvorInStock), ct);
+        var unavailableCount = await availabilityBase.CountAsync(
+            material => material.Count <= 0 || (material.StroydvorProductId.HasValue && !material.StroydvorInStock), ct);
 
         return new GetMaterialFiltersQueryResult(
             categories,
@@ -262,7 +264,9 @@ public sealed class GetMaterialFiltersQueryHandler(CatalogDbContext dbContext)
             materials = materials.Where(x => ids.Contains(x.MaterialSheetSizeId));
         }
         if (excluded != ExcludedFilterEnum.Availability && query.InStock.HasValue)
-            materials = query.InStock.Value ? materials.Where(x => x.Count > 0) : materials.Where(x => x.Count < 1);
+            materials = query.InStock.Value
+                ? materials.Where(x => x.Count > 0 && (!x.StroydvorProductId.HasValue || x.StroydvorInStock))
+                : materials.Where(x => x.Count <= 0 || (x.StroydvorProductId.HasValue && !x.StroydvorInStock));
 
         return materials;
     }

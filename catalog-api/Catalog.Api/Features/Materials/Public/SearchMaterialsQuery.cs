@@ -27,7 +27,7 @@ public sealed record SearchMaterialsQuery(
     [property: Description("Номер страницы, начиная с 1"), FromQuery] int Page = 1,
     [property: Description("Размер страницы от 1 до 100"), FromQuery] int PageSize = 25,
     [property: Description("Поиск по словам в названии, артикуле и характеристиках, до 250 символов"), FromQuery] string? Search = null,
-    [property: Description("Наличие материала: true — количество больше нуля, false — количество меньше единицы"), FromQuery] bool? InStock = null,
+    [property: Description("Наличие с учётом количества и доступности у привязанного поставщика"), FromQuery] bool? InStock = null,
     [property: Description("Порядок сортировки"), FromQuery] PublicMaterialSortEnum Sort = PublicMaterialSortEnum.CatalogOrder
 ) : IQuery<SearchMaterialsQueryResult>;
 
@@ -107,7 +107,10 @@ public sealed record PublicMaterialListItemDto(
     [property: Description("Толщина материала")] PropertyDto Thickness,
     [property: Description("Формат листа")] PropertyDto SheetSize,
     [property: Description("Изображения материала")] PublicMaterialImagesDto Images,
-    [property: Description("Материал есть в наличии")] bool InStock
+    [property: Description("Материал есть в наличии")] bool InStock,
+    [property: Description("Комментарии для клиента")] string[] ClientComments,
+    [property: Description("Используется цена поставщика")] bool IsSupplierPrice,
+    [property: Description("Цены для клиентов; null при скрытой цене или временной недоступности расчёта")] MaterialClientPricesDto? ClientPrices
 );
 
 public sealed record PublicMaterialImagesDto(
@@ -115,7 +118,9 @@ public sealed record PublicMaterialImagesDto(
     [property: Description("Id квадратной миниатюры 240 на 240 пикселей")] Guid? Thumbnail240,
     [property: Description("Id квадратной миниатюры 480 на 480 пикселей")] Guid? Thumbnail480);
 
-public sealed class SearchMaterialsQueryHandler(CatalogDbContext dbContext)
+public sealed class SearchMaterialsQueryHandler(
+    CatalogDbContext dbContext,
+    IQueryHandler<GetMaterialClientPricePercentagesQuery, MaterialClientPricePercentages?> percentagesHandler)
     : IQueryHandler<SearchMaterialsQuery, SearchMaterialsQueryResult>
 {
     public async Task<SearchMaterialsQueryResult> Handle(SearchMaterialsQuery query, CancellationToken ct)
@@ -130,24 +135,42 @@ public sealed class SearchMaterialsQueryHandler(CatalogDbContext dbContext)
         };
 
         var offset = checked((query.Page - 1) * query.PageSize);
-        var items = await ordered
+        var rows = await ordered
             .Skip(offset)
             .Take(query.PageSize)
-            .Select(x => new PublicMaterialListItemDto(
-                x.Id,
-                x.Name,
-                x.Article,
-                Category: new PropertyDto(x.CategoryId, x.Category.Name),
-                Manufacturer: new PropertyDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
-                MaterialType: new PropertyDto(x.MaterialType.Id, x.MaterialType.Name),
-                Thickness: new PropertyDto(x.MaterialThickness.Id, x.MaterialThickness.Name),
-                SheetSize: new PropertyDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name),
-                Images: new PublicMaterialImagesDto(
-                    Original: x.Images.Where(image => image.ImageType == MaterialImageTypeEnum.Original).OrderBy(image => image.Id).Select(image => (Guid?)image.Guid).FirstOrDefault(),
-                    Thumbnail240: x.Images.Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail240).OrderBy(image => image.Id).Select(image => (Guid?)image.Guid).FirstOrDefault(),
-                    Thumbnail480: x.Images.Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail480).OrderBy(image => image.Id).Select(image => (Guid?)image.Guid).FirstOrDefault()),
-                x.Count > 0))
+            .Select(x => new
+            {
+                Material = new PublicMaterialListItemDto(
+                    x.Id,
+                    x.Name,
+                    x.Article,
+                    Category: new PropertyDto(x.CategoryId, x.Category.Name),
+                    Manufacturer: new PropertyDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
+                    MaterialType: new PropertyDto(x.MaterialType.Id, x.MaterialType.Name),
+                    Thickness: new PropertyDto(x.MaterialThickness.Id, x.MaterialThickness.Name),
+                    SheetSize: new PropertyDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name),
+                    Images: new PublicMaterialImagesDto(
+                        Original: x.Images.Where(image => image.ImageType == MaterialImageTypeEnum.Original).OrderBy(image => image.Id).Select(image => (Guid?)image.Guid).FirstOrDefault(),
+                        Thumbnail240: x.Images.Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail240).OrderBy(image => image.Id).Select(image => (Guid?)image.Guid).FirstOrDefault(),
+                        Thumbnail480: x.Images.Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail480).OrderBy(image => image.Id).Select(image => (Guid?)image.Guid).FirstOrDefault()),
+                    x.Count > 0 && (!x.StroydvorProductId.HasValue || x.StroydvorInStock),
+                    x.Comments.Where(comment => comment.IsForClient).OrderBy(comment => comment.Id)
+                        .Select(comment => comment.Text).ToArray(),
+                    x.StroydvorPrice > 0,
+                    null),
+                x.Price,
+                x.StroydvorPrice,
+                x.HidePriceOnSite
+            })
             .ToArrayAsync(ct);
+
+        var percentages = rows.Any(row => !row.HidePriceOnSite)
+            ? await percentagesHandler.Handle(new GetMaterialClientPricePercentagesQuery(), ct)
+            : null;
+        var items = rows.Select(row => row.Material with
+        {
+            ClientPrices = row.HidePriceOnSite ? null : percentages?.GetPrices(row.Price, row.StroydvorPrice)
+        }).ToArray();
 
         return new SearchMaterialsQueryResult(items, totalCount, query.Page, query.PageSize);
     }
@@ -186,7 +209,9 @@ public sealed class SearchMaterialsQueryHandler(CatalogDbContext dbContext)
             materials = materials.Where(x => ids.Contains(x.MaterialSheetSizeId));
         }
         if (query.InStock.HasValue)
-            materials = query.InStock.Value ? materials.Where(x => x.Count > 0) : materials.Where(x => x.Count < 1);
+            materials = query.InStock.Value
+                ? materials.Where(x => x.Count > 0 && (!x.StroydvorProductId.HasValue || x.StroydvorInStock))
+                : materials.Where(x => x.Count <= 0 || (x.StroydvorProductId.HasValue && !x.StroydvorInStock));
 
         return materials;
     }

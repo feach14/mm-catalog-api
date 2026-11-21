@@ -48,7 +48,8 @@ public sealed class GetCompactArchivedMaterialsForAdminQueryHandler(
             x.StroydvorLastSyncAt,
             x.StroydvorInStock,
             x.StroydvorUrl,
-            x.Comments)).ToArray();
+            x.Comments,
+            x.ClientPrices)).ToArray();
 
         return new GetCompactMaterialsForAdminQueryResult(items, materials.Filters);
     }

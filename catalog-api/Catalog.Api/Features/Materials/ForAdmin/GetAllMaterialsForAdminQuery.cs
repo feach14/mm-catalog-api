@@ -59,13 +59,16 @@ public sealed record GetMaterialsQueryForAdminItemResult(
     [property: Description("Цена Стройдвора за лист")] decimal StroydvorPrice,
     [property: Description("Дата успешной синхронизации со Стройдвором")] DateTimeOffset? StroydvorLastSyncAt,
     [property: Description("В наличии в Стройдворе")] bool StroydvorInStock,
-    [property: Description("Комментарии менеджеров")] MaterialCommentDto[] Comments)
+    [property: Description("Комментарии")] MaterialCommentDto[] Comments,
+    [property: Description("Цены для клиентов; null при временной недоступности расчёта")] MaterialClientPricesDto? ClientPrices)
 {
     [Description("Техническая ссылка на товар Стройдвора")]
     public string? StroydvorUrl => StroydvorProductId is { } id ? $"https://stroydvor21.ru/products/{id}" : null;
 }
 
-public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetAllMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult>
+public class GetAllMaterialsForAdminQueryHandler(
+    CatalogDbContext dbContext,
+    IQueryHandler<GetMaterialClientPricePercentagesQuery, MaterialClientPricePercentages?> percentagesHandler) : IQueryHandler<GetAllMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult>
 {
     public async Task<GetAllMaterialsForAdminQueryResult> Handle(GetAllMaterialsForAdminQuery query, CancellationToken ct)
     {
@@ -93,8 +96,18 @@ public class GetAllMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : I
                 x.StroydvorLastSyncAt,
                 x.StroydvorInStock,
                 x.Comments.OrderBy(comment => comment.Id)
-                    .Select(comment => new MaterialCommentDto(comment.Id, comment.Text)).ToArray()))
+                    .Select(comment => new MaterialCommentDto(comment.Id, comment.Text, comment.IsForClient)).ToArray(),
+                null))
             .ToArrayAsync(ct);
+
+        if (materials.Length > 0)
+        {
+            var percentages = await percentagesHandler.Handle(new GetMaterialClientPricePercentagesQuery(), ct);
+            materials = materials.Select(material => material with
+            {
+                ClientPrices = percentages?.GetPrices(material.Price, material.StroydvorPrice)
+            }).ToArray();
+        }
 
         var categories = await dbContext.MaterialCategories.AsNoTracking()
             .OrderBy(x => x.OrderByCol)

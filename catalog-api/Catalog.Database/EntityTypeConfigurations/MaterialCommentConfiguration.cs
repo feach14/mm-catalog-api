@@ -10,6 +10,7 @@ public sealed class MaterialCommentConfiguration : IEntityTypeConfiguration<Mate
     {
         eb.HasKey(x => x.Id);
         eb.Property(x => x.Text).HasMaxLength(50).IsRequired();
+        eb.Property(x => x.IsForClient).HasDefaultValue(false);
         eb.HasIndex(x => new { x.MaterialId, x.Id });
         eb.HasIndex(x => new { x.ArchivedMaterialId, x.Id });
         eb.HasOne(x => x.Material)

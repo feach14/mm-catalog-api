@@ -36,14 +36,12 @@ public class MaterialModelValidator : AbstractValidator<MaterialModel>
 
                 var materialTypeName = await dbContext.MaterialTypes.AsNoTracking()
                     .Where(x => x.Id == model.MaterialTypeId).Select(x => x.Name).SingleOrDefaultAsync(ct);
-                var size = await dbContext.MaterialSheetSizes.AsNoTracking()
-                    .Where(x => x.Id == model.SheetSizeId).Select(x => new { x.Height, x.Width }).SingleOrDefaultAsync(ct);
-                if (materialTypeName is null || size is null)
+                if (materialTypeName is null)
                     return true;
 
-                return StroydvorMaterialScope.IsEligible(model.ManufacturerId, materialTypeName, size.Height, size.Width);
+                return StroydvorMaterialScope.IsEligible(materialTypeName);
             })
-            .WithMessage("Привязка к Стройдвору разрешена только для ЛДСП и ЛМДФ выбранных производителей и форматов. Для другого материала удалите Id товара Стройдвора.");
+            .WithMessage("Привязка к Стройдвору разрешена только для ЛДСП, ЛМДФ и ХДФ. Для другого материала удалите Id товара Стройдвора.");
         RuleFor(m => m.CategoryId)
             .Cascade(CascadeMode.Stop)
             .GreaterThan(0).WithMessage("Не указана категория(коллекция) материала")

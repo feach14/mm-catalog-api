@@ -9,7 +9,8 @@ using Core.CQRS;
 namespace Catalog.Api.Features.Materials.ForAdmin;
 
 public sealed record AddMaterialCommentModel(
-    [property: Description("Текст комментария, не более 50 символов")] string Text);
+    [property: Description("Текст комментария, не более 50 символов")] string Text,
+    [property: Description("Комментарий для клиента")] bool IsForClient = false);
 
 public sealed class AddMaterialCommentModelValidator : AbstractValidator<AddMaterialCommentModel>
 {
@@ -48,13 +49,14 @@ public sealed class AddMaterialCommentCommandHandler(CatalogDbContext dbContext,
             {
                 MaterialId = material?.Id,
                 ArchivedMaterialId = archivedMaterial?.Id,
-                Text = command.Model.Text.Trim()
+                Text = command.Model.Text.Trim(),
+                IsForClient = command.Model.IsForClient
             };
             dbContext.MaterialComments.Add(comment);
             historyWriter.Add(CatalogHistoryActionTypeEnum.Update, CatalogHistoryEntityTypeEnum.Material, command.Id,
-                $"Материал #{command.Id} «{material?.Name ?? archivedMaterial!.Name}»: добавлен комментарий «{comment.Text}».");
+                $"Материал #{command.Id} «{material?.Name ?? archivedMaterial!.Name}»: добавлен комментарий{(comment.IsForClient ? " для клиента" : string.Empty)} «{comment.Text}».");
             await dbContext.SaveChangesAsync(ct);
-            return new MaterialCommentDto(comment.Id, comment.Text);
+            return new MaterialCommentDto(comment.Id, comment.Text, comment.IsForClient);
         }, ct);
     }
 }

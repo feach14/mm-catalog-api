@@ -8,10 +8,13 @@ namespace Catalog.Api.Features.Materials.ForAdmin;
 
 public sealed record GetArchivedMaterialForAdminQuery(int Id) : IQuery<GetMaterialForAdminQueryResult>;
 
-public class GetArchivedMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetArchivedMaterialForAdminQuery, GetMaterialForAdminQueryResult>
+public class GetArchivedMaterialForAdminQueryHandler(
+    CatalogDbContext dbContext,
+    IQueryHandler<GetMaterialClientPricePercentagesQuery, MaterialClientPricePercentages?> percentagesHandler) : IQueryHandler<GetArchivedMaterialForAdminQuery, GetMaterialForAdminQueryResult>
 {
-    public async Task<GetMaterialForAdminQueryResult> Handle(GetArchivedMaterialForAdminQuery query, CancellationToken ct) =>
-        await dbContext.ArchivedMaterials.AsNoTracking()
+    public async Task<GetMaterialForAdminQueryResult> Handle(GetArchivedMaterialForAdminQuery query, CancellationToken ct)
+    {
+        var material = await dbContext.ArchivedMaterials.AsNoTracking()
             .Where(x => x.Id == query.Id)
             .Select(x => new GetMaterialForAdminQueryResult(
                 x.Id,
@@ -79,7 +82,12 @@ public class GetArchivedMaterialForAdminQueryHandler(CatalogDbContext dbContext)
                 true,
                 x.OriginalMaterialId,
                 x.Comments.OrderBy(comment => comment.Id)
-                    .Select(comment => new MaterialCommentDto(comment.Id, comment.Text)).ToArray()))
+                    .Select(comment => new MaterialCommentDto(comment.Id, comment.Text, comment.IsForClient)).ToArray(),
+                null))
             .SingleOrDefaultAsync(ct)
-        ?? throw new BadHttpRequestException($"Материал с id={query.Id} не найден");
+            ?? throw new BadHttpRequestException($"Материал с id={query.Id} не найден");
+
+        var percentages = await percentagesHandler.Handle(new GetMaterialClientPricePercentagesQuery(), ct);
+        return material with { ClientPrices = percentages?.GetPrices(material.Price, material.StroydvorPrice) };
+    }
 }

@@ -22,28 +22,53 @@ public sealed record GetAllMaterialsQueryItemResult(
     [property: Description("Категория")] PropertyDto Category,
     [property: Description("Количество")] int Count,
     [property: Description("Признак: Комментарий к материалу обязателен при оформлении заявки(расчета)")] bool CommentOnMaterialIsRequired,
-    [property: Description("Порядковый номер записи (для сортировки)")] int OrderByCol);
+    [property: Description("Порядковый номер записи (для сортировки)")] int OrderByCol,
+    [property: Description("Комментарии для клиента")] string[] ClientComments,
+    [property: Description("Материал есть в наличии")] bool InStock,
+    [property: Description("Используется цена поставщика")] bool IsSupplierPrice,
+    [property: Description("Цены для клиентов; null при скрытой цене или временной недоступности расчёта")] MaterialClientPricesDto? ClientPrices);
 
-public class GetAllMaterialsQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetAllMaterialsQuery, GetAllMaterialsQueryResult>
+public class GetAllMaterialsQueryHandler(
+    CatalogDbContext dbContext,
+    IQueryHandler<GetMaterialClientPricePercentagesQuery, MaterialClientPricePercentages?> percentagesHandler) : IQueryHandler<GetAllMaterialsQuery, GetAllMaterialsQueryResult>
 {
     public async Task<GetAllMaterialsQueryResult> Handle(GetAllMaterialsQuery query, CancellationToken ct)
     {
-        var materials = await dbContext.Materials.AsNoTracking()
+        var rows = await dbContext.Materials.AsNoTracking()
             .Where(x => !x.HideOnSite && !x.Category.HideOnSite && !x.MaterialType.HideOnSite)
             .OrderBy(x => x.OrderByCol)
-            .Select(x => new GetAllMaterialsQueryItemResult(
-                x.Id,
-                x.Name,
-                x.Article,
-                new PropertyDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name),
-                new PropertyDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
-                new PropertyDto(x.MaterialType.Id, x.MaterialType.Name),
-                new PropertyDto(x.MaterialThickness.Id, x.MaterialThickness.Name),
-                new PropertyDto(x.CategoryId, x.Category.Name),
-                x.Count,
-                x.CommentOnMaterialIsRequired,
-                x.OrderByCol))
+            .Select(x => new
+            {
+                Material = new GetAllMaterialsQueryItemResult(
+                    x.Id,
+                    x.Name,
+                    x.Article,
+                    new PropertyDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name),
+                    new PropertyDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
+                    new PropertyDto(x.MaterialType.Id, x.MaterialType.Name),
+                    new PropertyDto(x.MaterialThickness.Id, x.MaterialThickness.Name),
+                    new PropertyDto(x.CategoryId, x.Category.Name),
+                    x.Count,
+                    x.CommentOnMaterialIsRequired,
+                    x.OrderByCol,
+                    x.Comments.Where(comment => comment.IsForClient).OrderBy(comment => comment.Id)
+                        .Select(comment => comment.Text).ToArray(),
+                    x.Count > 0 && (!x.StroydvorProductId.HasValue || x.StroydvorInStock),
+                    x.StroydvorPrice > 0,
+                    null),
+                x.Price,
+                x.StroydvorPrice,
+                x.HidePriceOnSite
+            })
             .ToArrayAsync(ct);
+
+        var percentages = rows.Any(row => !row.HidePriceOnSite)
+            ? await percentagesHandler.Handle(new GetMaterialClientPricePercentagesQuery(), ct)
+            : null;
+        var materials = rows.Select(row => row.Material with
+        {
+            ClientPrices = row.HidePriceOnSite ? null : percentages?.GetPrices(row.Price, row.StroydvorPrice)
+        }).ToArray();
 
         return new GetAllMaterialsQueryResult(materials);
     }

@@ -31,6 +31,12 @@ var appSettingsConfig = builder.Configuration.Get<AppSettingsConfig>()
                         ?? throw new InvalidOperationException($"Missing {nameof(AppSettingsConfig)}");
 var apiDocEnabled = builder.Configuration.GetValue<bool>("ApiDoc:Enabled");
 
+builder.Services.AddInternalHttpClient(nameof(AppSettingsConfig.CalculateApi), client =>
+{
+    client.BaseAddress = appSettingsConfig.CalculateApi.BaseAddress;
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
+
 builder.Services
     .AddHttpContextAccessor()
     .AddHttpClient()

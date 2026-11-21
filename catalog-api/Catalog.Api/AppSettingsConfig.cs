@@ -9,6 +9,7 @@ public sealed record AppSettingsConfig
     public required CookieConfiguration Cookie { get; init; }
     public required string DbConnString { get; init; }
     public required string DataProtectionDbConnString { get; init; }
+    public required CalculateApiConfiguration CalculateApi { get; init; }
     public CatalogAuthenticationConfiguration Authentication { get; init; } = new();
 }
 
@@ -21,4 +22,10 @@ public enum AuthenticationProviderEnum
 {
     Accounts,
     Vek
+}
+
+public sealed record CalculateApiConfiguration
+{
+    public required Uri BaseAddress { get; init; }
+    public required string MaterialPricePercentagesPath { get; init; }
 }

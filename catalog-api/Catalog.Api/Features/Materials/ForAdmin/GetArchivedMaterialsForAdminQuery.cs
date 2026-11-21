@@ -9,7 +9,9 @@ namespace Catalog.Api.Features.Materials.ForAdmin;
 
 public sealed record GetArchivedMaterialsForAdminQuery : IQuery<GetAllMaterialsForAdminQueryResult>;
 
-public class GetArchivedMaterialsForAdminQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetArchivedMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult>
+public class GetArchivedMaterialsForAdminQueryHandler(
+    CatalogDbContext dbContext,
+    IQueryHandler<GetMaterialClientPricePercentagesQuery, MaterialClientPricePercentages?> percentagesHandler) : IQueryHandler<GetArchivedMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult>
 {
     public async Task<GetAllMaterialsForAdminQueryResult> Handle(GetArchivedMaterialsForAdminQuery query, CancellationToken ct)
     {
@@ -37,8 +39,18 @@ public class GetArchivedMaterialsForAdminQueryHandler(CatalogDbContext dbContext
                 x.StroydvorLastSyncAt,
                 x.StroydvorInStock,
                 x.Comments.OrderBy(comment => comment.Id)
-                    .Select(comment => new MaterialCommentDto(comment.Id, comment.Text)).ToArray()))
+                    .Select(comment => new MaterialCommentDto(comment.Id, comment.Text, comment.IsForClient)).ToArray(),
+                null))
             .ToArrayAsync(ct);
+
+        if (materials.Length > 0)
+        {
+            var percentages = await percentagesHandler.Handle(new GetMaterialClientPricePercentagesQuery(), ct);
+            materials = materials.Select(material => material with
+            {
+                ClientPrices = percentages?.GetPrices(material.Price, material.StroydvorPrice)
+            }).ToArray();
+        }
 
         var categories = await dbContext.MaterialCategories.AsNoTracking()
             .OrderBy(x => x.OrderByCol)

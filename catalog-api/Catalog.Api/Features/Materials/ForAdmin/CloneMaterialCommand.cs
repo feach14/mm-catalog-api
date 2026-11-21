@@ -109,7 +109,8 @@ public sealed class CloneMaterialCommandHandler(CatalogDbContext dbContext, ICat
                 dbContext.MaterialComments.Add(new MaterialComment
                 {
                     MaterialId = clone.Id,
-                    Text = comment.Text
+                    Text = comment.Text,
+                    IsForClient = comment.IsForClient
                 });
 
             foreach (var sourceLink in sourceLinks)

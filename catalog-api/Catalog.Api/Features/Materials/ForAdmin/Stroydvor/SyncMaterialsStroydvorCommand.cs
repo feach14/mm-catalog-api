@@ -59,10 +59,9 @@ public sealed class SyncMaterialsStroydvorCommandHandler(
                 LogSyncFailure(material, error);
                 throw new BadHttpRequestException(error);
             }
-            if (!StroydvorMaterialScope.IsEligible(material.MaterialManufacturerId, material.MaterialType.Name,
-                    material.MaterialSheetSize.Height, material.MaterialSheetSize.Width))
+            if (!StroydvorMaterialScope.IsEligible(material.MaterialType.Name))
             {
-                var error = $"Материал #{material.Id} «{MaterialNameHelper.GetFullName(material)}» не относится к ЛДСП или ЛМДФ выбранных производителей и форматов для Стройдвора.";
+                var error = $"Материал #{material.Id} «{MaterialNameHelper.GetFullName(material)}» не относится к ЛДСП, ЛМДФ или ХДФ для Стройдвора.";
                 LogSyncFailure(material, error);
                 throw new BadHttpRequestException(error);
             }

@@ -19,7 +19,10 @@ public sealed record CuttingMaterialCatalogItemDto(
     [property: Description("Артикул")] string Article,
     [property: Description("Id категории")] int CategoryId,
     [property: Description("Количество")] int Count,
-    [property: Description("GUID миниатюры: 240 пикселей, иначе 480")] Guid? Image);
+    [property: Description("GUID миниатюры: 240 пикселей, иначе 480")] Guid? Image,
+    [property: Description("Комментарии для клиента")] string[] ClientComments,
+    [property: Description("Материал есть в наличии")] bool InStock,
+    [property: Description("Используется цена поставщика")] bool IsSupplierPrice);
 
 public sealed record CuttingMaterialCatalogCategoryDto(
     [property: Description("Id")] int Id,
@@ -40,12 +43,16 @@ public sealed class GetCuttingMaterialCatalogQueryHandler(CatalogDbContext dbCon
             .Select(x => new
             {
                 x.Id,
+                InStock = x.Count > 0 && (!x.StroydvorProductId.HasValue || x.StroydvorInStock),
+                IsSupplierPrice = x.StroydvorPrice > 0,
                 Material = x,
                 x.Article,
                 x.CategoryId,
                 CategoryName = x.Category.Name,
                 CategoryOrderByCol = x.Category.OrderByCol,
                 x.Count,
+                ClientComments = x.Comments.Where(comment => comment.IsForClient).OrderBy(comment => comment.Id)
+                    .Select(comment => comment.Text).ToArray(),
                 Image = x.Images
                     .Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail240
                         || image.ImageType == MaterialImageTypeEnum.Thumbnail480)
@@ -62,7 +69,7 @@ public sealed class GetCuttingMaterialCatalogQueryHandler(CatalogDbContext dbCon
         var items = categoryGroups.SelectMany(group => group).Select(x => new CuttingMaterialCatalogItemDto(
             x.Id,
             MaterialNameHelper.GetFullName(x.Material),
-            x.Article, x.CategoryId, x.Count, x.Image)).ToArray();
+            x.Article, x.CategoryId, x.Count, x.Image, x.ClientComments, x.InStock, x.IsSupplierPrice)).ToArray();
         var categories = categoryGroups
             .Select(x => new CuttingMaterialCatalogCategoryDto(x.Key.CategoryId, x.Key.CategoryName))
             .ToArray();

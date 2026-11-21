@@ -287,7 +287,8 @@ def run_compact_materials_scenario():
                       "o": "orderByCol", "h": "hideOnSite", "hp": "hidePriceOnSite",
                       "hideInLk": "hideInLk", "el": "externalLink",
                       "spid": "stroydvorProductId", "spa": "stroydvorArticle", "spp": "stroydvorPrice",
-                      "spls": "stroydvorLastSyncAt", "spis": "stroydvorInStock", "spurl": "stroydvorUrl"}
+                      "spls": "stroydvorLastSyncAt", "spis": "stroydvorInStock", "spurl": "stroydvorUrl",
+                      "comments": "comments", "clientPrices": "clientPrices"}
     ordinary_response = request("GET", "/api/for-admin/materials", auth=True)
     compact_response = request("GET", path, auth=True)
     expect(ordinary_response[0], 200, "Обычный административный список")
@@ -346,6 +347,10 @@ def create_manufacturer(name):
     manufacturer_id = json_body(response)["id"]
     created_manufacturers.append(manufacturer_id)
     return manufacturer_id
+
+
+def material_in_stock(row):
+    return row["count"] > 0 and (row.get("stroydvorProductId") is None or row.get("stroydvorInStock", False))
 
 
 def material_model(name, category_id, image=None):
@@ -701,8 +706,8 @@ def run_material_search_scenarios(prefix):
         equal({item["value"]: item["count"] for item in facets["depths"]}, depth_counts,
               "Фасеты числовых толщин: " + term)
         equal({item["value"]: item["count"] for item in facets["availability"]},
-              {True: sum(rows[entity_id]["count"] > 0 for entity_id in expected_ids),
-               False: sum(rows[entity_id]["count"] < 1 for entity_id in expected_ids)},
+              {True: sum(material_in_stock(rows[entity_id]) for entity_id in expected_ids),
+               False: sum(not material_in_stock(rows[entity_id]) for entity_id in expected_ids)},
               "Наличие в фасетах: " + term)
 
     for term in ("HDF Белый A-42 ТестБренд", "тестбренд a-42 белый hdf", "Белый HDF A-4",
@@ -852,7 +857,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
             if key != excluded and not (excluded == "depths" and key == "thicknessIds") and params.get(key) and row[key[:-1] if (key.endswith("Ids") or key == "depths") else key] not in params[key]:
                 return False
         if excluded != "inStock" and "inStock" in params:
-            if (row["count"] > 0) != (params["inStock"] == "true"):
+            if material_in_stock(row) != (params["inStock"] == "true"):
                 return False
         return True
 
@@ -940,7 +945,7 @@ def run_search_facet_scenarios(prefix, dimension_base):
             actual = body[group]
             equal({item[key]: item["count"] for item in actual}, expected, group + " counts")
             equal([item[key] for item in actual], list(expected), group + " order/duplicates")
-        counts = {value: sum(matches(r, params, "inStock") and (r["count"] > 0) == value for r in rows)
+        counts = {value: sum(matches(r, params, "inStock") and material_in_stock(r) == value for r in rows)
                   for value in (True, False)}
         equal({item["value"]: item["count"] for item in body["availability"]}, counts, "availability")
         equal(len(body["availability"]), 2, "availability unique")
@@ -1398,7 +1403,7 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
         wrapper = schema_fields(result_name, {"items"})
         equal(wrapper["items"]["type"], "array", "Массив материалов Calculate")
         assert "#/components/schemas/" + item_name in json.dumps(wrapper["items"]), "Схема элемента Calculate"
-        fields = schema_fields(item_name, {"id", "name", "article", "category"})
+        fields = schema_fields(item_name, {"id", "name", "article", "category", "clientComments", "inStock", "isSupplierPrice"})
         id_types = fields["id"]["type"]
         assert id_types == "integer" or (isinstance(id_types, list) and "integer" in id_types), "Тип Id Calculate включает integer"
         for name in ("name", "article"):
@@ -1446,7 +1451,7 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
     assert re.search("[А-Яа-я]", material_parameter.get("description", "")), "Описание route Id материала"
     material_response_schema = material_operation["responses"]["200"]["content"]["application/json"]["schema"]
     assert "#/components/schemas/GetMaterialForCalculateQueryResult" in json.dumps(material_response_schema), "Схема одиночного ответа Calculate"
-    material_fields = schema_fields("GetMaterialForCalculateQueryResult", {"id", "width", "height"})
+    material_fields = schema_fields("GetMaterialForCalculateQueryResult", {"id", "width", "height", "price", "name", "article", "clientComments", "inStock", "isSupplierPrice"})
     for name in ("id", "width", "height"):
         field_types = material_fields[name]["type"]
         assert "integer" in (field_types if isinstance(field_types, list) else [field_types]), "Тип поля одиночного ответа включает integer: " + name
@@ -1491,6 +1496,11 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
             equal(len(actual), len(items), "Id материалов Calculate не повторяются")
             projection = {entity_id: {name: row[name] for name in ("id", "name", "article", "category")}
                           for entity_id, row in expected.items()}
+            for entity_id, row in projection.items():
+                row["clientComments"] = [comment["text"] for comment in expected[entity_id]["comments"]
+                                         if comment["isForClient"]]
+                row["inStock"] = material_in_stock(expected[entity_id])
+                row["isSupplierPrice"] = expected[entity_id]["stroydvorPrice"] > 0
             if with_category_order:
                 category_orders = {category["id"]: category["orderByCol"] for category in categories()}
                 for row in projection.values():
@@ -1506,7 +1516,11 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
         def check_material(response, entity_id, model):
             expect(response[0], 200, "Одиночное чтение материала Calculate")
             body = json_body(response)
-            equal(set(body), {"id", "width", "height"}, "Ровно три поля одиночного ответа Calculate")
+            equal(set(body), {"id", "width", "height", "price", "name", "article", "clientComments", "inStock", "isSupplierPrice"},
+                  "Поля одиночного ответа Calculate")
+            equal(body["clientComments"], [], "Нет комментариев у нового материала")
+            equal(body["inStock"], material_in_stock(model), "Наличие нового материала")
+            equal(body["isSupplierPrice"], False, "Новый материал использует нашу цену")
             assert type(body["id"]) is int, "Id одиночного материала — число integer"
             equal(body["id"], entity_id, "Id одиночного материала")
             for name in ("width", "height"):
@@ -1571,9 +1585,16 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
         expect(public_response[0], 200, "Публичная карточка видимого материала")
         public_card = json_body(public_response)
         public_fields = {"id", "name", "article", "category", "sheetSize", "manufacturer", "materialType",
-                         "thickness", "images", "count", "commentOnMaterialIsRequired", "orderByCol"}
+                         "thickness", "images", "count", "commentOnMaterialIsRequired", "orderByCol", "clientComments",
+                         "inStock", "isSupplierPrice", "clientPrices"}
         equal(set(public_card), public_fields, "Прежний полный контракт публичной карточки без kvM/perimetrM")
-        for name in public_fields - {"images"}:
+        equal(public_card["clientComments"], [comment["text"] for comment in admin_before["comments"]
+                                                if comment["isForClient"]], "Только клиентские комментарии публичной карточки")
+        equal(public_card["inStock"], material_in_stock(admin_before), "Наличие публичной карточки")
+        equal(public_card["isSupplierPrice"], admin_before["stroydvorPrice"] > 0, "Источник цены публичной карточки")
+        equal(public_card["clientPrices"], None if admin_before["hidePriceOnSite"] else admin_before["clientPrices"],
+              "Итоговые цены публичной карточки учитывают скрытие")
+        for name in public_fields - {"images", "clientComments", "inStock", "isSupplierPrice", "clientPrices"}:
             equal(public_card[name], admin_before[name], "Значение публичной карточки: " + name)
         image_fields = {"original", "thumbnail240", "thumbnail480"}
         equal(public_card["images"], {name: admin_before["images"][name] for name in image_fields},
@@ -1727,6 +1748,32 @@ def run_visibility_scenarios(prefix, hidden_material_id, hidden_material_model,
     mark("VIS-08", "Видимость сайта и ЛК независима для материала и категории; исходная видимость восстановлена")
 
 
+def run_material_client_price_schema_scenario(document):
+    """Целевая проверка схем клиентских цен без HTTP и изменения данных."""
+    schemas = document["components"]["schemas"]
+    prices = schemas["MaterialClientPricesDto"]
+    price_fields = {"privateClientPrice", "wholesaleClientPrice", "individualClientPrice"}
+    equal(set(prices["properties"]), price_fields, "Три итоговые цены MaterialClientPricesDto")
+    equal(set(prices.get("required", [])), price_fields, "Обязательные итоговые цены")
+    for field in prices["properties"].values():
+        field_types = field["type"] if isinstance(field["type"], list) else [field["type"]]
+        assert set(field_types) in ({"number"}, {"number", "string"}), "Числовая итоговая цена без null"
+        assert re.search("[А-Яа-яЁё]", field.get("description", "")), "Русское описание итоговой цены"
+    for name in ("GetMaterialsQueryForAdminItemResult", "GetCompactMaterialsForAdminQueryItem",
+                 "GetMaterialForAdminQueryResult", "GetAllMaterialsQueryItemResult", "PublicMaterialListItemDto",
+                 "GetMaterialQueryResult"):
+        field = schemas[name]["properties"]["clientPrices"]
+        assert "#/components/schemas/MaterialClientPricesDto" in json.dumps(field), "Общий DTO цен: " + name
+        nullable_alternatives = field.get("anyOf", []) + field.get("oneOf", [])
+        assert field.get("nullable") or any(part.get("type") == "null" for part in nullable_alternatives), "Недоступные цены допускают null: " + name
+    for name in ("GetMaterialsForCalculateQueryItem", "GetMaterialForCalculateQueryResult",
+                 "GetMaterialsByIdsForCalculateQueryItem", "CuttingMaterialCatalogItemDto", "GetCuttingMaterialQueryResult"):
+        assert "clientPrices" not in schemas[name]["properties"], "ВЕК и расчётные DTO не содержат итоговых цен: " + name
+    for name in ("GetAllMaterialsQueryItemResult", "PublicMaterialListItemDto", "GetMaterialQueryResult"):
+        assert not {"price", "stroydvorPrice"}.intersection(schemas[name]["properties"]), "Публичные DTO не раскрывают исходные цены: " + name
+    mark("MATERIAL-CLIENT-PRICE-06", "Три обязательные итоговые цены, nullable clientPrices в административных и публичных DTO; ВЕК без итоговых цен")
+
+
 def run_openapi_metadata_scenarios(document):
     """DOC-07/08/09: проверка готового документа без HTTP, авторизации и изменения БД."""
     schemas = document["components"]["schemas"]
@@ -1820,7 +1867,7 @@ def run_openapi_metadata_scenarios(document):
     compact_item = schemas["GetCompactMaterialsForAdminQueryItem"]
     compact_fields = {
         "i", "n", "a", "s", "m", "t", "th", "c", "q", "o", "p", "hideInLk", "h", "hp", "im", "el",
-        "spid", "spa", "spp", "spls", "spis", "spurl"
+        "spid", "spa", "spp", "spls", "spis", "spurl", "comments", "clientPrices"
     }
     equal(set(properties(compact_item)), compact_fields, "Поля компактного материала в OpenAPI")
     equal(required(compact_item), compact_fields, "Обязательные поля компактного материала в OpenAPI")
@@ -1852,6 +1899,7 @@ def main():
     expect(openapi_response[0], 200, "OpenAPI document")
     openapi_document = json_body(openapi_response)
     run_openapi_metadata_scenarios(openapi_document)
+    run_material_client_price_schema_scenario(openapi_document)
     for endpoint in ("/api/materials", "/api/for-admin/materials"):
         equal(openapi_document["paths"][endpoint]["get"].get("parameters", []), [],
               "Полный список не имеет query-параметров в OpenAPI")
@@ -2219,7 +2267,7 @@ def main():
     all_rows = [x for x in public_materials() if prefix in x["name"]]
     for stock in (True, False):
         rows = public_query("search", {"search": prefix, "inStock": str(stock).lower(), "pageSize": 96})["items"]
-        equal({x["id"] for x in rows}, {x["id"] for x in all_rows if (x["count"] > 0) == stock},
+        equal({x["id"] for x in rows}, {x["id"] for x in all_rows if x["inStock"] == stock},
               "Точное множество наличия в поиске")
     for endpoint, auth in (("/api/materials", False), ("/api/for-admin/materials", True)):
         baseline = json_body(request("GET", endpoint, auth=auth))

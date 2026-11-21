@@ -24,7 +24,7 @@ public sealed class DeleteMaterialCommentCommandHandler(CatalogDbContext dbConte
                 ?? throw new BadHttpRequestException("Комментарий материала не найден.");
 
             historyWriter.Add(CatalogHistoryActionTypeEnum.Update, CatalogHistoryEntityTypeEnum.Material, command.Id,
-                $"Материал #{command.Id}: удалён комментарий «{comment.Text}».");
+                $"Материал #{command.Id}: удалён комментарий{(comment.IsForClient ? " для клиента" : string.Empty)} «{comment.Text}».");
             dbContext.MaterialComments.Remove(comment);
             await dbContext.SaveChangesAsync(ct);
             return new DeleteMaterialCommentCommandResult(true);

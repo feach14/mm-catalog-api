@@ -48,8 +48,8 @@ public static partial class StroydvorProductParser
         var materialTypeToken = name?.Split((char[]?)null, 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
         var materialType = StroydvorMaterialScope.GetMaterialType(materialTypeToken);
         if (string.IsNullOrWhiteSpace(name) || materialType is null)
-            throw InvalidProduct("Карточка Стройдвора не относится к ЛДСП или ЛМДФ.",
-                $"Тип материала Стройдвора: «{materialTypeToken ?? "не указан"}», ожидался ЛДСП или ЛМДФ. Название карточки: «{name ?? "не указано"}».");
+            throw InvalidProduct("Карточка Стройдвора не относится к ЛДСП, ЛМДФ или ХДФ.",
+                $"Тип материала Стройдвора: «{materialTypeToken ?? "не указан"}», ожидался ЛДСП, ЛМДФ или ХДФ. Название карточки: «{name ?? "не указано"}».");
 
         var priceMeta = First(main, node => node.Tag == "meta" && node.HasItemProp("price") && !node.IsRelated);
         var cart = First(main, node => node.Attribute("product_id") == productId.ToString(CultureInfo.InvariantCulture)

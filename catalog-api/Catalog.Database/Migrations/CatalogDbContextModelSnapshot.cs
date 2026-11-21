@@ -799,6 +799,12 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("archived_material_id");
 
+                    b.Property<bool>("IsForClient")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_for_client");
+
                     b.Property<int?>("MaterialId")
                         .HasColumnType("integer")
                         .HasColumnName("material_id");

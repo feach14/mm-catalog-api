@@ -27,7 +27,10 @@ public sealed record GetMaterialsForCalculateQueryItem(
     [property: Description("Id")] int Id,
     [property: Description("Полное название")] string Name,
     [property: Description("Артикул")] string Article,
-    [property: Description("Категория")] MaterialCategoryForCalculateDto Category);
+    [property: Description("Категория")] MaterialCategoryForCalculateDto Category,
+    [property: Description("Комментарии для клиента")] string[] ClientComments,
+    [property: Description("Материал есть в наличии")] bool InStock,
+    [property: Description("Используется цена поставщика")] bool IsSupplierPrice);
 
 public sealed record MaterialCategoryForCalculateDto(
     [property: Description("Id")] int Id,
@@ -45,6 +48,8 @@ public sealed class GetMaterialsForCalculateQueryHandler(CatalogDbContext dbCont
             .Select(x => new
             {
                 x.Id,
+                InStock = x.Count > 0 && (!x.StroydvorProductId.HasValue || x.StroydvorInStock),
+                IsSupplierPrice = x.StroydvorPrice > 0,
                 x.Name,
                 x.Article,
                 MaterialTypeName = x.MaterialType.Name,
@@ -52,12 +57,14 @@ public sealed class GetMaterialsForCalculateQueryHandler(CatalogDbContext dbCont
                 x.MaterialSheetSize.Height,
                 x.MaterialSheetSize.Width,
                 ManufacturerName = x.MaterialManufacturer.Name,
-                Category = new MaterialCategoryForCalculateDto(x.CategoryId, x.Category.Name, x.Category.OrderByCol)
+                Category = new MaterialCategoryForCalculateDto(x.CategoryId, x.Category.Name, x.Category.OrderByCol),
+                ClientComments = x.Comments.Where(comment => comment.IsForClient).OrderBy(comment => comment.Id)
+                    .Select(comment => comment.Text).ToArray()
             })
             .ToArrayAsync(ct);
         var items = rows.Select(x => new GetMaterialsForCalculateQueryItem(x.Id,
             MaterialNameHelper.GetFullName(x.Name, x.MaterialTypeName, x.Thickness,
-                x.Height, x.Width, x.ManufacturerName), x.Article, x.Category)).ToArray();
+                x.Height, x.Width, x.ManufacturerName), x.Article, x.Category, x.ClientComments, x.InStock, x.IsSupplierPrice)).ToArray();
 
         return new GetMaterialsForCalculateQueryResult(items);
     }

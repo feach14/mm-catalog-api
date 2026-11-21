@@ -14,7 +14,10 @@ public sealed record GetCuttingMaterialQueryResult(
     [property: Description("Название")] string Name,
     [property: Description("Разрешена вторая позиция в заявке")] bool AllowSecondItemInOrder,
     [property: Description("Ссылка на внешний источник")] string? ExternalLink,
-    [property: Description("Прикреплённые кромки")] CuttingMaterialEdgeDto[] Edges);
+    [property: Description("Прикреплённые кромки")] CuttingMaterialEdgeDto[] Edges,
+    [property: Description("Комментарии для клиента")] string[] ClientComments,
+    [property: Description("Материал есть в наличии")] bool InStock,
+    [property: Description("Используется цена поставщика")] bool IsSupplierPrice);
 
 public sealed record CuttingMaterialEdgeDto(
     [property: Description("Id")] int Id,
@@ -39,6 +42,8 @@ public sealed class GetCuttingMaterialQueryHandler(CatalogDbContext dbContext)
             .Select(x => new
             {
                 x.Id,
+                InStock = x.Count > 0 && (!x.StroydvorProductId.HasValue || x.StroydvorInStock),
+                IsSupplierPrice = x.StroydvorPrice > 0,
                 x.Name,
                 MaterialTypeName = x.MaterialType.Name,
                 Thickness = x.MaterialThickness.Value,
@@ -53,6 +58,8 @@ public sealed class GetCuttingMaterialQueryHandler(CatalogDbContext dbContext)
                 .Select(x => new
                 {
                     x.Id,
+                    InStock = x.Count > 0 && (!x.StroydvorProductId.HasValue || x.StroydvorInStock),
+                    IsSupplierPrice = x.StroydvorPrice > 0,
                     x.Name,
                     MaterialTypeName = x.MaterialType.Name,
                     Thickness = x.MaterialThickness.Value,
@@ -90,9 +97,16 @@ public sealed class GetCuttingMaterialQueryHandler(CatalogDbContext dbContext)
             link.Thickness, link.Width, link.IsStockItem,
             link.QuantityMultiple, link.SaleUnitType, link.Priority, link.Markings)).ToArray();
 
+        var clientComments = await dbContext.MaterialComments.AsNoTracking()
+            .Where(comment => comment.IsForClient
+                && (comment.MaterialId == material.Id || comment.ArchivedMaterialId == material.Id))
+            .OrderBy(comment => comment.Id)
+            .Select(comment => comment.Text)
+            .ToArrayAsync(ct);
+
         return new GetCuttingMaterialQueryResult(material.Id,
             MaterialNameHelper.GetFullName(material.Name, material.MaterialTypeName, material.Thickness,
                 material.Height, material.Width, material.ManufacturerName),
-            material.AllowSecondItemInOrder, material.ExternalLink, edges);
+            material.AllowSecondItemInOrder, material.ExternalLink, edges, clientComments, material.InStock, material.IsSupplierPrice);
     }
 }

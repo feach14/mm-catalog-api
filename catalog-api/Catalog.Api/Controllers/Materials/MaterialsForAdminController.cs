@@ -143,7 +143,7 @@ public class MaterialsForAdminController : BaseAdministrationApiController
 
     [HttpPost("{id:int}/comments"),
      EndpointSummary(nameof(AddMaterialComment)),
-     EndpointDescription("Добавление комментария менеджера"),
+     EndpointDescription("Добавление комментария"),
      ProducesResponseType(typeof(MaterialCommentDto), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Добавленный комментарий")]
     public Task<MaterialCommentDto> AddMaterialComment(
         [FromRoute, Description("Id материала")] int id,
@@ -153,7 +153,7 @@ public class MaterialsForAdminController : BaseAdministrationApiController
 
     [HttpDelete("{id:int}/comments/{commentId:int}"),
      EndpointSummary(nameof(DeleteMaterialComment)),
-     EndpointDescription("Удаление комментария менеджера"),
+     EndpointDescription("Удаление комментария"),
      ProducesResponseType(typeof(DeleteMaterialCommentCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
     public Task<DeleteMaterialCommentCommandResult> DeleteMaterialComment(
         [FromRoute, Description("Id материала")] int id,

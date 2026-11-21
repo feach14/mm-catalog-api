@@ -36,7 +36,8 @@ public sealed record GetMaterialForAdminQueryResult(
     [property: Description("В наличии в Стройдворе")] bool StroydvorInStock,
     [property: Description("Материал в архиве")] bool IsArchived,
     [property: Description("Id исходного материала до переноса в архив")] int? OriginalMaterialId,
-    [property: Description("Комментарии менеджеров")] MaterialCommentDto[] Comments)
+    [property: Description("Комментарии")] MaterialCommentDto[] Comments,
+    [property: Description("Цены для клиентов; null при временной недоступности расчёта")] MaterialClientPricesDto? ClientPrices)
 {
     [Description("Техническая ссылка на товар Стройдвора")]
     public string? StroydvorUrl => StroydvorProductId is { } id ? $"https://stroydvor21.ru/products/{id}" : null;
@@ -44,10 +45,12 @@ public sealed record GetMaterialForAdminQueryResult(
 
 public class GetMaterialForAdminQueryHandler(
     CatalogDbContext dbContext,
-    IQueryHandler<GetArchivedMaterialForAdminQuery, GetMaterialForAdminQueryResult> archivedHandler) : IQueryHandler<GetMaterialForAdminQuery, GetMaterialForAdminQueryResult>
+    IQueryHandler<GetArchivedMaterialForAdminQuery, GetMaterialForAdminQueryResult> archivedHandler,
+    IQueryHandler<GetMaterialClientPricePercentagesQuery, MaterialClientPricePercentages?> percentagesHandler) : IQueryHandler<GetMaterialForAdminQuery, GetMaterialForAdminQueryResult>
 {
-    public async Task<GetMaterialForAdminQueryResult> Handle(GetMaterialForAdminQuery query, CancellationToken ct) =>
-        await dbContext.Materials.AsNoTracking()
+    public async Task<GetMaterialForAdminQueryResult> Handle(GetMaterialForAdminQuery query, CancellationToken ct)
+    {
+        var material = await dbContext.Materials.AsNoTracking()
             .Where(x => x.Id == query.Id)
             .Select(x => new GetMaterialForAdminQueryResult(
                 x.Id,
@@ -115,7 +118,13 @@ public class GetMaterialForAdminQueryHandler(
                 false,
                 null,
                 x.Comments.OrderBy(comment => comment.Id)
-                    .Select(comment => new MaterialCommentDto(comment.Id, comment.Text)).ToArray()))
-            .SingleOrDefaultAsync(ct)
-        ?? await archivedHandler.Handle(new GetArchivedMaterialForAdminQuery(query.Id), ct);
+                    .Select(comment => new MaterialCommentDto(comment.Id, comment.Text, comment.IsForClient)).ToArray(),
+                null))
+            .SingleOrDefaultAsync(ct);
+        if (material is null)
+            return await archivedHandler.Handle(new GetArchivedMaterialForAdminQuery(query.Id), ct);
+
+        var percentages = await percentagesHandler.Handle(new GetMaterialClientPricePercentagesQuery(), ct);
+        return material with { ClientPrices = percentages?.GetPrices(material.Price, material.StroydvorPrice) };
+    }
 }
