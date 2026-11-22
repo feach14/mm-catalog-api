@@ -30,7 +30,7 @@ public sealed record GetMaterialsForCalculateQueryItem(
     [property: Description("Категория")] MaterialCategoryForCalculateDto Category,
     [property: Description("Комментарии для клиента")] string[] ClientComments,
     [property: Description("Материал есть в наличии")] bool InStock,
-    [property: Description("Используется цена поставщика")] bool IsSupplierPrice);
+    [property: Description("Признак цены поставщика; true также при выключенной связи")] bool IsSupplierPrice);
 
 public sealed record MaterialCategoryForCalculateDto(
     [property: Description("Id")] int Id,
@@ -49,7 +49,7 @@ public sealed class GetMaterialsForCalculateQueryHandler(CatalogDbContext dbCont
             {
                 x.Id,
                 InStock = x.Count > 0 && (!x.StroydvorProductId.HasValue || x.StroydvorInStock),
-                IsSupplierPrice = x.StroydvorPrice > 0,
+                IsSupplierPrice = !x.StroydvorEnabled || x.StroydvorPrice > 0,
                 x.Name,
                 x.Article,
                 MaterialTypeName = x.MaterialType.Name,

@@ -20,7 +20,7 @@ public sealed class SyncLinkedMaterialsStroydvorCommandHandler(
     public async Task<SyncLinkedMaterialsStroydvorCommandResult> Handle(SyncLinkedMaterialsStroydvorCommand command, CancellationToken ct)
     {
         var materials = await dbContext.Materials.AsNoTracking()
-            .Where(x => x.StroydvorProductId > 0)
+            .Where(x => x.StroydvorEnabled && x.StroydvorProductId > 0)
             .Select(x => new
             {
                 x.Id,

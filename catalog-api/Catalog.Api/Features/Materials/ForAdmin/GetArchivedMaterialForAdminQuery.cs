@@ -74,6 +74,7 @@ public class GetArchivedMaterialForAdminQueryHandler(
                 x.HideOnSite,
                 x.HidePriceOnSite,
                 x.CountTypeEnum,
+                x.StroydvorEnabled,
                 x.StroydvorProductId,
                 x.StroydvorArticle,
                 x.StroydvorPrice,

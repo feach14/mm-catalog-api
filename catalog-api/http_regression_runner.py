@@ -286,6 +286,7 @@ def run_compact_materials_scenario():
     renamed_fields = {"i": "id", "n": "name", "a": "article", "q": "count", "p": "price",
                       "o": "orderByCol", "h": "hideOnSite", "hp": "hidePriceOnSite",
                       "hideInLk": "hideInLk", "el": "externalLink",
+                      "stroydvorEnabled": "stroydvorEnabled",
                       "spid": "stroydvorProductId", "spa": "stroydvorArticle", "spp": "stroydvorPrice",
                       "spls": "stroydvorLastSyncAt", "spis": "stroydvorInStock", "spurl": "stroydvorUrl",
                       "comments": "comments", "clientPrices": "clientPrices"}
@@ -353,6 +354,10 @@ def material_in_stock(row):
     return row["count"] > 0 and (row.get("stroydvorProductId") is None or row.get("stroydvorInStock", False))
 
 
+def material_is_supplier_price(row):
+    return not row.get("stroydvorEnabled", False) or row.get("stroydvorPrice", 0) > 0
+
+
 def material_model(name, category_id, image=None):
     return {
         "categoryId": category_id,
@@ -366,6 +371,7 @@ def material_model(name, category_id, image=None):
         "thicknessId": thickness_ids[18],
         "commentOnMaterialIsRequired": False,
         "allowSecondItemInOrder": True,
+        "stroydvorEnabled": True,
         "externalLink": "https://example.test/material",
         "price": 123.45,
         "hideOnSite": False,
@@ -827,6 +833,180 @@ def run_material_search_only():
     equal(history(search=run_prefix)["totalCount"], 0, "Тестер не создаёт историю каталога")
     mark("FIN-04", "Тестовые материалы и справочники удалены; тестовая история отсутствует")
     print(json.dumps({"success": not failures, "mode": "material-search", "prefix": run_prefix,
+                      "results": results, "failures": failures}, ensure_ascii=False, indent=2))
+    return not failures
+
+
+def run_material_supplier_toggle_only():
+    global cookie, run_prefix
+    validate_regression_environment()
+    run_prefix = "codex-supplier-toggle-" + uuid.uuid4().hex[:10]
+    print("Префикс тестовых данных: " + run_prefix, file=sys.stderr, flush=True)
+    start_server()
+    credentials = load_test_credentials(roles=("tester",))
+    cookie = signin(credentials["tester"], credentials["password"], "Тестер")
+    path = "/api/for-admin/materials"
+
+    def read(endpoint, auth=True):
+        response = request("GET", endpoint, auth=auth)
+        expect(response[0], 200, "Чтение " + endpoint)
+        return json_body(response)
+
+    schemas = read("/swagger/v1/swagger.json", auth=False)["components"]["schemas"]
+
+    def properties(schema):
+        if "$ref" in schema:
+            return properties(schemas[schema["$ref"].rsplit("/", 1)[1]])
+        fields = dict(schema.get("properties", {}))
+        for part in schema.get("allOf", []):
+            fields.update(properties(part))
+        return fields
+
+    for name in ("CreateMaterialModel", "UpdateMaterialModel", "GetMaterialForAdminQueryResult",
+                 "GetMaterialsQueryForAdminItemResult", "GetCompactMaterialsForAdminQueryItem"):
+        field = properties(schemas[name])["stroydvorEnabled"]
+        equal(field["type"], "boolean", "Булев тип stroydvorEnabled: " + name)
+        assert re.search("[А-Яа-я]", field.get("description", "")), "Русское описание: " + name
+    mark("MATERIAL-SUPPLIER-01", "Галка описана одним именем stroydvorEnabled во входных, полных и compact схемах")
+
+    material_types = read(path + "/material-types")["items"]
+    eligible = [row for row in material_types if not row.get("hideOnSite", False)
+                and row["name"].strip().upper() in {"ЛДСП", "ЛМДФ", "ХДФ", "LDSP", "LMDF", "HDF"}]
+    assert eligible, "Для проверки нужен видимый справочный тип ЛДСП, ЛМДФ или ХДФ"
+    thicknesses = read(path + "/thicknesses")["items"]
+    assert thicknesses, "Для проверки нужна существующая толщина материала"
+    category_id = create_category(run_prefix + "-категория")
+    manufacturer_id = create_manufacturer(run_prefix + "-производитель")
+    dimension = 100000 + int(uuid.uuid4().hex[:5], 16)
+    size_id = create_sheet_size(run_prefix + "-формат", dimension, dimension + 1)
+
+    def model(suffix, **values):
+        return {
+            "categoryId": category_id, "sheetSizeId": size_id, "manufacturerId": manufacturer_id,
+            "materialTypeId": eligible[0]["id"], "thicknessId": thicknesses[0]["id"],
+            "name": run_prefix + "-" + suffix, "article": run_prefix + "-" + suffix,
+            "count": 2, "price": 123.45, "countTypeEnum": "M2",
+            "hideOnSite": False, "hideInLk": False, "hidePriceOnSite": True, **values
+        }
+
+    default_model = model("default")
+    default_id = create_material(default_model)
+    linked_model = model("linked", stroydvorEnabled=False, stroydvorProductId=2147480000)
+    linked_id = create_material(linked_model)
+    zero_model = model("zero", stroydvorEnabled=False, count=0)
+    zero_id = create_material(zero_model)
+
+    def card(entity_id):
+        return read(f"{path}/{entity_id}")
+
+    def snapshot(row):
+        return {name: row[name] for name in ("stroydvorProductId", "stroydvorArticle", "stroydvorPrice",
+                                           "stroydvorLastSyncAt", "stroydvorInStock", "stroydvorUrl", "price", "count")}
+
+    initial_linked = snapshot(card(linked_id))
+    equal(card(default_id)["stroydvorEnabled"], False, "Выключено по умолчанию при создании без поля")
+    equal(card(linked_id)["stroydvorEnabled"], False, "Явное выключение при создании")
+
+    def check_admin(entity_id, enabled, archived=False):
+        equal(card(entity_id)["stroydvorEnabled"], enabled, "Галка в административной карточке")
+        suffix = "/archive" if archived else ""
+        rows = read(path + suffix)["items"]
+        equal(next(row for row in rows if row["id"] == entity_id)["stroydvorEnabled"], enabled,
+              "Галка в полном административном списке")
+        compact = read(path + suffix + "/compact")["items"]
+        equal(next(row for row in compact if row["i"] == entity_id)["stroydvorEnabled"], enabled,
+              "Галка с полным именем в compact")
+
+    def check_clients(expected):
+        listings = [
+            read("/api/materials", auth=False)["items"],
+            public_query("search", {"categoryIds": category_id, "pageSize": 100})["items"],
+            read("/api/for-vek-lk/materials")["items"],
+            read("/api/for-calculate/materials?" + urllib.parse.urlencode({"search": run_prefix}))["items"]
+        ]
+        response = request("POST", "/api/for-calculate/materials/by-ids", {"materialIds": list(expected)}, auth=True)
+        expect(response[0], 200, "Calculate по Id для проверки галки")
+        listings.append(json_body(response)["items"])
+        for entity_id, (supplier_price, in_stock) in expected.items():
+            rows = [next(row for row in listing if row["id"] == entity_id) for listing in listings]
+            for endpoint, auth in (("/api/materials/", False), ("/api/for-vek-lk/materials/", True),
+                                   ("/api/for-calculate/materials/", False)):
+                rows.append(read(endpoint + str(entity_id), auth=auth))
+            for row in rows:
+                equal(row["isSupplierPrice"], supplier_price, "isSupplierPrice во всех восьми клиентских выдачах")
+                equal(row["inStock"], in_stock, "Галка не меняет правило наличия")
+                if "count" in row:
+                    equal(row["count"], 0 if entity_id == zero_id else 2, "Исходный остаток сохранён")
+            equal(rows[-1]["price"], 123.45, "Галка не меняет числовую цену Calculate")
+
+    check_admin(default_id, False)
+    check_admin(linked_id, False)
+    check_clients({default_id: (True, True), linked_id: (True, False), zero_id: (True, False)})
+    mark("MATERIAL-SUPPLIER-02", "По умолчанию связь выключена и isSupplierPrice=true без изменения наличия и числовой цены")
+
+    expect(request("PUT", f"{path}/{default_id}", dict(default_model, stroydvorEnabled=True), auth=True)[0],
+           200, "Явное включение связи")
+    check_admin(default_id, True)
+    default_model["name"] += "-default"
+    expect(request("PUT", f"{path}/{default_id}", default_model, auth=True)[0], 200, "Изменение без галки использует значение по умолчанию")
+    check_admin(default_id, False)
+    linked_model["stroydvorEnabled"] = True
+    expect(request("PUT", f"{path}/{linked_id}", linked_model, auth=True)[0], 200, "Повторное включение связи")
+    check_admin(linked_id, True)
+    equal(snapshot(card(linked_id)), initial_linked, "Включение сохраняет Id и снимок поставщика")
+    check_clients({default_id: (True, True), linked_id: (False, False), zero_id: (True, False)})
+    mark("MATERIAL-SUPPLIER-03", "Повторное включение возвращает прежнее правило; отсутствие поля в update выключает связь по умолчанию")
+
+    linked_model["stroydvorEnabled"] = False
+    expect(request("PUT", f"{path}/{linked_id}", linked_model, auth=True)[0], 200, "Повторное выключение связи")
+    equal(snapshot(card(linked_id)), initial_linked, "Выключение сохраняет Id и снимок поставщика")
+    for endpoint, data in ((f"{path}/{linked_id}/stroydvor/sync", None),
+                           (path + "/stroydvor/sync", {"ids": [linked_id]})):
+        response = request("POST", endpoint, data, auth=True)
+        problem(response, "Синхронизация выключенной связи")
+        assert "выключ" in json_body(response).get("detail", "").lower(), "Отказ должен сообщать о выключенной связи"
+    equal(snapshot(card(linked_id)), initial_linked, "Отклонённая синхронизация не меняет снимок")
+    mark("MATERIAL-SUPPLIER-04", "Одиночная и пакетная синхронизация выключенного материала отклоняются до запроса поставщика")
+
+    clone_response = request("POST", f"{path}/{linked_id}/clone", auth=True)
+    expect(clone_response[0], 200, "Клонирование выключенной связи")
+    clone_id = json_body(clone_response)["newMaterialId"]
+    created_materials.append(clone_id)
+    check_admin(clone_id, False)
+    equal(snapshot(card(clone_id)), initial_linked, "Копия сохраняет галку и снимок")
+    expect(request("POST", f"{path}/{linked_id}/archive", auth=True)[0], 200, "Архивирование выключенной связи")
+    check_admin(linked_id, False, archived=True)
+    archived_model = dict(linked_model)
+    archived_model.pop("stroydvorEnabled")
+    archived_model["name"] += "-archive"
+    expect(request("PUT", f"{path}/{linked_id}", dict(archived_model, stroydvorEnabled=True), auth=True)[0],
+           200, "Включение связи в архиве")
+    check_admin(linked_id, True, archived=True)
+    expect(request("PUT", f"{path}/{linked_id}", archived_model, auth=True)[0], 200, "Изменение архива без галки")
+    equal(card(linked_id)["stroydvorEnabled"], False, "Изменение архива без поля выключает связь по умолчанию")
+    expect(request("PUT", f"{path}/{linked_id}", dict(archived_model, stroydvorEnabled=False), auth=True)[0],
+           200, "Выключение связи в архиве")
+    equal(snapshot(card(linked_id)), initial_linked, "Редактирование архива сохраняет снимок")
+    for endpoint, auth in (("/api/for-vek-lk/materials/", True), ("/api/for-calculate/materials/", False)):
+        archived_card = read(endpoint + str(linked_id), auth=auth)
+        equal(archived_card["isSupplierPrice"], True, "Выключенная архивная карточка")
+        equal(archived_card["inStock"], False, "Наличие архивной карточки не изменилось")
+    archived_response = request("POST", "/api/for-calculate/materials/by-ids", {"materialIds": [linked_id]}, auth=True)
+    expect(archived_response[0], 200, "Calculate по Id архивного материала")
+    equal(json_body(archived_response)["items"][0]["isSupplierPrice"], True, "Галка архивного материала по Id")
+    expect(request("POST", f"{path}/{linked_id}/restore", auth=True)[0], 200, "Восстановление выключенной связи")
+    check_admin(linked_id, False)
+    equal(snapshot(card(linked_id)), initial_linked, "Восстановление сохраняет галку и снимок")
+    check_clients({default_id: (True, True), linked_id: (True, False), zero_id: (True, False), clone_id: (True, False)})
+    mark("MATERIAL-SUPPLIER-05", "Галка, Id и снимок сохраняются при клонировании, архивировании, редактировании архива и восстановлении")
+
+    cleanup()
+    equal(sum(map(len, (created_materials, created_categories, created_sheet_sizes, created_manufacturers))),
+          0, "Очистка тестовых данных переключателя")
+    equal(public_query("search", {"search": run_prefix})["totalCount"], 0, "Тестовые материалы удалены")
+    equal(history(search=run_prefix)["totalCount"], 0, "Тестер не создаёт историю каталога")
+    mark("FIN-04", "Тестовые материалы и справочники удалены; тестовая история отсутствует")
+    print(json.dumps({"success": not failures, "mode": "material-supplier-toggle", "prefix": run_prefix,
                       "results": results, "failures": failures}, ensure_ascii=False, indent=2))
     return not failures
 
@@ -1500,7 +1680,7 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
                 row["clientComments"] = [comment["text"] for comment in expected[entity_id]["comments"]
                                          if comment["isForClient"]]
                 row["inStock"] = material_in_stock(expected[entity_id])
-                row["isSupplierPrice"] = expected[entity_id]["stroydvorPrice"] > 0
+                row["isSupplierPrice"] = material_is_supplier_price(expected[entity_id])
             if with_category_order:
                 category_orders = {category["id"]: category["orderByCol"] for category in categories()}
                 for row in projection.values():
@@ -1591,7 +1771,7 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
         equal(public_card["clientComments"], [comment["text"] for comment in admin_before["comments"]
                                                 if comment["isForClient"]], "Только клиентские комментарии публичной карточки")
         equal(public_card["inStock"], material_in_stock(admin_before), "Наличие публичной карточки")
-        equal(public_card["isSupplierPrice"], admin_before["stroydvorPrice"] > 0, "Источник цены публичной карточки")
+        equal(public_card["isSupplierPrice"], material_is_supplier_price(admin_before), "Признак цены публичной карточки")
         equal(public_card["clientPrices"], None if admin_before["hidePriceOnSite"] else admin_before["clientPrices"],
               "Итоговые цены публичной карточки учитывают скрытие")
         for name in public_fields - {"images", "clientComments", "inStock", "isSupplierPrice", "clientPrices"}:
@@ -1867,7 +2047,7 @@ def run_openapi_metadata_scenarios(document):
     compact_item = schemas["GetCompactMaterialsForAdminQueryItem"]
     compact_fields = {
         "i", "n", "a", "s", "m", "t", "th", "c", "q", "o", "p", "hideInLk", "h", "hp", "im", "el",
-        "spid", "spa", "spp", "spls", "spis", "spurl", "comments", "clientPrices"
+        "stroydvorEnabled", "spid", "spa", "spp", "spls", "spis", "spurl", "comments", "clientPrices"
     }
     equal(set(properties(compact_item)), compact_fields, "Поля компактного материала в OpenAPI")
     equal(required(compact_item), compact_fields, "Обязательные поля компактного материала в OpenAPI")
@@ -2545,11 +2725,16 @@ def main():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="HTTP-проверки Catalog API в mm-debug")
-    parser.add_argument("--material-search", action="store_true",
-                        help="Проверить только поиск материалов и автоматическое обновление SearchText")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--material-search", action="store_true",
+                       help="Проверить только поиск материалов и автоматическое обновление SearchText")
+    modes.add_argument("--material-supplier-toggle", action="store_true",
+                       help="Проверить только переключатель связи материала со Стройдвором")
     args = parser.parse_args()
     try:
-        if not (run_material_search_only() if args.material_search else main()):
+        run = run_material_search_only if args.material_search else (
+            run_material_supplier_toggle_only if args.material_supplier_toggle else main)
+        if not run():
             sys.exit(1)
     except Exception as error:
         try:

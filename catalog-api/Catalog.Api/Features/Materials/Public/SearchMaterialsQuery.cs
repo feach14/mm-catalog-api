@@ -109,7 +109,7 @@ public sealed record PublicMaterialListItemDto(
     [property: Description("Изображения материала")] PublicMaterialImagesDto Images,
     [property: Description("Материал есть в наличии")] bool InStock,
     [property: Description("Комментарии для клиента")] string[] ClientComments,
-    [property: Description("Используется цена поставщика")] bool IsSupplierPrice,
+    [property: Description("Признак цены поставщика; true также при выключенной связи")] bool IsSupplierPrice,
     [property: Description("Цены для клиентов; null при скрытой цене или временной недоступности расчёта")] MaterialClientPricesDto? ClientPrices
 );
 
@@ -156,7 +156,7 @@ public sealed class SearchMaterialsQueryHandler(
                     x.Count > 0 && (!x.StroydvorProductId.HasValue || x.StroydvorInStock),
                     x.Comments.Where(comment => comment.IsForClient).OrderBy(comment => comment.Id)
                         .Select(comment => comment.Text).ToArray(),
-                    x.StroydvorPrice > 0,
+                    !x.StroydvorEnabled || x.StroydvorPrice > 0,
                     null),
                 x.Price,
                 x.StroydvorPrice,

@@ -38,6 +38,7 @@ public class UpdateArchivedMaterialCommandHandler(
         AddChange(changes, "обязательный комментарий", material.CommentOnMaterialIsRequired, command.Material.CommentOnMaterialIsRequired);
         AddChange(changes, "второй элемент в заказе", material.AllowSecondItemInOrder, command.Material.AllowSecondItemInOrder);
         AddChange(changes, "цена", material.Price, command.Material.Price);
+        AddChange(changes, "связь со Стройдвором включена", material.StroydvorEnabled, command.Material.StroydvorEnabled);
         if (command.Material.StroydvorProductIdSpecified)
             AddChange(changes, "Id товара Стройдвора", material.StroydvorProductId, command.Material.StroydvorProductId);
         AddChange(changes, "скрыт в ЛК", material.HideInLk, command.Material.HideInLk);
@@ -63,6 +64,7 @@ public class UpdateArchivedMaterialCommandHandler(
         material.AllowSecondItemInOrder = command.Material.AllowSecondItemInOrder;
         material.ExternalLink = command.Material.ExternalLink;
         material.Price = command.Material.Price;
+        material.StroydvorEnabled = command.Material.StroydvorEnabled;
         if (command.Material.StroydvorProductIdSpecified && material.StroydvorProductId != command.Material.StroydvorProductId)
         {
             material.StroydvorProductId = command.Material.StroydvorProductId;

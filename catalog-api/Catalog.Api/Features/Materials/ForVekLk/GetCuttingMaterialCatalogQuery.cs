@@ -22,7 +22,7 @@ public sealed record CuttingMaterialCatalogItemDto(
     [property: Description("GUID миниатюры: 240 пикселей, иначе 480")] Guid? Image,
     [property: Description("Комментарии для клиента")] string[] ClientComments,
     [property: Description("Материал есть в наличии")] bool InStock,
-    [property: Description("Используется цена поставщика")] bool IsSupplierPrice);
+    [property: Description("Признак цены поставщика; true также при выключенной связи")] bool IsSupplierPrice);
 
 public sealed record CuttingMaterialCatalogCategoryDto(
     [property: Description("Id")] int Id,
@@ -44,7 +44,7 @@ public sealed class GetCuttingMaterialCatalogQueryHandler(CatalogDbContext dbCon
             {
                 x.Id,
                 InStock = x.Count > 0 && (!x.StroydvorProductId.HasValue || x.StroydvorInStock),
-                IsSupplierPrice = x.StroydvorPrice > 0,
+                IsSupplierPrice = !x.StroydvorEnabled || x.StroydvorPrice > 0,
                 Material = x,
                 x.Article,
                 x.CategoryId,

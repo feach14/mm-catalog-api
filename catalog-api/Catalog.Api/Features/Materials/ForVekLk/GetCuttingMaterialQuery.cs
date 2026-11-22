@@ -17,7 +17,7 @@ public sealed record GetCuttingMaterialQueryResult(
     [property: Description("Прикреплённые кромки")] CuttingMaterialEdgeDto[] Edges,
     [property: Description("Комментарии для клиента")] string[] ClientComments,
     [property: Description("Материал есть в наличии")] bool InStock,
-    [property: Description("Используется цена поставщика")] bool IsSupplierPrice);
+    [property: Description("Признак цены поставщика; true также при выключенной связи")] bool IsSupplierPrice);
 
 public sealed record CuttingMaterialEdgeDto(
     [property: Description("Id")] int Id,
@@ -43,7 +43,7 @@ public sealed class GetCuttingMaterialQueryHandler(CatalogDbContext dbContext)
             {
                 x.Id,
                 InStock = x.Count > 0 && (!x.StroydvorProductId.HasValue || x.StroydvorInStock),
-                IsSupplierPrice = x.StroydvorPrice > 0,
+                IsSupplierPrice = !x.StroydvorEnabled || x.StroydvorPrice > 0,
                 x.Name,
                 MaterialTypeName = x.MaterialType.Name,
                 Thickness = x.MaterialThickness.Value,
@@ -59,7 +59,7 @@ public sealed class GetCuttingMaterialQueryHandler(CatalogDbContext dbContext)
                 {
                     x.Id,
                     InStock = x.Count > 0 && (!x.StroydvorProductId.HasValue || x.StroydvorInStock),
-                    IsSupplierPrice = x.StroydvorPrice > 0,
+                    IsSupplierPrice = !x.StroydvorEnabled || x.StroydvorPrice > 0,
                     x.Name,
                     MaterialTypeName = x.MaterialType.Name,
                     Thickness = x.MaterialThickness.Value,

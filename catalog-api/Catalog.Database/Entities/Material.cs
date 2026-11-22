@@ -33,6 +33,7 @@ public sealed record Material
     public bool CommentOnMaterialIsRequired { get; set; }
     public bool AllowSecondItemInOrder { get; set; }
     public required decimal Price { get; set; }
+    public bool StroydvorEnabled { get; set; }
     public int? StroydvorProductId { get; set; }
     public string? StroydvorArticle { get; set; }
     public decimal StroydvorPrice { get; set; }

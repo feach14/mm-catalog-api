@@ -64,6 +64,7 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
                 AllowSecondItemInOrder = command.Material.AllowSecondItemInOrder,
                 ExternalLink = command.Material.ExternalLink,
                 Price = command.Material.Price,
+                StroydvorEnabled = command.Material.StroydvorEnabled,
                 StroydvorProductId = command.Material.StroydvorProductId,
                 HideInLk = command.Material.HideInLk,
                 HideOnSite = command.Material.HideOnSite,
@@ -104,6 +105,7 @@ public class CreateMaterialCommandHandler(CatalogDbContext dbContext, ICatalogHi
                 + $"толщина #{material.MaterialThicknessId}, "
                 + $"количество {material.Count}, "
                 + $"цена {material.Price}, "
+                + $"связь со Стройдвором включена: {material.StroydvorEnabled}, "
                 + $"скрыт в ЛК: {material.HideInLk}, "
                 + $"скрыт на сайте: {material.HideOnSite}, цена скрыта на сайте: {material.HidePriceOnSite}, "
                 + $"изображения {string.Join(';', images.Select(x => $"{(x?.ToString() ?? "нет")}"))}.");

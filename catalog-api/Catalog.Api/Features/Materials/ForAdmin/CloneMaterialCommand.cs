@@ -80,6 +80,7 @@ public sealed class CloneMaterialCommandHandler(CatalogDbContext dbContext, ICat
                 CommentOnMaterialIsRequired = source.CommentOnMaterialIsRequired,
                 AllowSecondItemInOrder = source.AllowSecondItemInOrder,
                 Price = source.Price,
+                StroydvorEnabled = source.StroydvorEnabled,
                 StroydvorProductId = source.StroydvorProductId,
                 StroydvorArticle = source.StroydvorArticle,
                 StroydvorPrice = source.StroydvorPrice,

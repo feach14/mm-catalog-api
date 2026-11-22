@@ -35,7 +35,7 @@ public sealed record GetMaterialsByIdsForCalculateQueryItem(
     [property: Description("Категория")] PropertyDto Category,
     [property: Description("Комментарии для клиента")] string[] ClientComments,
     [property: Description("Материал есть в наличии")] bool InStock,
-    [property: Description("Используется цена поставщика")] bool IsSupplierPrice);
+    [property: Description("Признак цены поставщика; true также при выключенной связи")] bool IsSupplierPrice);
 
 public sealed class GetMaterialsByIdsForCalculateQueryHandler(CatalogDbContext dbContext)
     : IQueryHandler<GetMaterialsByIdsForCalculateQuery, GetMaterialsByIdsForCalculateQueryResult>
@@ -53,7 +53,7 @@ public sealed class GetMaterialsByIdsForCalculateQueryHandler(CatalogDbContext d
                 CategoryName = x.Category.Name,
                 x.OrderByCol,
                 InStock = x.Count > 0 && (!x.StroydvorProductId.HasValue || x.StroydvorInStock),
-                IsSupplierPrice = x.StroydvorPrice > 0
+                IsSupplierPrice = !x.StroydvorEnabled || x.StroydvorPrice > 0
             })
             .Concat(dbContext.ArchivedMaterials.AsNoTracking()
                 .Where(x => query.MaterialIds.Contains(x.Id))
@@ -66,7 +66,7 @@ public sealed class GetMaterialsByIdsForCalculateQueryHandler(CatalogDbContext d
                     CategoryName = x.Category.Name,
                     x.OrderByCol,
                     InStock = x.Count > 0 && (!x.StroydvorProductId.HasValue || x.StroydvorInStock),
-                    IsSupplierPrice = x.StroydvorPrice > 0
+                    IsSupplierPrice = !x.StroydvorEnabled || x.StroydvorPrice > 0
                 }))
             .OrderBy(x => x.OrderByCol)
             .ToArrayAsync(ct);

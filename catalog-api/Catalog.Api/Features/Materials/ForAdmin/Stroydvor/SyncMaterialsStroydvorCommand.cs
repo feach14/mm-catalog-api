@@ -53,6 +53,8 @@ public sealed class SyncMaterialsStroydvorCommandHandler(
         }
         foreach (var material in materials)
         {
+            if (!material.StroydvorEnabled)
+                throw new BadHttpRequestException($"У материала #{material.Id} «{MaterialNameHelper.GetFullName(material)}» связь со Стройдвором выключена.");
             if (material.StroydvorProductId is not > 0)
             {
                 var error = $"У материала #{material.Id} «{MaterialNameHelper.GetFullName(material)}» нет привязки к Стройдвору.";
@@ -89,7 +91,7 @@ public sealed class SyncMaterialsStroydvorCommandHandler(
             var article = read.Product?.Article ?? material.StroydvorArticle;
             // A binding or identity edited during the supplier request must not receive the old product's price.
             var changed = await dbContext.Materials
-                .Where(x => x.Id == id && x.StroydvorProductId == material.StroydvorProductId
+                .Where(x => x.Id == id && x.StroydvorEnabled && x.StroydvorProductId == material.StroydvorProductId
                                       && x.CategoryId == material.CategoryId
                                       && x.MaterialManufacturerId == material.MaterialManufacturerId
                                       && x.MaterialTypeId == material.MaterialTypeId

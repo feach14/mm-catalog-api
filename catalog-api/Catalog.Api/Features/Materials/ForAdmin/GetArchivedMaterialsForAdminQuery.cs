@@ -33,6 +33,7 @@ public class GetArchivedMaterialsForAdminQueryHandler(
                 x.HideInLk,
                 x.HideOnSite,
                 x.HidePriceOnSite,
+                x.StroydvorEnabled,
                 x.StroydvorProductId,
                 x.StroydvorArticle,
                 x.StroydvorPrice,

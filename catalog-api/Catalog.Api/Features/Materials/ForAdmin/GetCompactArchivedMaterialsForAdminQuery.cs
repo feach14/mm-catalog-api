@@ -42,6 +42,7 @@ public sealed class GetCompactArchivedMaterialsForAdminQueryHandler(
             x.HidePriceOnSite,
             previewByMaterial.GetValueOrDefault(x.Id),
             x.ExternalLink,
+            x.StroydvorEnabled,
             x.StroydvorProductId,
             x.StroydvorArticle,
             x.StroydvorPrice,

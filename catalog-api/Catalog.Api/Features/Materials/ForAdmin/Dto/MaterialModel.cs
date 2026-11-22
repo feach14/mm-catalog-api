@@ -76,6 +76,9 @@ public record MaterialModel
 
     internal bool StroydvorProductIdSpecified { get; private set; }
 
+    [Description("Связь со Стройдвором включена")]
+    public bool StroydvorEnabled { get; init; }
+
     [Description("Id товара Стройдвора; null — удалить привязку")]
     public int? StroydvorProductId
     {

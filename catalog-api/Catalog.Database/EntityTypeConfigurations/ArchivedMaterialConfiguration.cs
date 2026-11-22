@@ -14,6 +14,7 @@ public class ArchivedMaterialConfiguration : IEntityTypeConfiguration<ArchivedMa
         eb.Property(x => x.Article).IsRequired().HasMaxLength(100);
         eb.Property(x => x.Name).IsRequired().HasMaxLength(250);
         eb.Property(x => x.ExternalLink).HasMaxLength(250);
+        eb.Property(x => x.StroydvorEnabled).HasDefaultValue(false);
         eb.Property(x => x.StroydvorArticle).HasMaxLength(100);
         eb.Property(x => x.StroydvorPrice).HasPrecision(18, 2).HasDefaultValue(0m);
         eb.Property(x => x.StroydvorInStock).HasDefaultValue(false);

@@ -120,6 +120,12 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("stroydvor_article");
 
+                    b.Property<bool>("StroydvorEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("stroydvor_enabled");
+
                     b.Property<bool>("StroydvorInStock")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -685,6 +691,12 @@ namespace Catalog.Database.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("stroydvor_article");
+
+                    b.Property<bool>("StroydvorEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("stroydvor_enabled");
 
                     b.Property<bool>("StroydvorInStock")
                         .ValueGeneratedOnAdd()
