@@ -75,10 +75,20 @@ public sealed class SyncEdgesStroydvorCommandHandler(
             var edge = byId[id];
             var edgeName = EdgeNameHelper.GetFullName(edge.Name, edge.Size.Name, edge.IsStockItem);
             var read = reads[id];
-            var price = read.Product?.Price ?? 0;
-            var syncedAt = read.Success ? (DateTimeOffset?)timeProvider.GetUtcNow() : null;
-            var inStock = read.Product?.InStock ?? false;
-            var article = read.Product?.Article ?? edge.StroydvorArticle;
+            if (!read.Success)
+            {
+                // A failed supplier read cannot confirm a change in price or availability.
+                var current = await dbContext.Edges.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
+                var error = $"Кромка #{id} «{edgeName}»: {read.Error}";
+                items.Add(CurrentResult(id, current, error));
+                continue;
+            }
+
+            var product = read.Product!;
+            var price = product.Price;
+            var syncedAt = (DateTimeOffset?)timeProvider.GetUtcNow();
+            var inStock = product.InStock;
+            var article = product.Article ?? edge.StroydvorArticle;
             var priceUnit = edge.SaleUnit.SaleUnitType == EdgeSaleUnitTypeEnum.Roll ? "бухту" : "метр";
             // A binding or identity edited during the supplier request must not receive the old product's price.
             var changed = await dbContext.Edges
@@ -107,11 +117,8 @@ public sealed class SyncEdgesStroydvorCommandHandler(
             }
 
             historyWriter.Add(CatalogHistoryActionTypeEnum.Update, CatalogHistoryEntityTypeEnum.Edge, id,
-                read.Success
-                    ? $"Кромка #{id} «{edgeName}»: синхронизирован товар Стройдвора #{edge.StroydvorProductId}, артикул «{article ?? "нет"}», цена {price} руб. за {priceUnit}, наличие: {(inStock ? "есть" : "нет")}."
-                    : $"Кромка #{id} «{edgeName}»: не удалось синхронизировать товар Стройдвора #{edge.StroydvorProductId}. {read.Error} Цена Стройдвора сброшена в 0, дата синхронизации очищена.");
-            var syncError = read.Success ? null : $"Кромка #{id} «{edgeName}»: {read.Error}";
-            items.Add(new EdgeStroydvorSyncDto(id, read.Success, syncError,
+                $"Кромка #{id} «{edgeName}»: синхронизирован товар Стройдвора #{edge.StroydvorProductId}, артикул «{article ?? "нет"}», цена {price} руб. за {priceUnit}, наличие: {(inStock ? "есть" : "нет")}.");
+            items.Add(new EdgeStroydvorSyncDto(id, true, null,
                 edge.StroydvorProductId, article, price, syncedAt, inStock,
                 StroydvorProductClient.ProductUrl(edge.StroydvorProductId!.Value)));
         }

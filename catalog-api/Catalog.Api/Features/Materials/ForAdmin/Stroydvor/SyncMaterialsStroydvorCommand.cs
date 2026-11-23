@@ -85,10 +85,20 @@ public sealed class SyncMaterialsStroydvorCommandHandler(
             var material = byId[id];
             var materialName = MaterialNameHelper.GetFullName(material);
             var read = reads[id];
-            var price = read.Product?.Price ?? 0;
-            var syncedAt = read.Success ? (DateTimeOffset?)timeProvider.GetUtcNow() : null;
-            var inStock = read.Product?.InStock ?? false;
-            var article = read.Product?.Article ?? material.StroydvorArticle;
+            if (!read.Success)
+            {
+                // A failed supplier read cannot confirm a change in price or availability.
+                var current = await dbContext.Materials.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
+                var error = $"Материал #{id} «{materialName}»: {read.Error}";
+                items.Add(CurrentResult(id, current, error));
+                continue;
+            }
+
+            var product = read.Product!;
+            var price = product.Price;
+            var syncedAt = (DateTimeOffset?)timeProvider.GetUtcNow();
+            var inStock = product.InStock;
+            var article = product.Article ?? material.StroydvorArticle;
             // A binding or identity edited during the supplier request must not receive the old product's price.
             var changed = await dbContext.Materials
                 .Where(x => x.Id == id && x.StroydvorEnabled && x.StroydvorProductId == material.StroydvorProductId
@@ -118,11 +128,8 @@ public sealed class SyncMaterialsStroydvorCommandHandler(
             }
 
             historyWriter.Add(CatalogHistoryActionTypeEnum.Update, CatalogHistoryEntityTypeEnum.Material, id,
-                read.Success
-                    ? $"Материал #{id} «{materialName}»: синхронизирован товар Стройдвора #{material.StroydvorProductId}, артикул «{article ?? "нет"}», цена {price} руб. за лист, наличие: {(inStock ? "есть" : "нет")}."
-                    : $"Материал #{id} «{materialName}»: не удалось синхронизировать товар Стройдвора #{material.StroydvorProductId}. {read.Error} Цена Стройдвора сброшена в 0, дата синхронизации очищена.");
-            var syncError = read.Success ? null : $"Материал #{id} «{materialName}»: {read.Error}";
-            items.Add(new MaterialStroydvorSyncDto(id, read.Success, syncError,
+                $"Материал #{id} «{materialName}»: синхронизирован товар Стройдвора #{material.StroydvorProductId}, артикул «{article ?? "нет"}», цена {price} руб. за лист, наличие: {(inStock ? "есть" : "нет")}.");
+            items.Add(new MaterialStroydvorSyncDto(id, true, null,
                 material.StroydvorProductId, article, price, syncedAt, inStock,
                 StroydvorProductClient.ProductUrl(material.StroydvorProductId!.Value)));
         }
