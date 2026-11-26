@@ -1,3 +1,4 @@
+using Catalog.Api.Features.Edges.Dto;
 using Catalog.Api.Features.Edges.Helpers;
 using Catalog.Api.Features.Materials.Helpers;
 using Catalog.Database;
@@ -36,7 +37,8 @@ public sealed record GetEdgePriceForCalculateQueryResult(
     [property: Description("Название")] string Name,
     [property: Description("Длина бухты или кратность отреза в метрах")] decimal QuantityMultiple,
     [property: Description("Тип: Meter — погонный метр, Roll — бухта"), JsonConverter(typeof(StrictStringEnumConverter))] EdgeSaleUnitTypeEnum SaleUnitType,
-    [property: Description("Комментарии для клиента")] string[] ClientComments);
+    [property: Description("Комментарии для клиента")] string[] ClientComments,
+    [property: Description("Цены для клиентов")] EdgeClientPricesDto ClientPrices);
 
 public sealed class GetEdgePriceForCalculateQueryHandler(
     CatalogDbContext dbContext,
@@ -114,10 +116,16 @@ public sealed class GetEdgePriceForCalculateQueryHandler(
             throw new BadHttpRequestException($"Для материала #{query.MaterialId} «{materialName}» найдено несколько кромок толщиной {query.Thickness} мм{markingDescription}. Оставьте одну подходящую связь");
         }
 
+        var percentageValues = await dbContext.PricePercentages.AsNoTracking()
+            .Where(percentage => percentage.AppliesTo == PricePercentageTargetEnum.EDGE)
+            .ToDictionaryAsync(percentage => percentage.Key, percentage => percentage.Value, ct);
+        var percentages = EdgeClientPricePercentages.From(percentageValues);
+        var clientPrices = percentages.GetPrices(query.Thickness, matches[0].Price, 0)
+            ?? throw new BadHttpRequestException($"Не задана наценка для кромки толщиной {query.Thickness} мм.");
         return new GetEdgePriceForCalculateQueryResult(matches[0].Price, matches[0].Article,
             EdgeNameHelper.GetFullName(matches[0].Name, matches[0].SizeName, matches[0].IsStockItem,
                 matches[0].SupplierName, matches[0].IncludeSupplierInEdgeName),
-            matches[0].QuantityMultiple, matches[0].SaleUnitType, matches[0].ClientComments);
+            matches[0].QuantityMultiple, matches[0].SaleUnitType, matches[0].ClientComments, clientPrices);
     }
 
     private const string CalculateMarkingName = "Век ЛК";

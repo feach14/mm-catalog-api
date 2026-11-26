@@ -31,7 +31,6 @@ Cookie__DomainName=.debug.feach.ru dotnet run --project catalog-api/Catalog.Api/
 | `Cookie.CookieName`, `Cookie.DomainName` | Имя и домен cookie |
 | `Authentication.Provider` | `Accounts` — ключи в PostgreSQL; `Vek` — ключи в MS SQL |
 | `Cors.DomainName` | Разрешённый домен и его поддомены |
-| `CalculateApi.BaseAddress`, `CalculateApi.MaterialPricePercentagesPath` | Получение наценок из Calculate API |
 | `ApiDoc.Enabled` | OpenAPI, Scalar и Swagger UI |
 | `StroydvorPriceSync` | Включение фоновой синхронизации, cron и часовой пояс |
 
@@ -41,7 +40,6 @@ Cookie__DomainName=.debug.feach.ru dotnet run --project catalog-api/Catalog.Api/
 Провайдер `Vek` меняет только хранилище ключей, данные каталога остаются в PostgreSQL.
 CORS дополнительно разрешает точный мобильный origin `capacitor://localhost`.
 
-В Development Calculate API ожидается на `https://calculate-api.debug.feach.ru:5006/`.
 Фоновая синхронизация Стройдвора управляется `StroydvorPriceSync:Enabled`; локально она отключена.
 Не включайте её в проверках, которым не требуется обращение к поставщику.
 

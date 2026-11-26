@@ -1,5 +1,6 @@
 using Catalog.Api.Features.Edges.Dto;
 using Catalog.Api.Features.Edges.ForAdmin.Dto;
+using Catalog.Api.Features.Edges.Helpers;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;
@@ -31,7 +32,7 @@ public sealed record GetCompactEdgesForAdminQueryItem(
     [property: Description("Порядок сортировки")] int OrderByCol,
     [property: Description("GUID миниатюры")] Guid? Thumbnail240,
     [property: Description("Комментарии")] EdgeCommentDto[] Comments,
-    [property: Description("Цены для клиентов; null при неизвестной наценке толщины или временной недоступности расчёта")] EdgeClientPricesDto? ClientPrices);
+    [property: Description("Цены для клиентов; null при неизвестной наценке толщины")] EdgeClientPricesDto? ClientPrices);
 
 public sealed record EdgesForAdminFiltersDto(
     [property: Description("Производители")] EdgeFilterItemDto[] Manufacturers,
@@ -61,9 +62,7 @@ public sealed record EdgeSizeFilterItemDto(
     [property: Description("Ширина в миллиметрах")] decimal Width,
     [property: Description("Порядок сортировки")] int OrderByCol);
 
-public sealed class GetCompactEdgesForAdminQueryHandler(
-    CatalogDbContext dbContext,
-    IQueryHandler<GetEdgeClientPricePercentagesQuery, EdgeClientPricePercentages?> percentagesHandler)
+public sealed class GetCompactEdgesForAdminQueryHandler(CatalogDbContext dbContext)
     : IQueryHandler<GetCompactEdgesForAdminQuery, GetCompactEdgesForAdminQueryResult>
 {
     public async Task<GetCompactEdgesForAdminQueryResult> Handle(GetCompactEdgesForAdminQuery query, CancellationToken ct)
@@ -95,11 +94,14 @@ public sealed class GetCompactEdgesForAdminQueryHandler(
             .Select(x => new EdgeSaleUnitFilterItemDto(x.Id, x.Name, x.SaleUnitType)).ToArrayAsync(ct);
         if (items.Length > 0)
         {
-            var percentages = await percentagesHandler.Handle(new GetEdgeClientPricePercentagesQuery(), ct);
+            var percentageValues = await dbContext.PricePercentages.AsNoTracking()
+                .Where(percentage => percentage.AppliesTo == PricePercentageTargetEnum.EDGE)
+                .ToDictionaryAsync(percentage => percentage.Key, percentage => percentage.Value, ct);
+            var percentages = EdgeClientPricePercentages.From(percentageValues);
             var thicknesses = sizes.ToDictionary(size => size.Id, size => size.Thickness);
             items = items.Select(edge => edge with
             {
-                ClientPrices = percentages?.GetPrices(thicknesses[edge.SizeId], edge.Price, edge.StroydvorPrice)
+                ClientPrices = percentages.GetPrices(thicknesses[edge.SizeId], edge.Price, edge.StroydvorPrice)
             }).ToArray();
         }
 

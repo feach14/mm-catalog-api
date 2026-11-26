@@ -1,7 +1,9 @@
 // ReSharper disable NotAccessedPositionalProperty.Global
 
 using Catalog.Api.Features.Materials.Dto;
+using Catalog.Api.Features.Materials.Helpers;
 using Catalog.Database;
+using Catalog.Database.Enums;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.Public;
@@ -26,11 +28,10 @@ public sealed record GetAllMaterialsQueryItemResult(
     [property: Description("Комментарии для клиента")] string[] ClientComments,
     [property: Description("Материал есть в наличии")] bool InStock,
     [property: Description("Признак цены поставщика; true также при выключенной связи")] bool IsSupplierPrice,
-    [property: Description("Цены для клиентов; null при скрытой цене или временной недоступности расчёта")] MaterialClientPricesDto? ClientPrices);
+    [property: Description("Цены для клиентов; null при скрытой цене")] MaterialClientPricesDto? ClientPrices);
 
 public class GetAllMaterialsQueryHandler(
-    CatalogDbContext dbContext,
-    IQueryHandler<GetMaterialClientPricePercentagesQuery, MaterialClientPricePercentages?> percentagesHandler) : IQueryHandler<GetAllMaterialsQuery, GetAllMaterialsQueryResult>
+    CatalogDbContext dbContext) : IQueryHandler<GetAllMaterialsQuery, GetAllMaterialsQueryResult>
 {
     public async Task<GetAllMaterialsQueryResult> Handle(GetAllMaterialsQuery query, CancellationToken ct)
     {
@@ -63,7 +64,9 @@ public class GetAllMaterialsQueryHandler(
             .ToArrayAsync(ct);
 
         var percentages = rows.Any(row => !row.HidePriceOnSite)
-            ? await percentagesHandler.Handle(new GetMaterialClientPricePercentagesQuery(), ct)
+            ? MaterialClientPricePercentages.From(await dbContext.PricePercentages.AsNoTracking()
+                .Where(percentage => percentage.AppliesTo == PricePercentageTargetEnum.MATERIAL)
+                .ToDictionaryAsync(percentage => percentage.Key, percentage => percentage.Value, ct))
             : null;
         var materials = rows.Select(row => row.Material with
         {

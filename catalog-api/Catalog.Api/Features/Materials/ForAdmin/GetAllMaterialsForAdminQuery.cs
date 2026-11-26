@@ -2,7 +2,9 @@
 
 using Catalog.Api.Features.Materials.Dto;
 using Catalog.Api.Features.Materials.ForAdmin.Dto;
+using Catalog.Api.Features.Materials.Helpers;
 using Catalog.Database;
+using Catalog.Database.Enums;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.ForAdmin;
@@ -61,15 +63,14 @@ public sealed record GetMaterialsQueryForAdminItemResult(
     [property: Description("Дата успешной синхронизации со Стройдвором")] DateTimeOffset? StroydvorLastSyncAt,
     [property: Description("В наличии в Стройдворе")] bool StroydvorInStock,
     [property: Description("Комментарии")] MaterialCommentDto[] Comments,
-    [property: Description("Цены для клиентов; null при временной недоступности расчёта")] MaterialClientPricesDto? ClientPrices)
+    [property: Description("Цены для клиентов")] MaterialClientPricesDto? ClientPrices)
 {
     [Description("Техническая ссылка на товар Стройдвора")]
     public string? StroydvorUrl => StroydvorProductId is { } id ? $"https://stroydvor21.ru/products/{id}" : null;
 }
 
 public class GetAllMaterialsForAdminQueryHandler(
-    CatalogDbContext dbContext,
-    IQueryHandler<GetMaterialClientPricePercentagesQuery, MaterialClientPricePercentages?> percentagesHandler) : IQueryHandler<GetAllMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult>
+    CatalogDbContext dbContext) : IQueryHandler<GetAllMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult>
 {
     public async Task<GetAllMaterialsForAdminQueryResult> Handle(GetAllMaterialsForAdminQuery query, CancellationToken ct)
     {
@@ -104,10 +105,12 @@ public class GetAllMaterialsForAdminQueryHandler(
 
         if (materials.Length > 0)
         {
-            var percentages = await percentagesHandler.Handle(new GetMaterialClientPricePercentagesQuery(), ct);
+            var percentages = MaterialClientPricePercentages.From(await dbContext.PricePercentages.AsNoTracking()
+                .Where(percentage => percentage.AppliesTo == PricePercentageTargetEnum.MATERIAL)
+                .ToDictionaryAsync(percentage => percentage.Key, percentage => percentage.Value, ct));
             materials = materials.Select(material => material with
             {
-                ClientPrices = percentages?.GetPrices(material.Price, material.StroydvorPrice)
+                ClientPrices = percentages.GetPrices(material.Price, material.StroydvorPrice)
             }).ToArray();
         }
 

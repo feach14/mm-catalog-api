@@ -2,7 +2,9 @@
 
 using Catalog.Api.Features.Materials.Dto;
 using Catalog.Api.Features.Materials.ForAdmin.Dto;
+using Catalog.Api.Features.Materials.Helpers;
 using Catalog.Database;
+using Catalog.Database.Enums;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.ForAdmin;
@@ -10,8 +12,7 @@ namespace Catalog.Api.Features.Materials.ForAdmin;
 public sealed record GetArchivedMaterialsForAdminQuery : IQuery<GetAllMaterialsForAdminQueryResult>;
 
 public class GetArchivedMaterialsForAdminQueryHandler(
-    CatalogDbContext dbContext,
-    IQueryHandler<GetMaterialClientPricePercentagesQuery, MaterialClientPricePercentages?> percentagesHandler) : IQueryHandler<GetArchivedMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult>
+    CatalogDbContext dbContext) : IQueryHandler<GetArchivedMaterialsForAdminQuery, GetAllMaterialsForAdminQueryResult>
 {
     public async Task<GetAllMaterialsForAdminQueryResult> Handle(GetArchivedMaterialsForAdminQuery query, CancellationToken ct)
     {
@@ -46,10 +47,12 @@ public class GetArchivedMaterialsForAdminQueryHandler(
 
         if (materials.Length > 0)
         {
-            var percentages = await percentagesHandler.Handle(new GetMaterialClientPricePercentagesQuery(), ct);
+            var percentages = MaterialClientPricePercentages.From(await dbContext.PricePercentages.AsNoTracking()
+                .Where(percentage => percentage.AppliesTo == PricePercentageTargetEnum.MATERIAL)
+                .ToDictionaryAsync(percentage => percentage.Key, percentage => percentage.Value, ct));
             materials = materials.Select(material => material with
             {
-                ClientPrices = percentages?.GetPrices(material.Price, material.StroydvorPrice)
+                ClientPrices = percentages.GetPrices(material.Price, material.StroydvorPrice)
             }).ToArray();
         }
 

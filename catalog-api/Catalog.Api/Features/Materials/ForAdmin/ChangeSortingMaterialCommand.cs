@@ -26,15 +26,14 @@ public sealed class ChangeSortingMaterialCommandValidator : AbstractValidator<Ch
 public record ChangeSortingMaterialCommandResult(
     [property: Description("Успех операции")] bool Success);
 
-public class ChangeSortingMaterialCommandHandler(CatalogDbContext dbContext,
-    ICommandHandler<ChangeSortingArchivedMaterialCommand, ChangeSortingMaterialCommandResult> archivedHandler) : ICommandHandler<ChangeSortingMaterialCommand, ChangeSortingMaterialCommandResult>
+public class ChangeSortingMaterialCommandHandler(CatalogDbContext dbContext) : ICommandHandler<ChangeSortingMaterialCommand, ChangeSortingMaterialCommandResult>
 {
     public async Task<ChangeSortingMaterialCommandResult> Handle(ChangeSortingMaterialCommand command, CancellationToken ct)
     {
         return await CatalogOrderTransaction.Run(dbContext, async () =>
         {
             if (!await dbContext.Materials.AsNoTracking().AnyAsync(x => x.Id == command.Id, ct))
-                return await archivedHandler.Handle(new ChangeSortingArchivedMaterialCommand(command.Id, command.Direction), ct);
+                return await ChangeSortingArchived(command, ct);
             var materials = await dbContext.Materials.OrderBy(x => x.OrderByCol).ToArrayAsync(ct);
             var material = materials.Single(x => x.Id == command.Id);
             var materialIndex = Array.FindIndex(materials, x => x.Id == material.Id);
@@ -67,5 +66,41 @@ public class ChangeSortingMaterialCommandHandler(CatalogDbContext dbContext,
 
             return new ChangeSortingMaterialCommandResult(true);
         }, ct);
+    }
+
+    private async Task<ChangeSortingMaterialCommandResult> ChangeSortingArchived(ChangeSortingMaterialCommand command, CancellationToken ct)
+    {
+        var materials = await dbContext.ArchivedMaterials.OrderBy(x => x.OrderByCol).ToArrayAsync(ct);
+        var material = materials.SingleOrDefault(x => x.Id == command.Id)
+            ?? throw new BadHttpRequestException("Материал не найден.");
+        var materialIndex = Array.FindIndex(materials, x => x.Id == material.Id);
+
+        var adjacentMaterialIndex = command.Direction switch
+        {
+            DirectionSortEnum.UP when materialIndex == 0 => throw new BadHttpRequestException("Первый материал в списке. Выше некуда."),
+            DirectionSortEnum.DOWN when materialIndex == materials.Length - 1 => throw new BadHttpRequestException("Последний материал в списке. Ниже некуда."),
+            DirectionSortEnum.UP => materialIndex - 1,
+            DirectionSortEnum.DOWN => materialIndex + 1,
+            _ => throw new BadHttpRequestException("Недопустимое направление сортировки.")
+        };
+
+        var adjacentMaterial = materials[adjacentMaterialIndex];
+        var materialOrderByCol = material.OrderByCol;
+        var adjacentMaterialOrderByCol = adjacentMaterial.OrderByCol;
+
+        var usedPositions = materials.Select(x => x.OrderByCol).ToHashSet();
+        var temporaryPosition = 0;
+        while (usedPositions.Contains(temporaryPosition))
+            temporaryPosition--;
+        material.OrderByCol = temporaryPosition;
+        await dbContext.SaveChangesAsync(ct);
+
+        adjacentMaterial.OrderByCol = materialOrderByCol;
+        await dbContext.SaveChangesAsync(ct);
+
+        material.OrderByCol = adjacentMaterialOrderByCol;
+        await dbContext.SaveChangesAsync(ct);
+
+        return new ChangeSortingMaterialCommandResult(true);
     }
 }

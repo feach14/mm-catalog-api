@@ -110,7 +110,7 @@ public sealed record PublicMaterialListItemDto(
     [property: Description("Материал есть в наличии")] bool InStock,
     [property: Description("Комментарии для клиента")] string[] ClientComments,
     [property: Description("Признак цены поставщика; true также при выключенной связи")] bool IsSupplierPrice,
-    [property: Description("Цены для клиентов; null при скрытой цене или временной недоступности расчёта")] MaterialClientPricesDto? ClientPrices
+    [property: Description("Цены для клиентов; null при скрытой цене")] MaterialClientPricesDto? ClientPrices
 );
 
 public sealed record PublicMaterialImagesDto(
@@ -119,8 +119,7 @@ public sealed record PublicMaterialImagesDto(
     [property: Description("Id квадратной миниатюры 480 на 480 пикселей")] Guid? Thumbnail480);
 
 public sealed class SearchMaterialsQueryHandler(
-    CatalogDbContext dbContext,
-    IQueryHandler<GetMaterialClientPricePercentagesQuery, MaterialClientPricePercentages?> percentagesHandler)
+    CatalogDbContext dbContext)
     : IQueryHandler<SearchMaterialsQuery, SearchMaterialsQueryResult>
 {
     public async Task<SearchMaterialsQueryResult> Handle(SearchMaterialsQuery query, CancellationToken ct)
@@ -165,7 +164,9 @@ public sealed class SearchMaterialsQueryHandler(
             .ToArrayAsync(ct);
 
         var percentages = rows.Any(row => !row.HidePriceOnSite)
-            ? await percentagesHandler.Handle(new GetMaterialClientPricePercentagesQuery(), ct)
+            ? MaterialClientPricePercentages.From(await dbContext.PricePercentages.AsNoTracking()
+                .Where(percentage => percentage.AppliesTo == PricePercentageTargetEnum.MATERIAL)
+                .ToDictionaryAsync(percentage => percentage.Key, percentage => percentage.Value, ct))
             : null;
         var items = rows.Select(row => row.Material with
         {

@@ -1,7 +1,9 @@
 // ReSharper disable NotAccessedPositionalProperty.Global
 
 using Catalog.Api.Features.Materials.Dto;
+using Catalog.Api.Features.Materials.Helpers;
 using Catalog.Database;
+using Catalog.Database.Enums;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.ForCalculate;
@@ -35,9 +37,11 @@ public sealed record GetMaterialsByIdsForCalculateQueryItem(
     [property: Description("Категория")] PropertyDto Category,
     [property: Description("Комментарии для клиента")] string[] ClientComments,
     [property: Description("Материал есть в наличии")] bool InStock,
-    [property: Description("Признак цены поставщика; true также при выключенной связи")] bool IsSupplierPrice);
+    [property: Description("Признак цены поставщика; true также при выключенной связи")] bool IsSupplierPrice,
+    [property: Description("Цены для клиентов")] MaterialClientPricesDto ClientPrices);
 
-public sealed class GetMaterialsByIdsForCalculateQueryHandler(CatalogDbContext dbContext)
+public sealed class GetMaterialsByIdsForCalculateQueryHandler(
+    CatalogDbContext dbContext)
     : IQueryHandler<GetMaterialsByIdsForCalculateQuery, GetMaterialsByIdsForCalculateQueryResult>
 {
     public async Task<GetMaterialsByIdsForCalculateQueryResult> Handle(GetMaterialsByIdsForCalculateQuery query, CancellationToken ct)
@@ -49,6 +53,8 @@ public sealed class GetMaterialsByIdsForCalculateQueryHandler(CatalogDbContext d
                 x.Id,
                 x.Name,
                 x.Article,
+                x.Price,
+                x.StroydvorPrice,
                 x.CategoryId,
                 CategoryName = x.Category.Name,
                 x.OrderByCol,
@@ -62,6 +68,8 @@ public sealed class GetMaterialsByIdsForCalculateQueryHandler(CatalogDbContext d
                     x.Id,
                     x.Name,
                     x.Article,
+                    x.Price,
+                    x.StroydvorPrice,
                     x.CategoryId,
                     CategoryName = x.Category.Name,
                     x.OrderByCol,
@@ -78,6 +86,11 @@ public sealed class GetMaterialsByIdsForCalculateQueryHandler(CatalogDbContext d
             .Select(comment => new { MaterialId = (comment.MaterialId ?? comment.ArchivedMaterialId)!.Value, comment.Text })
             .ToArrayAsync(ct);
         var commentsByMaterial = comments.ToLookup(comment => comment.MaterialId, comment => comment.Text);
+        var percentages = materials.Length > 0
+            ? MaterialClientPricePercentages.From(await dbContext.PricePercentages.AsNoTracking()
+                .Where(percentage => percentage.AppliesTo == PricePercentageTargetEnum.MATERIAL)
+                .ToDictionaryAsync(percentage => percentage.Key, percentage => percentage.Value, ct))
+            : null;
         var items = materials.Select(x => new GetMaterialsByIdsForCalculateQueryItem
             (
                 x.Id,
@@ -86,7 +99,8 @@ public sealed class GetMaterialsByIdsForCalculateQueryHandler(CatalogDbContext d
                 new PropertyDto(x.CategoryId, x.CategoryName),
                 commentsByMaterial[x.Id].ToArray(),
                 x.InStock,
-                x.IsSupplierPrice
+                x.IsSupplierPrice,
+                percentages!.GetPrices(x.Price, x.StroydvorPrice)
             )).ToArray();
 
         return new GetMaterialsByIdsForCalculateQueryResult(items);

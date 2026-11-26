@@ -1,5 +1,6 @@
 using Catalog.Api.Features.Edges.Dto;
 using Catalog.Api.Features.Edges.ForAdmin.Dto;
+using Catalog.Api.Features.Edges.Helpers;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;
@@ -27,11 +28,9 @@ public sealed record GetEdgeForAdminQueryResult(
     [property: Description("Порядок сортировки")] int OrderByCol,
     [property: Description("Оригинал и миниатюра")] EdgeImagesDto Images,
     [property: Description("Комментарии")] EdgeCommentDto[] Comments,
-    [property: Description("Цены для клиентов; null при неизвестной наценке толщины или временной недоступности расчёта")] EdgeClientPricesDto? ClientPrices);
+    [property: Description("Цены для клиентов; null при неизвестной наценке толщины")] EdgeClientPricesDto? ClientPrices);
 
-public sealed class GetEdgeForAdminQueryHandler(
-    CatalogDbContext dbContext,
-    IQueryHandler<GetEdgeClientPricePercentagesQuery, EdgeClientPricePercentages?> percentagesHandler)
+public sealed class GetEdgeForAdminQueryHandler(CatalogDbContext dbContext)
     : IQueryHandler<GetEdgeForAdminQuery, GetEdgeForAdminQueryResult>
 {
     public async Task<GetEdgeForAdminQueryResult> Handle(GetEdgeForAdminQuery query, CancellationToken ct)
@@ -57,7 +56,10 @@ public sealed class GetEdgeForAdminQueryHandler(
             .SingleOrDefaultAsync(ct)
             ?? throw new BadHttpRequestException($"Кромка с id={query.Id} не найдена.");
 
-        var percentages = await percentagesHandler.Handle(new GetEdgeClientPricePercentagesQuery(), ct);
-        return row.Edge with { ClientPrices = percentages?.GetPrices(row.Thickness, row.Edge.Price, row.Edge.StroydvorPrice) };
+        var percentageValues = await dbContext.PricePercentages.AsNoTracking()
+            .Where(percentage => percentage.AppliesTo == PricePercentageTargetEnum.EDGE)
+            .ToDictionaryAsync(percentage => percentage.Key, percentage => percentage.Value, ct);
+        var percentages = EdgeClientPricePercentages.From(percentageValues);
+        return row.Edge with { ClientPrices = percentages.GetPrices(row.Thickness, row.Edge.Price, row.Edge.StroydvorPrice) };
     }
 }

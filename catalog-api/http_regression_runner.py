@@ -1583,7 +1583,7 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
         wrapper = schema_fields(result_name, {"items"})
         equal(wrapper["items"]["type"], "array", "Массив материалов Calculate")
         assert "#/components/schemas/" + item_name in json.dumps(wrapper["items"]), "Схема элемента Calculate"
-        fields = schema_fields(item_name, {"id", "name", "article", "category", "clientComments", "inStock", "isSupplierPrice"})
+        fields = schema_fields(item_name, {"id", "name", "article", "category", "clientComments", "inStock", "isSupplierPrice", "clientPrices"})
         id_types = fields["id"]["type"]
         assert id_types == "integer" or (isinstance(id_types, list) and "integer" in id_types), "Тип Id Calculate включает integer"
         for name in ("name", "article"):
@@ -1631,7 +1631,7 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
     assert re.search("[А-Яа-я]", material_parameter.get("description", "")), "Описание route Id материала"
     material_response_schema = material_operation["responses"]["200"]["content"]["application/json"]["schema"]
     assert "#/components/schemas/GetMaterialForCalculateQueryResult" in json.dumps(material_response_schema), "Схема одиночного ответа Calculate"
-    material_fields = schema_fields("GetMaterialForCalculateQueryResult", {"id", "width", "height", "price", "name", "article", "clientComments", "inStock", "isSupplierPrice"})
+    material_fields = schema_fields("GetMaterialForCalculateQueryResult", {"id", "width", "height", "price", "name", "article", "clientComments", "inStock", "isSupplierPrice", "clientPrices"})
     for name in ("id", "width", "height"):
         field_types = material_fields[name]["type"]
         assert "integer" in (field_types if isinstance(field_types, list) else [field_types]), "Тип поля одиночного ответа включает integer: " + name
@@ -1681,6 +1681,7 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
                                          if comment["isForClient"]]
                 row["inStock"] = material_in_stock(expected[entity_id])
                 row["isSupplierPrice"] = material_is_supplier_price(expected[entity_id])
+                row["clientPrices"] = expected[entity_id]["clientPrices"]
             if with_category_order:
                 category_orders = {category["id"]: category["orderByCol"] for category in categories()}
                 for row in projection.values():
@@ -1696,9 +1697,10 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
         def check_material(response, entity_id, model):
             expect(response[0], 200, "Одиночное чтение материала Calculate")
             body = json_body(response)
-            equal(set(body), {"id", "width", "height", "price", "name", "article", "clientComments", "inStock", "isSupplierPrice"},
+            equal(set(body), {"id", "width", "height", "price", "name", "article", "clientComments", "inStock", "isSupplierPrice", "clientPrices"},
                   "Поля одиночного ответа Calculate")
             equal(body["clientComments"], [], "Нет комментариев у нового материала")
+            equal(body["clientPrices"], all_rows[entity_id]["clientPrices"], "Итоговые цены Calculate совпадают с каталогом")
             equal(body["inStock"], material_in_stock(model), "Наличие нового материала")
             equal(body["isSupplierPrice"], False, "Новый материал использует нашу цену")
             assert type(body["id"]) is int, "Id одиночного материала — число integer"
@@ -1735,7 +1737,7 @@ def run_calculate_scenarios(prefix, user_cookie, manager_cookie, admin_cookie, o
         expect(admin_before_response[0], 200, "Карточка материала до ролевых чтений")
         admin_before = json_body(admin_before_response)
         guest_material = check_material(request("GET", material_path), material_id, models[0])
-        mark("CALC-11", "OpenAPI и ответ одиночного GET: обязательный route Id и три целочисленных поля id/width/height; размеры в мм")
+        mark("CALC-11", "Одиночный Calculate GET: размеры в мм, базовая price и обязательные clientPrices из каталога")
         for role, auth_cookie in (("пользователь", user_cookie), ("тестер", cookie),
                                   ("менеджер", manager_cookie), ("администратор", admin_cookie)):
             assert auth_cookie, "Получена cookie роли: " + role
@@ -1929,31 +1931,95 @@ def run_visibility_scenarios(prefix, hidden_material_id, hidden_material_model,
 
 
 def run_material_client_price_schema_scenario(document):
-    """Целевая проверка схем клиентских цен без HTTP и изменения данных."""
+    """Целевая проверка схем клиентских цен и настроек без HTTP и изменения данных."""
     schemas = document["components"]["schemas"]
-    prices = schemas["MaterialClientPricesDto"]
     price_fields = {"privateClientPrice", "wholesaleClientPrice", "individualClientPrice"}
     percentage_fields = {"privateClientPercentage", "wholesaleClientPercentage", "individualClientPercentage"}
-    equal(set(prices["properties"]), price_fields | percentage_fields, "Три итоговые цены и три наценки MaterialClientPricesDto")
-    equal(set(prices.get("required", [])), price_fields | percentage_fields, "Обязательные итоговые цены и наценки")
-    for name, field in prices["properties"].items():
-        field_types = field["type"] if isinstance(field["type"], list) else [field["type"]]
-        expected_type = "integer" if name in percentage_fields else "number"
-        assert set(field_types) in ({expected_type}, {expected_type, "string"}), "Числовая цена или наценка без null"
-        assert re.search("[А-Яа-яЁё]", field.get("description", "")), "Русское описание цены или наценки"
+
+    def nullable(field):
+        alternatives = field.get("anyOf", []) + field.get("oneOf", [])
+        return field.get("nullable") or any(part.get("type") == "null" for part in alternatives)
+
+    for schema_name in ("MaterialClientPricesDto", "EdgeClientPricesDto"):
+        prices = schemas[schema_name]
+        equal(set(prices["properties"]), price_fields | percentage_fields, "Три цены и три наценки: " + schema_name)
+        equal(set(prices.get("required", [])), price_fields | percentage_fields, "Обязательные цены и наценки: " + schema_name)
+        for name, field in prices["properties"].items():
+            field_types = field["type"] if isinstance(field["type"], list) else [field["type"]]
+            expected_type = "integer" if name in percentage_fields else "number"
+            assert set(field_types) in ({expected_type}, {expected_type, "string"}), "Числовая цена или наценка без null"
+            assert re.search("[А-Яа-яЁё]", field.get("description", "")), "Русское описание цены или наценки"
     for name in ("GetMaterialsQueryForAdminItemResult", "GetCompactMaterialsForAdminQueryItem",
                  "GetMaterialForAdminQueryResult", "GetAllMaterialsQueryItemResult", "PublicMaterialListItemDto",
-                 "GetMaterialQueryResult"):
+                 "GetMaterialQueryResult", "GetCompactEdgesForAdminQueryItem", "GetEdgeForAdminQueryResult"):
         field = schemas[name]["properties"]["clientPrices"]
-        assert "#/components/schemas/MaterialClientPricesDto" in json.dumps(field), "Общий DTO цен: " + name
-        nullable_alternatives = field.get("anyOf", []) + field.get("oneOf", [])
-        assert field.get("nullable") or any(part.get("type") == "null" for part in nullable_alternatives), "Недоступные цены допускают null: " + name
+        dto = "EdgeClientPricesDto" if "Edge" in name else "MaterialClientPricesDto"
+        assert "#/components/schemas/" + dto in json.dumps(field), "Общий DTO цен: " + name
+        assert "clientPrices" in schemas[name].get("required", []), "Поле цен присутствует: " + name
+        assert nullable(field), "Nullable контракт административной/публичной выдачи: " + name
     for name in ("GetMaterialsForCalculateQueryItem", "GetMaterialForCalculateQueryResult",
-                 "GetMaterialsByIdsForCalculateQueryItem", "CuttingMaterialCatalogItemDto", "GetCuttingMaterialQueryResult"):
-        assert "clientPrices" not in schemas[name]["properties"], "ВЕК и расчётные DTO не содержат итоговых цен: " + name
+                 "GetMaterialsByIdsForCalculateQueryItem", "GetEdgePriceForCalculateQueryResult"):
+        field = schemas[name]["properties"]["clientPrices"]
+        dto = "EdgeClientPricesDto" if "Edge" in name else "MaterialClientPricesDto"
+        assert "#/components/schemas/" + dto in json.dumps(field), "Цены каталога для Calculate: " + name
+        assert "clientPrices" in schemas[name].get("required", []), "Обязательные цены Calculate: " + name
+        assert not nullable(field), "Calculate получает итоговые цены без null: " + name
+    edge_fields = {"price", "article", "name", "quantityMultiple", "saleUnitType", "clientComments", "clientPrices"}
+    edge_schema = schemas["GetEdgePriceForCalculateQueryResult"]
+    equal(set(edge_schema["properties"]), edge_fields, "Поля стоимости кромки для Calculate")
+    equal(set(edge_schema["required"]), edge_fields, "Обязательные поля стоимости кромки для Calculate")
+    for name in ("CuttingMaterialCatalogItemDto", "GetCuttingMaterialQueryResult"):
+        assert "clientPrices" not in schemas[name]["properties"], "ВЕК не содержит итоговых цен: " + name
     for name in ("GetAllMaterialsQueryItemResult", "PublicMaterialListItemDto", "GetMaterialQueryResult"):
         assert not {"price", "stroydvorPrice"}.intersection(schemas[name]["properties"]), "Публичные DTO не раскрывают исходные цены: " + name
-    mark("MATERIAL-CLIENT-PRICE-06", "Три обязательные итоговые цены и наценки, nullable clientPrices в административных и публичных DTO; ВЕК без итоговых цен")
+    mark("MATERIAL-CLIENT-PRICE-06", "Шесть обязательных полей цен; Calculate получает непустые итоговые цены каталога")
+    mark("EDGE-CLIENT-PRICE-05", "EdgeClientPricesDto общий для admin и Calculate; nullable только в административных DTO")
+
+    path = "/api/for-admin/price-percentages"
+    get_operation = document["paths"][path]["get"]
+    parameters = get_operation.get("parameters", [])
+    equal(len(parameters), 1, "Единственный фильтр процентов")
+    equal(parameters[0]["name"].lower(), "appliesto", "Фильтр назначения процента")
+    equal(parameters[0]["in"], "query", "Назначение передаётся в query")
+    assert not parameters[0].get("required", False), "Фильтр назначения необязателен"
+    equal(set(schemas["PricePercentageTargetEnum"]["enum"]), {"MATERIAL", "EDGE"}, "Строковые назначения процентов")
+    expected = {"id", "key", "name", "value", "appliesTo", "priceType", "description"}
+    equal(set(schemas["PricePercentageDto"]["properties"]), expected, "Поля настройки процента")
+    equal(set(schemas["PricePercentageDto"]["required"]), expected, "Обязательные поля настройки процента")
+    assert "GetPricePercentagesQueryResult" in json.dumps(get_operation["responses"]["200"]), "Схема списка процентов"
+    put_operation = document["paths"][path + "/{key}"]["put"]
+    assert put_operation["requestBody"].get("required"), "Тело обновления процента обязательно"
+    equal(set(schemas["UpdatePricePercentageModel"]["properties"]), {"value"}, "Изменяется только значение процента")
+    equal(set(schemas["UpdatePricePercentageModel"]["required"]), {"value"}, "Значение процента обязательно")
+    assert "UpdatePricePercentageCommandResult" in json.dumps(put_operation["responses"]["200"]), "PUT возвращает результат команды"
+    assert "204" not in put_operation["responses"], "PUT Catalog возвращает 200 с телом"
+    mark("PRICE-PERCENTAGE-03", "Схемы GET с фильтром и PUT с обязательным value и ответом 200")
+
+
+def run_price_percentage_read_scenario():
+    """Целевое чтение локальных процентов и фильтра без изменения данных."""
+    path = "/api/for-admin/price-percentages"
+    response = request("GET", path, auth=True)
+    expect(response[0], 200, "Список локальных процентов")
+    body = json_body(response)
+    equal(set(body), {"items"}, "Обёртка списка процентов")
+    items = body["items"]
+    keys = {prefix + "_" + client for prefix in ("MATERIAL", "EDGE_04", "EDGE_1", "EDGE_2")
+            for client in ("CUSTOM", "MEBEL", "KEY")}
+    equal({row["key"] for row in items}, keys, "Сохранены двенадцать предметных ключей процентов")
+    equal(len(items), len(keys), "Ключи процентов не повторяются")
+    for row in items:
+        equal(set(row), {"id", "key", "name", "value", "appliesTo", "priceType", "description"}, "Поля настройки процента")
+        assert type(row["value"]) is int and row["value"] >= 0, "Неотрицательный целочисленный процент"
+        assert row["priceType"] in {"CUSTOM", "MEBEL", "KEY"}, "Тип клиента передан строкой"
+    for applies_to, count in (("MATERIAL", 3), ("EDGE", 9)):
+        response = request("GET", path + "?" + urllib.parse.urlencode({"appliesTo": applies_to}), auth=True)
+        expect(response[0], 200, "Отбор процентов по назначению " + applies_to)
+        actual = json_body(response)["items"]
+        equal(actual, [row for row in items if row["appliesTo"] == applies_to], "Фильтр сохраняет значения и порядок")
+        equal(len(actual), count, "Количество процентов выбранного назначения")
+    problem(request("GET", path + "?appliesTo=UNKNOWN", auth=True), "Неизвестное назначение процента")
+    mark("PRICE-PERCENTAGE-02", "GET возвращает 12 локальных настроек; MATERIAL — 3, EDGE — 9; неверное назначение отклоняется")
 
 
 def run_openapi_metadata_scenarios(document):
@@ -2145,6 +2211,7 @@ def main():
         "Edges",
         "RelationMarkingsForAdmin",
         "MaterialEdgeRelationsForAdmin",
+        "PricePercentagesForAdmin",
         "MaterialsForVekLk",
     ]
     equal([tag["name"] for tag in openapi_document.get("tags", [])], expected_tag_names,
@@ -2157,6 +2224,7 @@ def main():
     manager_cookie = signin(credentials["manager"], credentials["password"], "manager")
     admin_cookie = signin(credentials["administrator"], credentials["password"], "administrator")
     cookie = tester_cookie
+    run_price_percentage_read_scenario()
 
     for old_prefix, current_prefix in (("/api/admin/", "/api/for-admin/"),
                                        ("/api/calculate/", "/api/for-calculate/")):

@@ -41,4 +41,5 @@ public class CatalogDbContext(DbContextOptions<CatalogDbContext> _options) : DbC
     public DbSet<MaterialEdgeLink> MaterialEdgeLinks { get; init; }
     public DbSet<MaterialEdgeLinkMarking> MaterialEdgeLinkMarkings { get; init; }
     public DbSet<CatalogChangeHistory> ChangeHistory { get; init; }
+    public DbSet<PricePercentage> PricePercentages { get; init; }
 }

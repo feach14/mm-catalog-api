@@ -1,5 +1,7 @@
+using Catalog.Api.Features.Materials.Dto;
 using Catalog.Api.Features.Materials.Helpers;
 using Catalog.Database;
+using Catalog.Database.Enums;
 using Core.CQRS;
 
 namespace Catalog.Api.Features.Materials.ForCalculate;
@@ -15,9 +17,11 @@ public sealed record GetMaterialForCalculateQueryResult(
     [property: Description("Артикул")] string Article,
     [property: Description("Комментарии для клиента")] string[] ClientComments,
     [property: Description("Материал есть в наличии")] bool InStock,
-    [property: Description("Признак цены поставщика; true также при выключенной связи")] bool IsSupplierPrice);
+    [property: Description("Признак цены поставщика; true также при выключенной связи")] bool IsSupplierPrice,
+    [property: Description("Цены для клиентов")] MaterialClientPricesDto ClientPrices);
 
-public sealed class GetMaterialForCalculateQueryHandler(CatalogDbContext dbContext)
+public sealed class GetMaterialForCalculateQueryHandler(
+    CatalogDbContext dbContext)
     : IQueryHandler<GetMaterialForCalculateQuery, GetMaterialForCalculateQueryResult>
 {
     public async Task<GetMaterialForCalculateQueryResult> Handle(GetMaterialForCalculateQuery query, CancellationToken ct)
@@ -64,8 +68,12 @@ public sealed class GetMaterialForCalculateQueryHandler(CatalogDbContext dbConte
             .Select(comment => comment.Text)
             .ToArrayAsync(ct);
 
+        var percentages = MaterialClientPricePercentages.From(await dbContext.PricePercentages.AsNoTracking()
+                .Where(percentage => percentage.AppliesTo == PricePercentageTargetEnum.MATERIAL)
+                .ToDictionaryAsync(percentage => percentage.Key, percentage => percentage.Value, ct));
         return new GetMaterialForCalculateQueryResult(material.Id, material.Width, material.Height, material.Price,
             MaterialNameHelper.GetFullName(material.Name, material.MaterialTypeName, material.Thickness,
-                material.Height, material.Width, material.ManufacturerName), material.Article, clientComments, material.InStock, material.IsSupplierPrice);
+                material.Height, material.Width, material.ManufacturerName), material.Article, clientComments, material.InStock, material.IsSupplierPrice,
+            percentages.GetPrices(material.Price, 0));
     }
 }

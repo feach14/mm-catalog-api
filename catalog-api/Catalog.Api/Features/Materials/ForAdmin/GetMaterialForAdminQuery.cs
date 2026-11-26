@@ -1,5 +1,6 @@
 using Catalog.Api.Features.Materials.Dto;
 using Catalog.Api.Features.Materials.ForAdmin.Dto;
+using Catalog.Api.Features.Materials.Helpers;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.BaseEnums;
@@ -38,16 +39,13 @@ public sealed record GetMaterialForAdminQueryResult(
     [property: Description("Материал в архиве")] bool IsArchived,
     [property: Description("Id исходного материала до переноса в архив")] int? OriginalMaterialId,
     [property: Description("Комментарии")] MaterialCommentDto[] Comments,
-    [property: Description("Цены для клиентов; null при временной недоступности расчёта")] MaterialClientPricesDto? ClientPrices)
+    [property: Description("Цены для клиентов")] MaterialClientPricesDto? ClientPrices)
 {
     [Description("Техническая ссылка на товар Стройдвора")]
     public string? StroydvorUrl => StroydvorProductId is { } id ? $"https://stroydvor21.ru/products/{id}" : null;
 }
 
-public class GetMaterialForAdminQueryHandler(
-    CatalogDbContext dbContext,
-    IQueryHandler<GetArchivedMaterialForAdminQuery, GetMaterialForAdminQueryResult> archivedHandler,
-    IQueryHandler<GetMaterialClientPricePercentagesQuery, MaterialClientPricePercentages?> percentagesHandler) : IQueryHandler<GetMaterialForAdminQuery, GetMaterialForAdminQueryResult>
+public class GetMaterialForAdminQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetMaterialForAdminQuery, GetMaterialForAdminQueryResult>
 {
     public async Task<GetMaterialForAdminQueryResult> Handle(GetMaterialForAdminQuery query, CancellationToken ct)
     {
@@ -122,11 +120,87 @@ public class GetMaterialForAdminQueryHandler(
                 x.Comments.OrderBy(comment => comment.Id)
                     .Select(comment => new MaterialCommentDto(comment.Id, comment.Text, comment.IsForClient)).ToArray(),
                 null))
-            .SingleOrDefaultAsync(ct);
-        if (material is null)
-            return await archivedHandler.Handle(new GetArchivedMaterialForAdminQuery(query.Id), ct);
+            .SingleOrDefaultAsync(ct)
+            ?? await GetArchivedMaterial(query.Id, ct);
 
-        var percentages = await percentagesHandler.Handle(new GetMaterialClientPricePercentagesQuery(), ct);
-        return material with { ClientPrices = percentages?.GetPrices(material.Price, material.StroydvorPrice) };
+        var percentages = MaterialClientPricePercentages.From(await dbContext.PricePercentages.AsNoTracking()
+                .Where(percentage => percentage.AppliesTo == PricePercentageTargetEnum.MATERIAL)
+                .ToDictionaryAsync(percentage => percentage.Key, percentage => percentage.Value, ct));
+        return material with { ClientPrices = percentages.GetPrices(material.Price, material.StroydvorPrice) };
     }
+
+    private async Task<GetMaterialForAdminQueryResult> GetArchivedMaterial(int id, CancellationToken ct) =>
+        await dbContext.ArchivedMaterials.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new GetMaterialForAdminQueryResult(
+                x.Id,
+                x.Name,
+                x.Article,
+                new PropertyDto(x.CategoryId, x.Category.Name),
+                new PropertyDto(x.MaterialSheetSize.Id, x.MaterialSheetSize.Name),
+                new PropertyDto(x.MaterialManufacturer.Id, x.MaterialManufacturer.Name),
+                new PropertyDto(x.MaterialType.Id, x.MaterialType.Name),
+                new PropertyDto(x.MaterialThickness.Id, x.MaterialThickness.Name),
+                new MaterialImagesDto
+                {
+                    Original = x.Images
+                        .Where(image => image.ImageType == MaterialImageTypeEnum.Original)
+                        .Select(image => (Guid?)image.Guid)
+                        .SingleOrDefault(),
+                    OriginalMetadata = x.Images
+                        .Where(image => image.ImageType == MaterialImageTypeEnum.Original)
+                        .Select(image => new MaterialImageMetadataDto
+                        {
+                            ContentType = image.ContentType,
+                            Size = image.Data.Length
+                        })
+                        .SingleOrDefault(),
+                    Thumbnail240 = x.Images
+                        .Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail240)
+                        .Select(image => (Guid?)image.Guid)
+                        .SingleOrDefault(),
+                    Thumbnail240Metadata = x.Images
+                        .Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail240)
+                        .Select(image => new MaterialImageMetadataDto
+                        {
+                            ContentType = image.ContentType,
+                            Size = image.Data.Length
+                        })
+                        .SingleOrDefault(),
+                    Thumbnail480 = x.Images
+                        .Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail480)
+                        .Select(image => (Guid?)image.Guid)
+                        .SingleOrDefault(),
+                    Thumbnail480Metadata = x.Images
+                        .Where(image => image.ImageType == MaterialImageTypeEnum.Thumbnail480)
+                        .Select(image => new MaterialImageMetadataDto
+                        {
+                            ContentType = image.ContentType,
+                            Size = image.Data.Length
+                        })
+                        .SingleOrDefault()
+                },
+                x.Count,
+                x.OrderByCol,
+                x.CommentOnMaterialIsRequired,
+                x.AllowSecondItemInOrder,
+                x.ExternalLink,
+                x.Price,
+                x.HideInLk,
+                x.HideOnSite,
+                x.HidePriceOnSite,
+                x.CountTypeEnum,
+                x.StroydvorEnabled,
+                x.StroydvorProductId,
+                x.StroydvorArticle,
+                x.StroydvorPrice,
+                x.StroydvorLastSyncAt,
+                x.StroydvorInStock,
+                true,
+                x.OriginalMaterialId,
+                x.Comments.OrderBy(comment => comment.Id)
+                    .Select(comment => new MaterialCommentDto(comment.Id, comment.Text, comment.IsForClient)).ToArray(),
+                null))
+            .SingleOrDefaultAsync(ct)
+            ?? throw new BadHttpRequestException($"Материал с id={id} не найден");
 }

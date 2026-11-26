@@ -1223,6 +1223,178 @@ namespace Catalog.Database.Migrations
                     b.ToTable("material_types", "catalog");
                 });
 
+            modelBuilder.Entity("Catalog.Database.Entities.PricePercentage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AppliesTo")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("applies_to");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("key");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("PriceType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("price_type");
+
+                    b.Property<int>("Value")
+                        .HasColumnType("integer")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id")
+                        .HasName("pk_price_percentages");
+
+                    b.HasIndex("Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_price_percentages_key");
+
+                    b.ToTable("price_percentages", "catalog");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            AppliesTo = "MATERIAL",
+                            Description = "Увеличивает базовую стоимость листового материала для частного клиента на указанный процент.",
+                            Key = "MATERIAL_CUSTOM",
+                            Name = "Надбавка на материал для частного клиента",
+                            PriceType = "CUSTOM",
+                            Value = 0
+                        },
+                        new
+                        {
+                            Id = 2,
+                            AppliesTo = "MATERIAL",
+                            Description = "Увеличивает базовую стоимость листового материала для оптового клиента на указанный процент.",
+                            Key = "MATERIAL_MEBEL",
+                            Name = "Надбавка на материал для оптового клиента",
+                            PriceType = "MEBEL",
+                            Value = 0
+                        },
+                        new
+                        {
+                            Id = 3,
+                            AppliesTo = "MATERIAL",
+                            Description = "Увеличивает базовую стоимость листового материала для индивидуального клиента на указанный процент.",
+                            Key = "MATERIAL_KEY",
+                            Name = "Надбавка на материал для индивидуального клиента",
+                            PriceType = "KEY",
+                            Value = 0
+                        },
+                        new
+                        {
+                            Id = 7,
+                            AppliesTo = "EDGE",
+                            Description = "Увеличивает базовую стоимость кромки толщиной 0,4 мм для частного клиента на указанный процент.",
+                            Key = "EDGE_04_CUSTOM",
+                            Name = "Надбавка на кромку 0,4 мм для частного клиента",
+                            PriceType = "CUSTOM",
+                            Value = 0
+                        },
+                        new
+                        {
+                            Id = 8,
+                            AppliesTo = "EDGE",
+                            Description = "Увеличивает базовую стоимость кромки толщиной 0,4 мм для оптового клиента на указанный процент.",
+                            Key = "EDGE_04_MEBEL",
+                            Name = "Надбавка на кромку 0,4 мм для оптового клиента",
+                            PriceType = "MEBEL",
+                            Value = 0
+                        },
+                        new
+                        {
+                            Id = 9,
+                            AppliesTo = "EDGE",
+                            Description = "Увеличивает базовую стоимость кромки толщиной 0,4 мм для индивидуального клиента на указанный процент.",
+                            Key = "EDGE_04_KEY",
+                            Name = "Надбавка на кромку 0,4 мм для индивидуального клиента",
+                            PriceType = "KEY",
+                            Value = 0
+                        },
+                        new
+                        {
+                            Id = 10,
+                            AppliesTo = "EDGE",
+                            Description = "Увеличивает базовую стоимость кромки толщиной 1 мм для частного клиента на указанный процент.",
+                            Key = "EDGE_1_CUSTOM",
+                            Name = "Надбавка на кромку 1 мм для частного клиента",
+                            PriceType = "CUSTOM",
+                            Value = 0
+                        },
+                        new
+                        {
+                            Id = 11,
+                            AppliesTo = "EDGE",
+                            Description = "Увеличивает базовую стоимость кромки толщиной 1 мм для оптового клиента на указанный процент.",
+                            Key = "EDGE_1_MEBEL",
+                            Name = "Надбавка на кромку 1 мм для оптового клиента",
+                            PriceType = "MEBEL",
+                            Value = 0
+                        },
+                        new
+                        {
+                            Id = 12,
+                            AppliesTo = "EDGE",
+                            Description = "Увеличивает базовую стоимость кромки толщиной 1 мм для индивидуального клиента на указанный процент.",
+                            Key = "EDGE_1_KEY",
+                            Name = "Надбавка на кромку 1 мм для индивидуального клиента",
+                            PriceType = "KEY",
+                            Value = 0
+                        },
+                        new
+                        {
+                            Id = 13,
+                            AppliesTo = "EDGE",
+                            Description = "Увеличивает базовую стоимость кромки толщиной 2 мм для частного клиента на указанный процент.",
+                            Key = "EDGE_2_CUSTOM",
+                            Name = "Надбавка на кромку 2 мм для частного клиента",
+                            PriceType = "CUSTOM",
+                            Value = 0
+                        },
+                        new
+                        {
+                            Id = 14,
+                            AppliesTo = "EDGE",
+                            Description = "Увеличивает базовую стоимость кромки толщиной 2 мм для оптового клиента на указанный процент.",
+                            Key = "EDGE_2_MEBEL",
+                            Name = "Надбавка на кромку 2 мм для оптового клиента",
+                            PriceType = "MEBEL",
+                            Value = 0
+                        },
+                        new
+                        {
+                            Id = 15,
+                            AppliesTo = "EDGE",
+                            Description = "Увеличивает базовую стоимость кромки толщиной 2 мм для индивидуального клиента на указанный процент.",
+                            Key = "EDGE_2_KEY",
+                            Name = "Надбавка на кромку 2 мм для индивидуального клиента",
+                            PriceType = "KEY",
+                            Value = 0
+                        });
+                });
+
             modelBuilder.Entity("Catalog.Database.Entities.RelationMarking", b =>
                 {
                     b.Property<int>("Id")
