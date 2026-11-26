@@ -8,7 +8,7 @@ using Microsoft.Net.Http.Headers;
 namespace Catalog.Api.Controllers.Edges;
 
 [Route("api/edges"),
- OpenApiTagOrder(15),
+ OpenApiTagOrder(16),
  AllowAnonymous]
 public class EdgesController : BaseApiController
 {

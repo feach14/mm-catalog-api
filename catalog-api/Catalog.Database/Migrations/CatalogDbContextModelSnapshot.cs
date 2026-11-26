@@ -312,6 +312,10 @@ namespace Catalog.Database.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("stroydvor_product_id");
 
+                    b.Property<int>("SupplierId")
+                        .HasColumnType("integer")
+                        .HasColumnName("supplier_id");
+
                     b.HasKey("Id")
                         .HasName("pk_edges");
 
@@ -326,6 +330,9 @@ namespace Catalog.Database.Migrations
 
                     b.HasIndex("StroydvorProductId")
                         .HasDatabaseName("ix_edges_stroydvor_product_id");
+
+                    b.HasIndex("SupplierId")
+                        .HasDatabaseName("ix_edges_supplier_id");
 
                     b.HasIndex("OrderByCol", "Id")
                         .HasDatabaseName("ix_edges_order_by_col_id");
@@ -585,6 +592,54 @@ namespace Catalog.Database.Migrations
                         .HasDatabaseName("ix_edge_sizes_thickness_width");
 
                     b.ToTable("edge_sizes", "catalog");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.EdgeSupplier", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IncludeInEdgeName")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("include_in_edge_name");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("normalized_name")
+                        .HasComputedColumnSql("lower(btrim(name))", true);
+
+                    b.Property<int>("OrderByCol")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("order_by_col");
+
+                    b.HasKey("Id")
+                        .HasName("pk_edge_suppliers");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("ix_edge_suppliers_normalized_name");
+
+                    b.HasIndex("OrderByCol", "Id")
+                        .HasDatabaseName("ix_edge_suppliers_order_by_col_id");
+
+                    b.ToTable("edge_suppliers", "catalog");
                 });
 
             modelBuilder.Entity("Catalog.Database.Entities.ImageCache", b =>
@@ -1286,11 +1341,20 @@ namespace Catalog.Database.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_edges_edge_sizes_size_id");
 
+                    b.HasOne("Catalog.Database.Entities.EdgeSupplier", "Supplier")
+                        .WithMany("Edges")
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_edges_edge_suppliers_supplier_id");
+
                     b.Navigation("Manufacturer");
 
                     b.Navigation("SaleUnit");
 
                     b.Navigation("Size");
+
+                    b.Navigation("Supplier");
                 });
 
             modelBuilder.Entity("Catalog.Database.Entities.EdgeComment", b =>
@@ -1478,6 +1542,11 @@ namespace Catalog.Database.Migrations
                 });
 
             modelBuilder.Entity("Catalog.Database.Entities.EdgeSize", b =>
+                {
+                    b.Navigation("Edges");
+                });
+
+            modelBuilder.Entity("Catalog.Database.Entities.EdgeSupplier", b =>
                 {
                     b.Navigation("Edges");
                 });

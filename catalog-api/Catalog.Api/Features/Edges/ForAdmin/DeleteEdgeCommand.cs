@@ -17,10 +17,12 @@ public sealed class DeleteEdgeCommandHandler(CatalogDbContext dbContext, IMemory
 {
     public async Task<DeleteEdgeCommandResult> Handle(DeleteEdgeCommand command, CancellationToken ct)
     {
-        var edge = await dbContext.Edges.Include(x => x.Images).Include(x => x.Size)
+        var edge = await dbContext.Edges.Include(x => x.Images).Include(x => x.Size).Include(x => x.Supplier)
             .SingleOrDefaultAsync(x => x.Id == command.Id, ct)
             ?? throw new BadHttpRequestException($"Кромка с id={command.Id} не найдена.");
-        var linkedEdgeMessage = $"Кромка #{edge.Id} «{EdgeNameHelper.GetFullName(edge.Name, edge.Size.Name, edge.IsStockItem)}» связана с материалами. Сначала снимите все связи с материалами.";
+        var edgeName = EdgeNameHelper.GetFullName(edge.Name, edge.Size.Name, edge.IsStockItem,
+            edge.Supplier.Name, edge.Supplier.IncludeInEdgeName);
+        var linkedEdgeMessage = $"Кромка #{edge.Id} «{edgeName}» связана с материалами. Сначала снимите все связи с материалами.";
         if (await dbContext.MaterialEdgeLinks.AsNoTracking().AnyAsync(x => x.EdgeId == edge.Id, ct))
             throw new BadHttpRequestException(linkedEdgeMessage);
         var imageGuids = edge.Images.Select(x => x.Guid).ToArray();

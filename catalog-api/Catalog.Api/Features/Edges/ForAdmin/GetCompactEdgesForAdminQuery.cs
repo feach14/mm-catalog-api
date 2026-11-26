@@ -22,6 +22,7 @@ public sealed record GetCompactEdgesForAdminQueryItem(
     [property: Description("Дата успешной синхронизации со Стройдвором")] DateTimeOffset? StroydvorLastSyncAt,
     [property: Description("В наличии в Стройдворе")] bool StroydvorInStock,
     [property: Description("Id производителя")] int ManufacturerId,
+    [property: Description("Id поставщика")] int SupplierId,
     [property: Description("Id размера")] int SizeId,
     [property: Description("Id единицы продажи")] int SaleUnitId,
     [property: Description("Складская позиция")] bool IsStockItem,
@@ -32,12 +33,19 @@ public sealed record GetCompactEdgesForAdminQueryItem(
 
 public sealed record EdgesForAdminFiltersDto(
     [property: Description("Производители")] EdgeFilterItemDto[] Manufacturers,
+    [property: Description("Поставщики")] EdgeSupplierFilterItemDto[] Suppliers,
     [property: Description("Размеры")] EdgeSizeFilterItemDto[] Sizes,
     [property: Description("Единицы продажи")] EdgeSaleUnitFilterItemDto[] SaleUnits);
 
 public sealed record EdgeFilterItemDto(
     [property: Description("Id")] int Id,
     [property: Description("Название")] string Name);
+
+public sealed record EdgeSupplierFilterItemDto(
+    [property: Description("Id")] int Id,
+    [property: Description("Название")] string Name,
+    [property: Description("Добавлять поставщика в полное название кромки")] bool IncludeInEdgeName,
+    [property: Description("Порядок сортировки")] int OrderByCol);
 
 public sealed record EdgeSaleUnitFilterItemDto(
     [property: Description("Id")] int Id,
@@ -61,7 +69,7 @@ public sealed class GetCompactEdgesForAdminQueryHandler(CatalogDbContext dbConte
             .Select(x => new GetCompactEdgesForAdminQueryItem(
                 x.Id, x.Name, x.Article, x.Price,
                 x.StroydvorProductId, x.StroydvorArticle, x.StroydvorPrice, x.StroydvorLastSyncAt, x.StroydvorInStock,
-                x.ManufacturerId, x.SizeId, x.SaleUnitId,
+                x.ManufacturerId, x.SupplierId, x.SizeId, x.SaleUnitId,
                 x.IsStockItem, x.StockQuantity, x.OrderByCol,
                 x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240)
                     .Select(image => (Guid?)image.Guid).SingleOrDefault(),
@@ -74,9 +82,12 @@ public sealed class GetCompactEdgesForAdminQueryHandler(CatalogDbContext dbConte
         var sizes = await dbContext.EdgeSizes.AsNoTracking()
             .OrderBy(x => x.OrderByCol)
             .Select(x => new EdgeSizeFilterItemDto(x.Id, x.Name, x.Thickness, x.Width, x.OrderByCol)).ToArrayAsync(ct);
+        var suppliers = await dbContext.EdgeSuppliers.AsNoTracking()
+            .OrderBy(x => x.OrderByCol)
+            .Select(x => new EdgeSupplierFilterItemDto(x.Id, x.Name, x.IncludeInEdgeName, x.OrderByCol)).ToArrayAsync(ct);
         var saleUnits = await dbContext.EdgeSaleUnits.AsNoTracking()
             .OrderBy(x => x.OrderByCol)
             .Select(x => new EdgeSaleUnitFilterItemDto(x.Id, x.Name, x.SaleUnitType)).ToArrayAsync(ct);
-        return new GetCompactEdgesForAdminQueryResult(items, new EdgesForAdminFiltersDto(manufacturers, sizes, saleUnits));
+        return new GetCompactEdgesForAdminQueryResult(items, new EdgesForAdminFiltersDto(manufacturers, suppliers, sizes, saleUnits));
     }
 }

@@ -7,7 +7,7 @@ using Core.CQRS;
 namespace Catalog.Api.Controllers.Relations;
 
 [Route("api/for-admin/relations/markings"),
- OpenApiTagOrder(16)]
+ OpenApiTagOrder(17)]
 public sealed class RelationMarkingsForAdminController : BaseAdministrationApiController
 {
     [HttpGet,

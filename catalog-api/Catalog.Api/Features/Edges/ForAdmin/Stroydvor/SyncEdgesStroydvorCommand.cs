@@ -41,6 +41,7 @@ public sealed class SyncEdgesStroydvorCommandHandler(
         var edges = await dbContext.Edges.AsNoTracking()
             .Include(x => x.SaleUnit)
             .Include(x => x.Size)
+            .Include(x => x.Supplier)
             .Where(x => command.Ids.Contains(x.Id))
             .ToArrayAsync(ct);
         if (edges.Length != command.Ids.Length)
@@ -53,7 +54,9 @@ public sealed class SyncEdgesStroydvorCommandHandler(
         {
             if (edge.StroydvorProductId is not > 0)
             {
-                var error = $"У кромки #{edge.Id} «{EdgeNameHelper.GetFullName(edge.Name, edge.Size.Name, edge.IsStockItem)}» нет привязки к Стройдвору.";
+                var edgeName = EdgeNameHelper.GetFullName(edge.Name, edge.Size.Name, edge.IsStockItem,
+                    edge.Supplier.Name, edge.Supplier.IncludeInEdgeName);
+                var error = $"У кромки #{edge.Id} «{edgeName}» нет привязки к Стройдвору.";
                 LogSyncFailure(edge, error);
                 throw new BadHttpRequestException(error);
             }
@@ -73,7 +76,8 @@ public sealed class SyncEdgesStroydvorCommandHandler(
         foreach (var id in command.Ids)
         {
             var edge = byId[id];
-            var edgeName = EdgeNameHelper.GetFullName(edge.Name, edge.Size.Name, edge.IsStockItem);
+            var edgeName = EdgeNameHelper.GetFullName(edge.Name, edge.Size.Name, edge.IsStockItem,
+                edge.Supplier.Name, edge.Supplier.IncludeInEdgeName);
             var read = reads[id];
             if (!read.Success)
             {
@@ -160,7 +164,8 @@ public sealed class SyncEdgesStroydvorCommandHandler(
             "Не удалось синхронизировать кромку #{EdgeId} «{EdgeName}», артикул «{EdgeArticle}», с товаром Стройдвора #{StroydvorProductId}. Причина: {SyncError} " +
             "Единица продажи: у нас {SaleUnitType}, в Стройдворе {StroydvorSaleUnitType}. Длина бухты: у нас {SaleUnitLength} м, в Стройдворе {StroydvorRollLength} м. " +
             "Карточка Стройдвора «{StroydvorProductName}», артикул «{StroydvorArticle}».",
-            edge.Id, EdgeNameHelper.GetFullName(edge.Name, edge.Size.Name, edge.IsStockItem), edge.Article, edge.StroydvorProductId, error,
+            edge.Id, EdgeNameHelper.GetFullName(edge.Name, edge.Size.Name, edge.IsStockItem,
+                edge.Supplier.Name, edge.Supplier.IncludeInEdgeName), edge.Article, edge.StroydvorProductId, error,
             edge.SaleUnit.SaleUnitType, product?.SaleUnitType, edge.SaleUnit.Length, product?.RollLengthM,
             product?.Name, product?.Article);
 

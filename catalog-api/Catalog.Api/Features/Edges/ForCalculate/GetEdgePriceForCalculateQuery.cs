@@ -56,6 +56,8 @@ public sealed class GetEdgePriceForCalculateQueryHandler(
                 link.Edge.Article,
                 link.Edge.Name,
                 SizeName = link.Edge.Size.Name,
+                SupplierName = link.Edge.Supplier.Name,
+                IncludeSupplierInEdgeName = link.Edge.Supplier.IncludeInEdgeName,
                 link.Edge.IsStockItem,
                 QuantityMultiple = link.Edge.SaleUnit.Length,
                 link.Edge.SaleUnit.SaleUnitType,
@@ -113,7 +115,8 @@ public sealed class GetEdgePriceForCalculateQueryHandler(
         }
 
         return new GetEdgePriceForCalculateQueryResult(matches[0].Price, matches[0].Article,
-            EdgeNameHelper.GetFullName(matches[0].Name, matches[0].SizeName, matches[0].IsStockItem),
+            EdgeNameHelper.GetFullName(matches[0].Name, matches[0].SizeName, matches[0].IsStockItem,
+                matches[0].SupplierName, matches[0].IncludeSupplierInEdgeName),
             matches[0].QuantityMultiple, matches[0].SaleUnitType, matches[0].ClientComments);
     }
 

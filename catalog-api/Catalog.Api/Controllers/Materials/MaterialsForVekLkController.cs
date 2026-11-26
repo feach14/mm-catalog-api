@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 namespace Catalog.Api.Controllers.Materials;
 
 [Route("api/for-vek-lk"),
- OpenApiTagOrder(19),
+ OpenApiTagOrder(20),
  Authorize(AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
 public sealed class MaterialsForVekLkController : BaseApiController
 {

@@ -7,7 +7,7 @@ using Core.CQRS;
 namespace Catalog.Api.Controllers.Edges;
 
 [Route("api/for-admin/edges/sizes"),
- OpenApiTagOrder(13)]
+ OpenApiTagOrder(14)]
 public sealed class EdgeSizesForAdminController : BaseAdministrationApiController
 {
     [HttpGet,

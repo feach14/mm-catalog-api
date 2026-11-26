@@ -6,7 +6,7 @@ using Core.CQRS;
 namespace Catalog.Api.Controllers.Relations;
 
 [Route("api/for-admin/relations"),
- OpenApiTagOrder(17)]
+ OpenApiTagOrder(18)]
 public sealed class MaterialEdgeRelationsForAdminController : BaseAdministrationApiController
 {
     [HttpGet("compact"),

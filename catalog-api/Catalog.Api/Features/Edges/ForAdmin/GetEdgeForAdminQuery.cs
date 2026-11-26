@@ -18,6 +18,7 @@ public sealed record GetEdgeForAdminQueryResult(
     [property: Description("Дата успешной синхронизации со Стройдвором")] DateTimeOffset? StroydvorLastSyncAt,
     [property: Description("В наличии в Стройдворе")] bool StroydvorInStock,
     [property: Description("Id производителя")] int ManufacturerId,
+    [property: Description("Id поставщика")] int SupplierId,
     [property: Description("Id размера")] int SizeId,
     [property: Description("Id единицы продажи")] int SaleUnitId,
     [property: Description("Складская позиция")] bool IsStockItem,
@@ -34,7 +35,7 @@ public sealed class GetEdgeForAdminQueryHandler(CatalogDbContext dbContext) : IQ
             .Select(x => new GetEdgeForAdminQueryResult(
                 x.Id, x.Name, x.Article, x.Price,
                 x.StroydvorProductId, x.StroydvorArticle, x.StroydvorPrice, x.StroydvorLastSyncAt, x.StroydvorInStock,
-                x.ManufacturerId, x.SizeId, x.SaleUnitId, x.IsStockItem, x.StockQuantity, x.OrderByCol,
+                x.ManufacturerId, x.SupplierId, x.SizeId, x.SaleUnitId, x.IsStockItem, x.StockQuantity, x.OrderByCol,
                 new EdgeImagesDto(
                     x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Original).Select(image => (Guid?)image.Guid).SingleOrDefault(),
                     x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Original).Select(image => new EdgeImageMetadataDto(image.ContentType, image.Data.Length)).SingleOrDefault(),

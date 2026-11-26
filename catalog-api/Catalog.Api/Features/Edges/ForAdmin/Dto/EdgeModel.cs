@@ -30,6 +30,9 @@ public record EdgeModel
     [Description("Id производителя")]
     public required int ManufacturerId { get; init; }
 
+    [Description("Id поставщика")]
+    public required int SupplierId { get; init; }
+
     [Description("Id размера")]
     public required int SizeId { get; init; }
 
@@ -72,6 +75,11 @@ public sealed class EdgeModelValidator : AbstractValidator<EdgeModel>
             .GreaterThan(0).WithMessage("Выберите производителя кромки")
             .MustAsync(async (id, ct) => await dbContext.EdgeManufacturers.AsNoTracking().AnyAsync(x => x.Id == id, ct))
             .WithMessage("Производитель кромки не найден");
+        RuleFor(x => x.SupplierId)
+            .Cascade(CascadeMode.Stop)
+            .GreaterThan(0).WithMessage("Выберите поставщика кромки")
+            .MustAsync(async (id, ct) => await dbContext.EdgeSuppliers.AsNoTracking().AnyAsync(x => x.Id == id, ct))
+            .WithMessage("Поставщик кромки не найден");
         RuleFor(x => x.SizeId)
             .Cascade(CascadeMode.Stop)
             .GreaterThan(0).WithMessage("Выберите размер кромки")

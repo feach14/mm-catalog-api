@@ -83,6 +83,8 @@ public sealed class GetCuttingMaterialQueryHandler(CatalogDbContext dbContext)
                 link.Edge.Article,
                 Price = link.Edge.StroydvorPrice > 0 ? link.Edge.StroydvorPrice : link.Edge.Price,
                 SizeName = link.Edge.Size.Name,
+                SupplierName = link.Edge.Supplier.Name,
+                IncludeSupplierInEdgeName = link.Edge.Supplier.IncludeInEdgeName,
                 link.Edge.Size.Thickness,
                 link.Edge.Size.Width,
                 link.Edge.IsStockItem,
@@ -96,7 +98,8 @@ public sealed class GetCuttingMaterialQueryHandler(CatalogDbContext dbContext)
             })
             .ToArrayAsync(ct);
         var edges = links.Select(link => new CuttingMaterialEdgeDto(link.Id,
-            EdgeNameHelper.GetFullName(link.Name, link.SizeName, link.IsStockItem), link.Article, link.Price,
+            EdgeNameHelper.GetFullName(link.Name, link.SizeName, link.IsStockItem,
+                link.SupplierName, link.IncludeSupplierInEdgeName), link.Article, link.Price,
             link.Thickness, link.Width, link.IsStockItem,
             link.QuantityMultiple, link.SaleUnitType, link.Priority, link.Markings, link.ClientComments)).ToArray();
 

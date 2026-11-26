@@ -7,7 +7,7 @@ using Core.CQRS;
 namespace Catalog.Api.Controllers.Edges;
 
 [Route("api/for-admin/edges/sale-units"),
- OpenApiTagOrder(14)]
+ OpenApiTagOrder(15)]
 public sealed class EdgeSaleUnitsForAdminController : BaseAdministrationApiController
 {
     [HttpGet,

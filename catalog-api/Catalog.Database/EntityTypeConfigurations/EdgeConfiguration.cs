@@ -25,6 +25,11 @@ public sealed class EdgeConfiguration : IEntityTypeConfiguration<Edge>
             .WithMany(x => x.Edges)
             .HasForeignKey(x => x.ManufacturerId)
             .OnDelete(DeleteBehavior.Restrict);
+        eb.HasOne(x => x.Supplier)
+            .WithMany(x => x.Edges)
+            .HasForeignKey(x => x.SupplierId)
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Restrict);
         eb.HasOne(x => x.Size)
             .WithMany(x => x.Edges)
             .HasForeignKey(x => x.SizeId)

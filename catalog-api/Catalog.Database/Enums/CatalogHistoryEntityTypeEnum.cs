@@ -13,5 +13,6 @@ public enum CatalogHistoryEntityTypeEnum
     EdgeSize,
     EdgeSaleUnit,
     RelationMarking,
-    MaterialEdgeRelation
+    MaterialEdgeRelation,
+    EdgeSupplier
 }

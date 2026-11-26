@@ -2137,6 +2137,7 @@ def main():
         "CatalogHistoryForAdmin",
         "EdgesForAdmin",
         "EdgeManufacturersForAdmin",
+        "EdgeSuppliersForAdmin",
         "EdgeSizesForAdmin",
         "EdgeSaleUnitsForAdmin",
         "Edges",
