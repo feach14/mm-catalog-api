@@ -18,7 +18,8 @@ public sealed record MaterialClientPricePercentages(
         return new MaterialClientPricesDto(
             basePrice * (1m + PrivateClientPercentage / 100m),
             basePrice * (1m + WholesaleClientPercentage / 100m),
-            basePrice * (1m + IndividualClientPercentage / 100m));
+            basePrice * (1m + IndividualClientPercentage / 100m),
+            PrivateClientPercentage, WholesaleClientPercentage, IndividualClientPercentage);
     }
 }
 

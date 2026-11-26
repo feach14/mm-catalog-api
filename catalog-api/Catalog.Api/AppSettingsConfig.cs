@@ -28,4 +28,5 @@ public sealed record CalculateApiConfiguration
 {
     public required Uri BaseAddress { get; init; }
     public required string MaterialPricePercentagesPath { get; init; }
+    public required string EdgePricePercentagesPath { get; init; }
 }

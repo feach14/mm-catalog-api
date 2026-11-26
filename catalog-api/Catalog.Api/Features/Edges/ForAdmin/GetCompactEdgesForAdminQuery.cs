@@ -1,3 +1,4 @@
+using Catalog.Api.Features.Edges.Dto;
 using Catalog.Api.Features.Edges.ForAdmin.Dto;
 using Catalog.Database;
 using Catalog.Database.Enums;
@@ -29,7 +30,8 @@ public sealed record GetCompactEdgesForAdminQueryItem(
     [property: Description("Остаток в метрах")] decimal? StockQuantity,
     [property: Description("Порядок сортировки")] int OrderByCol,
     [property: Description("GUID миниатюры")] Guid? Thumbnail240,
-    [property: Description("Комментарии")] EdgeCommentDto[] Comments);
+    [property: Description("Комментарии")] EdgeCommentDto[] Comments,
+    [property: Description("Цены для клиентов; null при неизвестной наценке толщины или временной недоступности расчёта")] EdgeClientPricesDto? ClientPrices);
 
 public sealed record EdgesForAdminFiltersDto(
     [property: Description("Производители")] EdgeFilterItemDto[] Manufacturers,
@@ -59,7 +61,9 @@ public sealed record EdgeSizeFilterItemDto(
     [property: Description("Ширина в миллиметрах")] decimal Width,
     [property: Description("Порядок сортировки")] int OrderByCol);
 
-public sealed class GetCompactEdgesForAdminQueryHandler(CatalogDbContext dbContext)
+public sealed class GetCompactEdgesForAdminQueryHandler(
+    CatalogDbContext dbContext,
+    IQueryHandler<GetEdgeClientPricePercentagesQuery, EdgeClientPricePercentages?> percentagesHandler)
     : IQueryHandler<GetCompactEdgesForAdminQuery, GetCompactEdgesForAdminQueryResult>
 {
     public async Task<GetCompactEdgesForAdminQueryResult> Handle(GetCompactEdgesForAdminQuery query, CancellationToken ct)
@@ -74,7 +78,8 @@ public sealed class GetCompactEdgesForAdminQueryHandler(CatalogDbContext dbConte
                 x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240)
                     .Select(image => (Guid?)image.Guid).SingleOrDefault(),
                 x.Comments.OrderBy(comment => comment.Id)
-                    .Select(comment => new EdgeCommentDto(comment.Id, comment.Text, comment.IsForClient)).ToArray()))
+                    .Select(comment => new EdgeCommentDto(comment.Id, comment.Text, comment.IsForClient)).ToArray(),
+                null))
             .ToArrayAsync(ct);
         var manufacturers = await dbContext.EdgeManufacturers.AsNoTracking()
             .OrderBy(x => x.Name).ThenBy(x => x.Id)
@@ -88,6 +93,16 @@ public sealed class GetCompactEdgesForAdminQueryHandler(CatalogDbContext dbConte
         var saleUnits = await dbContext.EdgeSaleUnits.AsNoTracking()
             .OrderBy(x => x.OrderByCol)
             .Select(x => new EdgeSaleUnitFilterItemDto(x.Id, x.Name, x.SaleUnitType)).ToArrayAsync(ct);
+        if (items.Length > 0)
+        {
+            var percentages = await percentagesHandler.Handle(new GetEdgeClientPricePercentagesQuery(), ct);
+            var thicknesses = sizes.ToDictionary(size => size.Id, size => size.Thickness);
+            items = items.Select(edge => edge with
+            {
+                ClientPrices = percentages?.GetPrices(thicknesses[edge.SizeId], edge.Price, edge.StroydvorPrice)
+            }).ToArray();
+        }
+
         return new GetCompactEdgesForAdminQueryResult(items, new EdgesForAdminFiltersDto(manufacturers, suppliers, sizes, saleUnits));
     }
 }

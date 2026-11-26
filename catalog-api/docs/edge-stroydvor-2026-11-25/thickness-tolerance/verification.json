@@ -1,0 +1,20 @@
+{
+  "database": "mm",
+  "totalEdges": 913,
+  "addedInThisStep": 4,
+  "thicknessToleranceLinks": 2,
+  "decorCodeDisambiguationLinks": 2,
+  "previousLinksPreserved": 537,
+  "linkedAfter": 541,
+  "cumulativeNewLinks": 532,
+  "unresolved": 372,
+  "thicknessToleranceMm": "0.2",
+  "exactWidthRequired": true,
+  "modifiedEdgeFields": [
+    "StroydvorProductId"
+  ],
+  "otherEdgeFieldsUnchanged": true,
+  "allRowsReadAfterCommit": true,
+  "historyRecordsAdded": 4,
+  "independentAuditConfirmed": true
+}

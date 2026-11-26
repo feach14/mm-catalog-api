@@ -1933,12 +1933,14 @@ def run_material_client_price_schema_scenario(document):
     schemas = document["components"]["schemas"]
     prices = schemas["MaterialClientPricesDto"]
     price_fields = {"privateClientPrice", "wholesaleClientPrice", "individualClientPrice"}
-    equal(set(prices["properties"]), price_fields, "Три итоговые цены MaterialClientPricesDto")
-    equal(set(prices.get("required", [])), price_fields, "Обязательные итоговые цены")
-    for field in prices["properties"].values():
+    percentage_fields = {"privateClientPercentage", "wholesaleClientPercentage", "individualClientPercentage"}
+    equal(set(prices["properties"]), price_fields | percentage_fields, "Три итоговые цены и три наценки MaterialClientPricesDto")
+    equal(set(prices.get("required", [])), price_fields | percentage_fields, "Обязательные итоговые цены и наценки")
+    for name, field in prices["properties"].items():
         field_types = field["type"] if isinstance(field["type"], list) else [field["type"]]
-        assert set(field_types) in ({"number"}, {"number", "string"}), "Числовая итоговая цена без null"
-        assert re.search("[А-Яа-яЁё]", field.get("description", "")), "Русское описание итоговой цены"
+        expected_type = "integer" if name in percentage_fields else "number"
+        assert set(field_types) in ({expected_type}, {expected_type, "string"}), "Числовая цена или наценка без null"
+        assert re.search("[А-Яа-яЁё]", field.get("description", "")), "Русское описание цены или наценки"
     for name in ("GetMaterialsQueryForAdminItemResult", "GetCompactMaterialsForAdminQueryItem",
                  "GetMaterialForAdminQueryResult", "GetAllMaterialsQueryItemResult", "PublicMaterialListItemDto",
                  "GetMaterialQueryResult"):
@@ -1951,7 +1953,7 @@ def run_material_client_price_schema_scenario(document):
         assert "clientPrices" not in schemas[name]["properties"], "ВЕК и расчётные DTO не содержат итоговых цен: " + name
     for name in ("GetAllMaterialsQueryItemResult", "PublicMaterialListItemDto", "GetMaterialQueryResult"):
         assert not {"price", "stroydvorPrice"}.intersection(schemas[name]["properties"]), "Публичные DTO не раскрывают исходные цены: " + name
-    mark("MATERIAL-CLIENT-PRICE-06", "Три обязательные итоговые цены, nullable clientPrices в административных и публичных DTO; ВЕК без итоговых цен")
+    mark("MATERIAL-CLIENT-PRICE-06", "Три обязательные итоговые цены и наценки, nullable clientPrices в административных и публичных DTO; ВЕК без итоговых цен")
 
 
 def run_openapi_metadata_scenarios(document):

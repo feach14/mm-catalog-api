@@ -1,3 +1,4 @@
+using Catalog.Api.Features.Edges.Dto;
 using Catalog.Api.Features.Edges.ForAdmin.Dto;
 using Catalog.Database;
 using Catalog.Database.Enums;
@@ -25,24 +26,38 @@ public sealed record GetEdgeForAdminQueryResult(
     [property: Description("Остаток в метрах")] decimal? StockQuantity,
     [property: Description("Порядок сортировки")] int OrderByCol,
     [property: Description("Оригинал и миниатюра")] EdgeImagesDto Images,
-    [property: Description("Комментарии")] EdgeCommentDto[] Comments);
+    [property: Description("Комментарии")] EdgeCommentDto[] Comments,
+    [property: Description("Цены для клиентов; null при неизвестной наценке толщины или временной недоступности расчёта")] EdgeClientPricesDto? ClientPrices);
 
-public sealed class GetEdgeForAdminQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetEdgeForAdminQuery, GetEdgeForAdminQueryResult>
+public sealed class GetEdgeForAdminQueryHandler(
+    CatalogDbContext dbContext,
+    IQueryHandler<GetEdgeClientPricePercentagesQuery, EdgeClientPricePercentages?> percentagesHandler)
+    : IQueryHandler<GetEdgeForAdminQuery, GetEdgeForAdminQueryResult>
 {
-    public async Task<GetEdgeForAdminQueryResult> Handle(GetEdgeForAdminQuery query, CancellationToken ct) =>
-        await dbContext.Edges.AsNoTracking()
+    public async Task<GetEdgeForAdminQueryResult> Handle(GetEdgeForAdminQuery query, CancellationToken ct)
+    {
+        var row = await dbContext.Edges.AsNoTracking()
             .Where(x => x.Id == query.Id)
-            .Select(x => new GetEdgeForAdminQueryResult(
-                x.Id, x.Name, x.Article, x.Price,
-                x.StroydvorProductId, x.StroydvorArticle, x.StroydvorPrice, x.StroydvorLastSyncAt, x.StroydvorInStock,
-                x.ManufacturerId, x.SupplierId, x.SizeId, x.SaleUnitId, x.IsStockItem, x.StockQuantity, x.OrderByCol,
-                new EdgeImagesDto(
-                    x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Original).Select(image => (Guid?)image.Guid).SingleOrDefault(),
-                    x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Original).Select(image => new EdgeImageMetadataDto(image.ContentType, image.Data.Length)).SingleOrDefault(),
-                    x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240).Select(image => (Guid?)image.Guid).SingleOrDefault(),
-                    x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240).Select(image => new EdgeImageMetadataDto(image.ContentType, image.Data.Length)).SingleOrDefault()),
-                x.Comments.OrderBy(comment => comment.Id)
-                    .Select(comment => new EdgeCommentDto(comment.Id, comment.Text, comment.IsForClient)).ToArray()))
+            .Select(x => new
+            {
+                Edge = new GetEdgeForAdminQueryResult(
+                    x.Id, x.Name, x.Article, x.Price,
+                    x.StroydvorProductId, x.StroydvorArticle, x.StroydvorPrice, x.StroydvorLastSyncAt, x.StroydvorInStock,
+                    x.ManufacturerId, x.SupplierId, x.SizeId, x.SaleUnitId, x.IsStockItem, x.StockQuantity, x.OrderByCol,
+                    new EdgeImagesDto(
+                        x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Original).Select(image => (Guid?)image.Guid).SingleOrDefault(),
+                        x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Original).Select(image => new EdgeImageMetadataDto(image.ContentType, image.Data.Length)).SingleOrDefault(),
+                        x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240).Select(image => (Guid?)image.Guid).SingleOrDefault(),
+                        x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240).Select(image => new EdgeImageMetadataDto(image.ContentType, image.Data.Length)).SingleOrDefault()),
+                    x.Comments.OrderBy(comment => comment.Id)
+                        .Select(comment => new EdgeCommentDto(comment.Id, comment.Text, comment.IsForClient)).ToArray(),
+                    null),
+                x.Size.Thickness
+            })
             .SingleOrDefaultAsync(ct)
-        ?? throw new BadHttpRequestException($"Кромка с id={query.Id} не найдена.");
+            ?? throw new BadHttpRequestException($"Кромка с id={query.Id} не найдена.");
+
+        var percentages = await percentagesHandler.Handle(new GetEdgeClientPricePercentagesQuery(), ct);
+        return row.Edge with { ClientPrices = percentages?.GetPrices(row.Thickness, row.Edge.Price, row.Edge.StroydvorPrice) };
+    }
 }

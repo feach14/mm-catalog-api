@@ -1,0 +1,19 @@
+{
+  "database": "mm",
+  "totalEdges": 913,
+  "totalGroups": 638,
+  "incompleteGroupsAtBeginning": 305,
+  "rowsInTheseGroups": 451,
+  "fullyLinkedGroupsAfter": 333,
+  "changedEdgeFields": [
+    "OrderByCol"
+  ],
+  "modifiedRows": 913,
+  "triplesPreserved": 133,
+  "eggerPairsPreserved": 8,
+  "memberOrderPreserved": true,
+  "groupOrderWithinPartitionsPreserved": true,
+  "previousSupplierLinksAndSnapshotsPreserved": true,
+  "independentPlanReviewPassed": true,
+  "allRowsReadAfterCommit": true
+}

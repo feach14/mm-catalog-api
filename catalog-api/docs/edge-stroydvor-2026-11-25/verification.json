@@ -1,0 +1,14 @@
+{
+  "database": "mm",
+  "totalEdges": 913,
+  "newLinks": 528,
+  "existingLinksPreserved": 9,
+  "linkedAfter": 537,
+  "unresolved": 376,
+  "modifiedEdgeFields": [
+    "StroydvorProductId"
+  ],
+  "otherEdgeFieldsUnchanged": true,
+  "fullCatalogReadAfterCommit": true,
+  "historyRecordsAdded": 528
+}

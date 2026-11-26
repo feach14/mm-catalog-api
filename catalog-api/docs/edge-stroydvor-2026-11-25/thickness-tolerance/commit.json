@@ -1,0 +1,24 @@
+{
+  "Database": "mm",
+  "CommittedAt": "2026-11-25T13:28:01.6589+00:00",
+  "Updated": 4,
+  "HistoryRecords": 4,
+  "Items": [
+    {
+      "edgeId": 32,
+      "productId": 21174
+    },
+    {
+      "edgeId": 33,
+      "productId": 21172
+    },
+    {
+      "edgeId": 288,
+      "productId": 6775
+    },
+    {
+      "edgeId": 290,
+      "productId": 6776
+    }
+  ]
+}

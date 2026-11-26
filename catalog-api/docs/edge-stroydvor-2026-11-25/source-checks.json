@@ -1,0 +1,665 @@
+{
+  "mainCatalogUrl": "https://stroydvor21.ru/kromochnye-materialy",
+  "mainCatalogPages": 60,
+  "mainCatalogProducts": 1776,
+  "extraSearches": [
+    {
+      "query": "Evosoft",
+      "rows": [],
+      "pages": [],
+      "emptyMessage": true
+    },
+    {
+      "query": "EVS001",
+      "rows": [],
+      "pages": [],
+      "emptyMessage": true
+    },
+    {
+      "query": "EVS023",
+      "rows": [],
+      "pages": [],
+      "emptyMessage": true
+    },
+    {
+      "query": "Evogloss",
+      "rows": [],
+      "pages": [],
+      "emptyMessage": true
+    },
+    {
+      "query": "P100",
+      "rows": [
+        {
+          "url": "https://stroydvor21.ru/products/20633",
+          "name": "Передняя панель для сенбокса SENZA серая (102x1100мм)"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/20634",
+          "name": "Передняя панель для сенбокса SENZA белая (102x1100мм)"
+        }
+      ],
+      "pages": [],
+      "emptyMessage": false
+    },
+    {
+      "query": "P001",
+      "rows": [
+        {
+          "url": "https://stroydvor21.ru/products/19698",
+          "name": "GTV ГАЗЛИФТ МЕБЕЛЬНЫЙ БАРНЫЙ ДЛЯ ОТКИДНЫХ ФАСАДОВ 80N, ЦВЕТ СЕРЫЙ"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/20416",
+          "name": "Кронштейн газовый на 6 кг с доводчиком"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/20417",
+          "name": "Кронштейн газовый на 8 кг с доводчиком (100 шт.)"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/20418",
+          "name": "Кронштейн газовый на 8 кг (100 шт.)"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/20419",
+          "name": "Кронштейн газовый на 10 кг"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/20421",
+          "name": "Кронштейн газовый на 6 кг"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/20422",
+          "name": "Кронштейн газовый на 10 кг секретерный"
+        }
+      ],
+      "pages": [],
+      "emptyMessage": false
+    },
+    {
+      "query": "P402",
+      "rows": [],
+      "pages": [],
+      "emptyMessage": true
+    },
+    {
+      "query": "M703",
+      "rows": [],
+      "pages": [],
+      "emptyMessage": true
+    },
+    {
+      "query": "М703",
+      "rows": [],
+      "pages": [],
+      "emptyMessage": true
+    },
+    {
+      "query": "Эвоглосс",
+      "rows": [],
+      "pages": [],
+      "emptyMessage": true
+    },
+    {
+      "query": "Эвософт",
+      "rows": [],
+      "pages": [],
+      "emptyMessage": true
+    },
+    {
+      "query": "АГТ",
+      "rows": [
+        {
+          "url": "https://stroydvor21.ru/products/14727",
+          "name": "Панель AGT Серый soft touch 729 (3085 тыльная сторона) МДФ 2800*1220*18 (матовый) 2 гр."
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14728",
+          "name": "Кромка AGT (АГТ) 729 Серый soft touch матовая 22х1 (бухта 100 м) 1 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14729",
+          "name": "Панель AGT Белый soft touch 734 (3082 тыльная сторона) МДФ 2800*1220*18 (матовая) 2 гр."
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14730",
+          "name": "Кромка AGT (АГТ) 734 Белый soft touch матовая 22х1  (100м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14731",
+          "name": "Панель AGT Белый галакси 670 (3082 тыльная сторона) мдф 2800*1220*18 (глянец) 4 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14735",
+          "name": "Кромка AGT (АГТ) 605/Н79 Крем супер глянец 22х1 (бухта 100 м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14736",
+          "name": "Панель AGT Крем супер 605 (3083 тыльная сторона) мдф 2800*1220*18 (глянец) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14737",
+          "name": "Панель AGT Зеленый шелк soft touch 735 (3082 тыльная сторона) МДФ 2800*1220*18 (матовый)  2 гр."
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14738",
+          "name": "Кромка AGT (АГТ) 735 Зеленый шелк soft touch матовая 22х1 (бухта 100 м) 1 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14739",
+          "name": "Панель AGT Крем soft touch 730 (3083 тыльная сторона) МДФ 2800*1220*18(матовый) 2 гр."
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14741",
+          "name": "Панель AGT Белый супер 601 мдф 2800*1220*18 (глянец) 2гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14742",
+          "name": "Trend-book AGT"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14743",
+          "name": "Панель AGT Кашемир серый 387 (3087 тыльная сторона) мдф 2800*1220*18  4 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14744",
+          "name": "Кромка AGT (АГТ) 723 Черный soft touch матовая 22х1 (бухта 100 м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14747",
+          "name": "Кромка AGT (АГТ) 6008 Серый делюкс 22х1 (бухта 100 м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14749",
+          "name": "Кромка AGT (АГТ) 878 Визон новый глянец 22х1 (100м) 1 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14750",
+          "name": "Панель AGT 678 Крем галакси мдф 2800*1220*18 (глянец) 4 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14751",
+          "name": "Кромка AGT (АГТ) 678/693 /Н90 Крем галакси  глянец 22х1 (бухта 100 м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14756",
+          "name": "Раскладка с образцами пленки SUPRAMAT (супрамат) различных декоров AGT"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14759",
+          "name": "Панель AGT Визон 623 (3090 тыльная сторона) мдф 2800*1220*18 (глянец) 2гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14761",
+          "name": "Панель AGT 390 Серый камень (3086 тыльная сторона) мдф 2800*1220*18 (матовый)  2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14762",
+          "name": "Панель AGT Серый камень soft touch 728 (3087 тыльная сторона) МДФ 2800*1220*18(матовый) 2 гр."
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14763",
+          "name": "Кромка AGT (АГТ) 623 Визон кромка глянец 22х1 (бухта 100м) 2гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14764",
+          "name": "Кромка AGT (АГТ) 654 Дуб германский кромка глянец 22х1 (100м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14765",
+          "name": "Кромка AGT (АГТ) 390 Серый камень матовая 22х1 (100м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14905",
+          "name": "Панель AGT Черный soft touch 723 (3089 тыльная сторона) МДФ 2800*1220*18(матовый) 2 гр."
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14906",
+          "name": "Панель AGT Толедо светлое дерево 388 (3090 тыльная сторона) мдф 2800*1220*18 (матовый) 4 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14963",
+          "name": "Панель AGT Антрацит металлик 608 (3088 тыльная сторона) мдф 2800*1220*18 (глянец)  4 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/15209",
+          "name": "Панель AGT Кашемир белый  383 (3082 тыльная сторона) мдф 2800*1220*18  4 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/15407",
+          "name": "Кромка AGT (АГТ) 387 Кашемир серый 22х1 (бухта 100 м) 2 гр*"
+        }
+      ],
+      "pages": [],
+      "emptyMessage": false
+    },
+    {
+      "query": "1х22",
+      "rows": [],
+      "pages": [],
+      "emptyMessage": true
+    },
+    {
+      "query": "22х1",
+      "rows": [
+        {
+          "url": "https://stroydvor21.ru/products/14728",
+          "name": "Кромка AGT (АГТ) 729 Серый soft touch матовая 22х1 (бухта 100 м) 1 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14730",
+          "name": "Кромка AGT (АГТ) 734 Белый soft touch матовая 22х1  (100м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14735",
+          "name": "Кромка AGT (АГТ) 605/Н79 Крем супер глянец 22х1 (бухта 100 м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14738",
+          "name": "Кромка AGT (АГТ) 735 Зеленый шелк soft touch матовая 22х1 (бухта 100 м) 1 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14744",
+          "name": "Кромка AGT (АГТ) 723 Черный soft touch матовая 22х1 (бухта 100 м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14747",
+          "name": "Кромка AGT (АГТ) 6008 Серый делюкс 22х1 (бухта 100 м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14749",
+          "name": "Кромка AGT (АГТ) 878 Визон новый глянец 22х1 (100м) 1 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14751",
+          "name": "Кромка AGT (АГТ) 678/693 /Н90 Крем галакси  глянец 22х1 (бухта 100 м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14763",
+          "name": "Кромка AGT (АГТ) 623 Визон кромка глянец 22х1 (бухта 100м) 2гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14764",
+          "name": "Кромка AGT (АГТ) 654 Дуб германский кромка глянец 22х1 (100м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/14765",
+          "name": "Кромка AGT (АГТ) 390 Серый камень матовая 22х1 (100м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/15407",
+          "name": "Кромка AGT (АГТ) 387 Кашемир серый 22х1 (бухта 100 м) 2 гр*"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/15408",
+          "name": "Кромка AGT (АГТ) 383 Кашемир белый 22х1 (бухта 100 м) 2 гр*"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/15455",
+          "name": "Кромка AGT (АГТ) 6003 Серебристый перламутровый 22х1 (100м) 2 гр. СНЯТО"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/15457",
+          "name": "Кромка AGT (АГТ) 694 Рубик белый глянец 22х1 (бухта 100 м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/15561",
+          "name": "Кромка AGT (АГТ) 3010 Supramat Черный жемчужный 22х1 (100м)"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/15771",
+          "name": "Кромка AGT (АГТ) 699 Белый металлик глянец 22х1 (бухта 100 м) 4 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/15772",
+          "name": "Кромка AGT (АГТ) 391 Бежевый камень матовый 22х1 (100м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/16047",
+          "name": "Кромка AGT (АГТ) 374 Кантри 22х1 (100м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/16049",
+          "name": "Кромка AGT (АГТ) 3006 Белый галакси матовая 22х1 (бухта 100 м)"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/16053",
+          "name": "Кромка AGT (АГТ) 3017 Supramat Таймлес Грей 22х1 (100м)"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/16075",
+          "name": "Кромка AGT (АГТ) 640 Медовый туман галакси глянец 22х1 (бухта 100м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/16076",
+          "name": "Кромка AGT (АГТ) 6004 Белый перламутровый глянец 22х1 (100м) 2 гр СНЯТО"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/17800",
+          "name": "Кромка AGT (АГТ) 386 Matt Cashmere Copper 22х1 (100м) 2 гр."
+        },
+        {
+          "url": "https://stroydvor21.ru/products/17813",
+          "name": "Кромка AGT (АГТ) 3021 Supramat Айс Грей 22х1 (100м)"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/17814",
+          "name": "Кромка AGT (АГТ) 385 Кашемир крем 22х1 (100м) 2 гр.*"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/17816",
+          "name": "Кромка AGT (АГТ) 627 Миланский орех глянец 22х1 (бухта 100м) 2 гр."
+        },
+        {
+          "url": "https://stroydvor21.ru/products/17829",
+          "name": "Кромка AGT (АГТ) 653 Терра коричневая глянец 22х1 (бухта 100м) 2 гр."
+        },
+        {
+          "url": "https://stroydvor21.ru/products/17831",
+          "name": "Кромка AGT (АГТ) 633/Н36 Империя  глянец 22х1 (бухта 100 м) 2 гр"
+        },
+        {
+          "url": "https://stroydvor21.ru/products/17835",
+          "name": "Кромка AGT (АГТ) 3029 Supramat Пацифик 22х1 (100м)"
+        }
+      ],
+      "pages": [],
+      "emptyMessage": false
+    }
+  ],
+  "kronoplastReview": {
+    "highReviewed": 261,
+    "rejected": [],
+    "confirmedEdgeIds": [
+      1,
+      2,
+      7,
+      9,
+      10,
+      12,
+      13,
+      14,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      25,
+      26,
+      27,
+      29,
+      30,
+      31,
+      37,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      59,
+      60,
+      61,
+      63,
+      67,
+      69,
+      73,
+      75,
+      76,
+      79,
+      80,
+      81,
+      82,
+      83,
+      84,
+      85,
+      86,
+      88,
+      90,
+      95,
+      96,
+      97,
+      98,
+      99,
+      100,
+      101,
+      102,
+      103,
+      104,
+      105,
+      108,
+      109,
+      110,
+      111,
+      112,
+      113,
+      114,
+      115,
+      116,
+      120,
+      121,
+      123,
+      124,
+      125,
+      126,
+      127,
+      128,
+      129,
+      130,
+      131,
+      132,
+      133,
+      134,
+      136,
+      137,
+      138,
+      139,
+      140,
+      141,
+      142,
+      143,
+      144,
+      145,
+      146,
+      147,
+      148,
+      152,
+      153,
+      154,
+      155,
+      157,
+      161,
+      162,
+      163,
+      164,
+      165,
+      166,
+      168,
+      169,
+      170,
+      171,
+      172,
+      173,
+      174,
+      175,
+      176,
+      177,
+      178,
+      179,
+      180,
+      181,
+      183,
+      185,
+      187,
+      188,
+      189,
+      190,
+      191,
+      192,
+      193,
+      197,
+      198,
+      202,
+      204,
+      206,
+      209,
+      210,
+      219,
+      221,
+      222,
+      223,
+      224,
+      225,
+      226,
+      227,
+      228,
+      230,
+      231,
+      233,
+      234,
+      235,
+      236,
+      237,
+      243,
+      244,
+      245,
+      249,
+      251,
+      252,
+      254,
+      258,
+      259,
+      260,
+      261,
+      262,
+      263,
+      265,
+      266,
+      267,
+      268,
+      269,
+      270,
+      271,
+      272,
+      273,
+      275,
+      276,
+      278,
+      282,
+      284,
+      291,
+      292,
+      293,
+      296,
+      297,
+      298,
+      300,
+      302,
+      304,
+      305,
+      306,
+      307,
+      314,
+      315,
+      316,
+      317,
+      321,
+      322,
+      323,
+      324,
+      326,
+      329,
+      330,
+      331,
+      332,
+      333,
+      334,
+      335,
+      337,
+      338,
+      339,
+      340,
+      341,
+      345,
+      347,
+      348,
+      350,
+      358,
+      359,
+      360,
+      361,
+      363,
+      364,
+      367,
+      369,
+      370,
+      372,
+      379,
+      381,
+      382,
+      383,
+      384,
+      391,
+      393,
+      399,
+      401,
+      402,
+      404,
+      422,
+      423,
+      424,
+      425,
+      427,
+      442,
+      443,
+      445,
+      446,
+      451,
+      452,
+      453,
+      455
+    ],
+    "checks": [
+      "All property sizes match MM width and thickness exactly.",
+      "All high SE/PE/SM textures match supplier title; no conflicting texture.",
+      "All MM Kronoplast high rows have supplier manufacturer Kronoplast.",
+      "Rows without supplier Code 222/224/291/296 have matching full decor code, name and texture in title.",
+      "White 232 selection 8598 is correct; conflicting title duplicate 22854 has Code 523 and was excluded.",
+      "Valencia codes 3144/434 and Noche188 vs Tuya023/188 were kept distinct."
+    ],
+    "additionalDiscrepancies": [
+      {
+        "edgeId": 300,
+        "productId": 21256,
+        "details": "Supplier title says UVA while supplier manufacturer property says Kronoplast. All decor codes and dimensions match; title dimension typo 19/1/0 is already reported."
+      }
+    ],
+    "externalCatalog": {
+      "mainCatalogUrl": "https://stroydvor21.ru/kromochnye-materialy",
+      "mainPageCount": 60,
+      "mainUniqueProducts": 1776,
+      "completeness": "Every page has identical counts of pcard names and unique cart product IDs; none were omitted by extraction.",
+      "ducoUrl": "https://stroydvor21.ru/kromka-duco",
+      "ducoProducts": 23,
+      "ducoDetails": "ABS23x1, different decor codes, cannot match Evogloss/Evosoft22x1.",
+      "agtListingFile": "/tmp/mm-stroydvor-match/agt-extra-listing.json",
+      "evoglossSearchesFile": "/tmp/mm-stroydvor-match/extra-searches.json",
+      "evoglossDetails": "No results for Evogloss, Evosoft, Cyrillic brand variants, EVS001, EVS023 and P402. P100/P001 yielded other products. External AGT22x1 and22x0.8 use different codes. Technical generic rows are not sufficiently identified."
+    }
+  }
+}
