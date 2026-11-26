@@ -33,6 +33,7 @@ public class CatalogDbContext(DbContextOptions<CatalogDbContext> _options) : DbC
     public DbSet<EdgeManufacturer> EdgeManufacturers { get; init; }
     public DbSet<EdgeSize> EdgeSizes { get; init; }
     public DbSet<EdgeSaleUnit> EdgeSaleUnits { get; init; }
+    public DbSet<EdgeComment> EdgeComments { get; init; }
     public DbSet<EdgeImage> EdgeImages { get; init; }
     public DbSet<EdgeImageCache> EdgeImageCache { get; init; }
     public DbSet<RelationMarking> RelationMarkings { get; init; }

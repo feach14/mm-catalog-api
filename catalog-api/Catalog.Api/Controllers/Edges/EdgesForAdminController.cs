@@ -1,6 +1,7 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Catalog.Api.Features.Edges.ForAdmin;
+using Catalog.Api.Features.Edges.ForAdmin.Dto;
 using Catalog.Api.Features.Edges.ForAdmin.Stroydvor;
 using Catalog.Api.Features.Edges.ForAdmin.Stroydvor.Dto;
 using Catalog.Api.Features.Exports.Dto;
@@ -90,6 +91,26 @@ public sealed class EdgesForAdminController : BaseAdministrationApiController
         [FromBody, Description("Параметры кромки")] UpdateEdgeModel model,
         [FromServices] ICommandHandler<UpdateEdgeCommand, UpdateEdgeCommandResult> handler) =>
         handler.Handle(new UpdateEdgeCommand(id, model), HttpContext.RequestAborted);
+
+    [HttpPost("{id:int}/comments"),
+     EndpointSummary(nameof(AddEdgeComment)),
+     EndpointDescription("Добавление комментария"),
+     ProducesResponseType(typeof(EdgeCommentDto), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Добавленный комментарий")]
+    public Task<EdgeCommentDto> AddEdgeComment(
+        [FromRoute, Description("Id кромки")] int id,
+        [FromBody, Description("Комментарий")] AddEdgeCommentModel model,
+        [FromServices] ICommandHandler<AddEdgeCommentCommand, EdgeCommentDto> handler) =>
+        handler.Handle(new AddEdgeCommentCommand(id, model), HttpContext.RequestAborted);
+
+    [HttpDelete("{id:int}/comments/{commentId:int}"),
+     EndpointSummary(nameof(DeleteEdgeComment)),
+     EndpointDescription("Удаление комментария"),
+     ProducesResponseType(typeof(DeleteEdgeCommentCommandResult), StatusCodes.Status200OK, MediaTypeNames.Application.Json, Description = "Результат команды")]
+    public Task<DeleteEdgeCommentCommandResult> DeleteEdgeComment(
+        [FromRoute, Description("Id кромки")] int id,
+        [FromRoute, Description("Id комментария")] int commentId,
+        [FromServices] ICommandHandler<DeleteEdgeCommentCommand, DeleteEdgeCommentCommandResult> handler) =>
+        handler.Handle(new DeleteEdgeCommentCommand(id, commentId), HttpContext.RequestAborted);
 
     [HttpDelete("{id:int}"),
      EndpointSummary(nameof(DeleteEdge)),

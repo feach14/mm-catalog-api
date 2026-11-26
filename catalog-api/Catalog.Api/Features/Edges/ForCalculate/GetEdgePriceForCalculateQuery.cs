@@ -35,7 +35,8 @@ public sealed record GetEdgePriceForCalculateQueryResult(
     [property: Description("Артикул")] string Article,
     [property: Description("Название")] string Name,
     [property: Description("Длина бухты или кратность отреза в метрах")] decimal QuantityMultiple,
-    [property: Description("Тип: Meter — погонный метр, Roll — бухта"), JsonConverter(typeof(StrictStringEnumConverter))] EdgeSaleUnitTypeEnum SaleUnitType);
+    [property: Description("Тип: Meter — погонный метр, Roll — бухта"), JsonConverter(typeof(StrictStringEnumConverter))] EdgeSaleUnitTypeEnum SaleUnitType,
+    [property: Description("Комментарии для клиента")] string[] ClientComments);
 
 public sealed class GetEdgePriceForCalculateQueryHandler(
     CatalogDbContext dbContext,
@@ -57,7 +58,9 @@ public sealed class GetEdgePriceForCalculateQueryHandler(
                 SizeName = link.Edge.Size.Name,
                 link.Edge.IsStockItem,
                 QuantityMultiple = link.Edge.SaleUnit.Length,
-                link.Edge.SaleUnit.SaleUnitType
+                link.Edge.SaleUnit.SaleUnitType,
+                ClientComments = link.Edge.Comments.Where(comment => comment.IsForClient)
+                    .OrderBy(comment => comment.Id).Select(comment => comment.Text).ToArray()
             })
             .Take(2)
             .ToArrayAsync(ct);
@@ -111,7 +114,7 @@ public sealed class GetEdgePriceForCalculateQueryHandler(
 
         return new GetEdgePriceForCalculateQueryResult(matches[0].Price, matches[0].Article,
             EdgeNameHelper.GetFullName(matches[0].Name, matches[0].SizeName, matches[0].IsStockItem),
-            matches[0].QuantityMultiple, matches[0].SaleUnitType);
+            matches[0].QuantityMultiple, matches[0].SaleUnitType, matches[0].ClientComments);
     }
 
     private const string CalculateMarkingName = "Век ЛК";

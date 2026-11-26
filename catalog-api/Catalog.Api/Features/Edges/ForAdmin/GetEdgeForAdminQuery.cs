@@ -23,7 +23,8 @@ public sealed record GetEdgeForAdminQueryResult(
     [property: Description("Складская позиция")] bool IsStockItem,
     [property: Description("Остаток в метрах")] decimal? StockQuantity,
     [property: Description("Порядок сортировки")] int OrderByCol,
-    [property: Description("Оригинал и миниатюра")] EdgeImagesDto Images);
+    [property: Description("Оригинал и миниатюра")] EdgeImagesDto Images,
+    [property: Description("Комментарии")] EdgeCommentDto[] Comments);
 
 public sealed class GetEdgeForAdminQueryHandler(CatalogDbContext dbContext) : IQueryHandler<GetEdgeForAdminQuery, GetEdgeForAdminQueryResult>
 {
@@ -38,7 +39,9 @@ public sealed class GetEdgeForAdminQueryHandler(CatalogDbContext dbContext) : IQ
                     x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Original).Select(image => (Guid?)image.Guid).SingleOrDefault(),
                     x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Original).Select(image => new EdgeImageMetadataDto(image.ContentType, image.Data.Length)).SingleOrDefault(),
                     x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240).Select(image => (Guid?)image.Guid).SingleOrDefault(),
-                    x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240).Select(image => new EdgeImageMetadataDto(image.ContentType, image.Data.Length)).SingleOrDefault())))
+                    x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240).Select(image => new EdgeImageMetadataDto(image.ContentType, image.Data.Length)).SingleOrDefault()),
+                x.Comments.OrderBy(comment => comment.Id)
+                    .Select(comment => new EdgeCommentDto(comment.Id, comment.Text, comment.IsForClient)).ToArray()))
             .SingleOrDefaultAsync(ct)
         ?? throw new BadHttpRequestException($"Кромка с id={query.Id} не найдена.");
 }

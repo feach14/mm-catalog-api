@@ -30,7 +30,8 @@ public sealed record CuttingMaterialEdgeDto(
     [property: Description("Длина бухты или кратность отреза в метрах")] decimal QuantityMultiple,
     [property: Description("Тип: Meter — погонный метр, Roll — бухта"), JsonConverter(typeof(StrictStringEnumConverter))] EdgeSaleUnitTypeEnum SaleUnitType,
     [property: Description("Приоритет связи")] int Priority,
-    [property: Description("Маркировки связи с материалом")] PropertyDto[] Markings);
+    [property: Description("Маркировки связи с материалом")] PropertyDto[] Markings,
+    [property: Description("Комментарии для клиента")] string[] ClientComments);
 
 public sealed class GetCuttingMaterialQueryHandler(CatalogDbContext dbContext)
     : IQueryHandler<GetCuttingMaterialQuery, GetCuttingMaterialQueryResult>
@@ -89,13 +90,15 @@ public sealed class GetCuttingMaterialQueryHandler(CatalogDbContext dbContext)
                 link.Edge.SaleUnit.SaleUnitType,
                 link.Priority,
                 Markings = link.Markings.OrderBy(marking => marking.Marking.OrderByCol)
-                    .Select(marking => new PropertyDto(marking.MarkingId, marking.Marking.Name)).ToArray()
+                    .Select(marking => new PropertyDto(marking.MarkingId, marking.Marking.Name)).ToArray(),
+                ClientComments = link.Edge.Comments.Where(comment => comment.IsForClient)
+                    .OrderBy(comment => comment.Id).Select(comment => comment.Text).ToArray()
             })
             .ToArrayAsync(ct);
         var edges = links.Select(link => new CuttingMaterialEdgeDto(link.Id,
             EdgeNameHelper.GetFullName(link.Name, link.SizeName, link.IsStockItem), link.Article, link.Price,
             link.Thickness, link.Width, link.IsStockItem,
-            link.QuantityMultiple, link.SaleUnitType, link.Priority, link.Markings)).ToArray();
+            link.QuantityMultiple, link.SaleUnitType, link.Priority, link.Markings, link.ClientComments)).ToArray();
 
         var clientComments = await dbContext.MaterialComments.AsNoTracking()
             .Where(comment => comment.IsForClient

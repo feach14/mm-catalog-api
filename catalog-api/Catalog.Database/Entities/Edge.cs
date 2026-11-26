@@ -24,5 +24,6 @@ public sealed record Edge
     public required bool IsStockItem { get; set; }
     public decimal? StockQuantity { get; set; }
     public int OrderByCol { get; set; }
+    public List<EdgeComment> Comments { get; private set; } = [];
     public List<EdgeImage> Images { get; private set; } = [];
 }

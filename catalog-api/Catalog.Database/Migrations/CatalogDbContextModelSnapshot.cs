@@ -333,6 +333,40 @@ namespace Catalog.Database.Migrations
                     b.ToTable("edges", "catalog");
                 });
 
+            modelBuilder.Entity("Catalog.Database.Entities.EdgeComment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("EdgeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("edge_id");
+
+                    b.Property<bool>("IsForClient")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_for_client");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("text");
+
+                    b.HasKey("Id")
+                        .HasName("pk_edge_comments");
+
+                    b.HasIndex("EdgeId", "Id")
+                        .HasDatabaseName("ix_edge_comments_edge_id_id");
+
+                    b.ToTable("edge_comments", "catalog");
+                });
+
             modelBuilder.Entity("Catalog.Database.Entities.EdgeImage", b =>
                 {
                     b.Property<int>("Id")
@@ -1259,6 +1293,18 @@ namespace Catalog.Database.Migrations
                     b.Navigation("Size");
                 });
 
+            modelBuilder.Entity("Catalog.Database.Entities.EdgeComment", b =>
+                {
+                    b.HasOne("Catalog.Database.Entities.Edge", "Edge")
+                        .WithMany("Comments")
+                        .HasForeignKey("EdgeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_edge_comments_edges_edge_id");
+
+                    b.Navigation("Edge");
+                });
+
             modelBuilder.Entity("Catalog.Database.Entities.EdgeImage", b =>
                 {
                     b.HasOne("Catalog.Database.Entities.Edge", "Edge")
@@ -1416,6 +1462,8 @@ namespace Catalog.Database.Migrations
 
             modelBuilder.Entity("Catalog.Database.Entities.Edge", b =>
                 {
+                    b.Navigation("Comments");
+
                     b.Navigation("Images");
                 });
 

@@ -1,3 +1,4 @@
+using Catalog.Api.Features.Edges.ForAdmin.Dto;
 using Catalog.Database;
 using Catalog.Database.Enums;
 using Core.CQRS;
@@ -26,7 +27,8 @@ public sealed record GetCompactEdgesForAdminQueryItem(
     [property: Description("Складская позиция")] bool IsStockItem,
     [property: Description("Остаток в метрах")] decimal? StockQuantity,
     [property: Description("Порядок сортировки")] int OrderByCol,
-    [property: Description("GUID миниатюры")] Guid? Thumbnail240);
+    [property: Description("GUID миниатюры")] Guid? Thumbnail240,
+    [property: Description("Комментарии")] EdgeCommentDto[] Comments);
 
 public sealed record EdgesForAdminFiltersDto(
     [property: Description("Производители")] EdgeFilterItemDto[] Manufacturers,
@@ -62,7 +64,9 @@ public sealed class GetCompactEdgesForAdminQueryHandler(CatalogDbContext dbConte
                 x.ManufacturerId, x.SizeId, x.SaleUnitId,
                 x.IsStockItem, x.StockQuantity, x.OrderByCol,
                 x.Images.Where(image => image.ImageType == EdgeImageTypeEnum.Thumbnail240)
-                    .Select(image => (Guid?)image.Guid).SingleOrDefault()))
+                    .Select(image => (Guid?)image.Guid).SingleOrDefault(),
+                x.Comments.OrderBy(comment => comment.Id)
+                    .Select(comment => new EdgeCommentDto(comment.Id, comment.Text, comment.IsForClient)).ToArray()))
             .ToArrayAsync(ct);
         var manufacturers = await dbContext.EdgeManufacturers.AsNoTracking()
             .OrderBy(x => x.Name).ThenBy(x => x.Id)
